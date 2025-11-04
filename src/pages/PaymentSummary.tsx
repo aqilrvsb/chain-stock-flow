@@ -14,6 +14,7 @@ const PaymentSummary = () => {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   // Get status from URL params
   const status = searchParams.get("status") || "pending";
@@ -56,13 +57,35 @@ const PaymentSummary = () => {
               }
             );
 
-            if (!statusError && statusData?.status) {
+            if (!statusError && statusData) {
+              // Auto-update status based on Billplz response
+              let newStatus = pendingOrder.status;
+
+              if (statusData.paid === true) {
+                newStatus = 'completed';
+              } else if (statusData.paid === false && statusData.state !== 'pending') {
+                // If not paid and state is not pending (e.g., "due", "overdue"), mark as failed
+                newStatus = 'failed';
+              }
+
               // Update local state if status changed
-              if (statusData.status !== pendingOrder.status) {
+              if (newStatus !== pendingOrder.status) {
+                setOrderDetails({ ...pendingOrder, status: newStatus });
+
+                // Start countdown for redirect
+                if (newStatus === 'completed' || newStatus === 'failed') {
+                  setCountdown(10);
+                }
+              } else if (statusData.status && statusData.status !== pendingOrder.status) {
+                // Fallback: use status from API if available
                 setOrderDetails({ ...pendingOrder, status: statusData.status });
+                if (statusData.status === 'completed' || statusData.status === 'failed') {
+                  setCountdown(10);
+                }
               }
             }
           }
+        }
         }
       } catch (error) {
         console.error("Error fetching order details:", error);
@@ -82,6 +105,23 @@ const PaymentSummary = () => {
 
     return () => clearInterval(pollInterval);
   }, [orderNumber, user?.id, orderDetails?.status]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null) return;
+
+    if (countdown === 0) {
+      // Redirect to transactions page
+      navigate("/dashboard?view=transactions");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, navigate]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -116,13 +156,24 @@ const PaymentSummary = () => {
           .single();
 
         if (pendingOrder) {
-          setOrderDetails(pendingOrder);
-          if (pendingOrder.status === 'pending') {
-            toast.info("Payment is still pending");
-          } else if (pendingOrder.status === 'completed') {
+          // Auto-update status based on Billplz response
+          let newStatus = pendingOrder.status;
+
+          if (statusData.paid === true) {
+            newStatus = 'completed';
             toast.success("Payment successful!");
-          } else if (pendingOrder.status === 'failed') {
+          } else if (statusData.paid === false && statusData.state !== 'pending') {
+            newStatus = 'failed';
             toast.error("Payment failed or cancelled");
+          } else if (pendingOrder.status === 'pending') {
+            toast.info("Payment is still pending");
+          }
+
+          setOrderDetails({ ...pendingOrder, status: newStatus });
+
+          // Start countdown for redirect
+          if (newStatus === 'completed' || newStatus === 'failed') {
+            setCountdown(10);
           }
         }
       }
@@ -187,6 +238,13 @@ const PaymentSummary = () => {
               <p className="text-center text-muted-foreground">
                 {statusConfig.description}
               </p>
+              {countdown !== null && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-center text-blue-800 font-semibold">
+                    Redirecting to transactions in {countdown} second{countdown !== 1 ? 's' : ''}...
+                  </p>
+                </div>
+              )}
             </div>
           </CardHeader>
         </Card>
