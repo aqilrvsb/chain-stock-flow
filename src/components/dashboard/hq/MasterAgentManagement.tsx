@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from "lucide-react";
 import Swal from "sweetalert2";
 import { format } from "date-fns";
+import { MALAYSIA_STATES } from "@/constants/malaysiaStates";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const MasterAgentManagement = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -25,6 +27,7 @@ const MasterAgentManagement = () => {
   const [newPassword, setNewPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [idstaff, setIdstaff] = useState("");
+  const [state, setState] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,6 +63,7 @@ const MasterAgentManagement = () => {
           fullName: userData.fullName,
           role: 'master_agent',
           idstaff: userData.idstaff,
+          state: userData.state,
         },
       });
 
@@ -107,7 +111,7 @@ const MasterAgentManagement = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createUser.mutate({ email, password, fullName, idstaff });
+    createUser.mutate({ email, password, fullName, idstaff, state });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -122,6 +126,7 @@ const MasterAgentManagement = () => {
         .update({
           full_name: userData.fullName,
           idstaff: userData.idstaff,
+          state: userData.state,
         })
         .eq("id", userData.id);
 
@@ -191,6 +196,7 @@ const MasterAgentManagement = () => {
     setFullName(user.full_name || "");
     setIdstaff(user.idstaff || "");
     setEmail(user.email);
+    setState(user.state || "");
     setNewPassword("");
     setIsEditOpen(true);
   };
@@ -201,6 +207,7 @@ const MasterAgentManagement = () => {
       id: editingUser.id,
       fullName,
       idstaff,
+      state,
       newPassword,
     });
   };
@@ -221,6 +228,7 @@ const MasterAgentManagement = () => {
     setNewPassword("");
     setFullName("");
     setIdstaff("");
+    setState("");
     setEditingUser(null);
   };
 
@@ -311,6 +319,21 @@ const MasterAgentManagement = () => {
                     minLength={6}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MALAYSIA_STATES.map((stateName) => (
+                        <SelectItem key={stateName} value={stateName}>
+                          {stateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button type="submit" className="w-full" disabled={createUser.isPending}>
                   Create Master Agent
                 </Button>
@@ -351,6 +374,21 @@ const MasterAgentManagement = () => {
                     value={email}
                     disabled
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-state">State</Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MALAYSIA_STATES.map((stateName) => (
+                        <SelectItem key={stateName} value={stateName}>
+                          {stateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-password">Change Password (Optional)</Label>
@@ -397,6 +435,7 @@ const MasterAgentManagement = () => {
                   <TableHead>IDSTAFF</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>State</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Active</TableHead>
@@ -409,6 +448,7 @@ const MasterAgentManagement = () => {
                     <TableCell className="font-medium">{user.idstaff || "N/A"}</TableCell>
                     <TableCell>{user.full_name || "N/A"}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.state || "-"}</TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? "default" : "secondary"}>
                         {user.is_active ? "Active" : "Inactive"}

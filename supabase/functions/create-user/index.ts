@@ -14,6 +14,7 @@ const CreateUserSchema = z.object({
   role: z.enum(['hq', 'master_agent', 'agent'], { invalid_type_error: "Invalid role" }),
   masterAgentId: z.string().uuid().optional(),
   idstaff: z.string().trim().min(1).max(50).optional(),
+  state: z.string().trim().max(100).optional(),
 });
 
 Deno.serve(async (req) => {
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
       throw new Error(`Validation failed: ${errors}`)
     }
 
-    const { email, password, fullName, role, masterAgentId, idstaff } = validationResult.data
+    const { email, password, fullName, role, masterAgentId, idstaff, state } = validationResult.data
 
     // Validate idstaff uniqueness
     if (idstaff) {
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
         .select('id')
         .eq('idstaff', idstaff)
         .maybeSingle()
-      
+
       if (existingStaff) {
         throw new Error('A user with this IDSTAFF already exists')
       }
@@ -85,6 +86,7 @@ Deno.serve(async (req) => {
       user_metadata: {
         full_name: fullName,
         idstaff: idstaff,
+        state: state,
       },
     })
 
@@ -96,13 +98,17 @@ Deno.serve(async (req) => {
       throw createError
     }
 
-    // Update profile with idstaff
-    if (idstaff) {
+    // Update profile with idstaff and state
+    if (idstaff || state) {
+      const updateData: any = {}
+      if (idstaff) updateData.idstaff = idstaff
+      if (state) updateData.state = state
+
       const { error: profileUpdateError } = await supabaseAdmin
         .from('profiles')
-        .update({ idstaff: idstaff })
+        .update(updateData)
         .eq('id', authData.user.id)
-      
+
       if (profileUpdateError) throw profileUpdateError
     }
 

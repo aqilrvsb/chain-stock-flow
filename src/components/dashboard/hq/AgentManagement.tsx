@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from "lucide-react";
 import Swal from "sweetalert2";
 import { format } from "date-fns";
+import { MALAYSIA_STATES } from "@/constants/malaysiaStates";
 
 const AgentManagement = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -27,6 +28,7 @@ const AgentManagement = () => {
   const [fullName, setFullName] = useState("");
   const [idstaff, setIdstaff] = useState("");
   const [masterAgentId, setMasterAgentId] = useState("");
+  const [state, setState] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -111,6 +113,7 @@ const AgentManagement = () => {
           role: 'agent',
           masterAgentId: userData.masterAgentId,
           idstaff: userData.idstaff,
+          state: userData.state,
         },
       });
 
@@ -166,7 +169,7 @@ const AgentManagement = () => {
       });
       return;
     }
-    createUser.mutate({ email, password, fullName, masterAgentId, idstaff });
+    createUser.mutate({ email, password, fullName, masterAgentId, idstaff, state });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -181,6 +184,7 @@ const AgentManagement = () => {
         .update({
           full_name: userData.fullName,
           idstaff: userData.idstaff,
+          state: userData.state,
         })
         .eq("id", userData.id);
 
@@ -276,6 +280,7 @@ const AgentManagement = () => {
     setIdstaff(user.idstaff || "");
     setEmail(user.email);
     setMasterAgentId(user.master_agent?.id || "");
+    setState(user.state || "");
     setNewPassword("");
     setIsEditOpen(true);
   };
@@ -295,6 +300,7 @@ const AgentManagement = () => {
       fullName,
       idstaff,
       masterAgentId,
+      state,
       newPassword,
     });
   };
@@ -316,6 +322,7 @@ const AgentManagement = () => {
     setFullName("");
     setIdstaff("");
     setMasterAgentId("");
+    setState("");
     setEditingUser(null);
   };
 
@@ -407,6 +414,21 @@ const AgentManagement = () => {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MALAYSIA_STATES.map((stateName) => (
+                        <SelectItem key={stateName} value={stateName}>
+                          {stateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="masterAgent">Assign to Master Agent</Label>
                   <Select value={masterAgentId} onValueChange={setMasterAgentId}>
                     <SelectTrigger>
@@ -461,6 +483,21 @@ const AgentManagement = () => {
                     value={email}
                     disabled
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-state">State</Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MALAYSIA_STATES.map((stateName) => (
+                        <SelectItem key={stateName} value={stateName}>
+                          {stateName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-masterAgent">Assign to Master Agent</Label>
@@ -522,6 +559,7 @@ const AgentManagement = () => {
                   <TableHead>IDSTAFF</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>State</TableHead>
                   <TableHead>Master Agent</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created At</TableHead>
@@ -535,10 +573,11 @@ const AgentManagement = () => {
                     <TableCell className="font-medium">{user.idstaff || "N/A"}</TableCell>
                     <TableCell>{user.full_name || "N/A"}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.state || "-"}</TableCell>
                     <TableCell>
-                      {user.master_agent?.idstaff || 
-                       user.master_agent?.full_name || 
-                       user.master_agent?.email || 
+                      {user.master_agent?.idstaff ||
+                       user.master_agent?.full_name ||
+                       user.master_agent?.email ||
                        "N/A"}
                     </TableCell>
                     <TableCell>

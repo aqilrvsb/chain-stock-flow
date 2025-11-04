@@ -261,8 +261,8 @@ const TransactionHistory = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {/* Recheck button - only for Master Agent and HQ, not for Agent */}
-                        {order.status === 'failed' && (order as any).billplz_bill_id && userRole !== 'agent' ? (
+                        {/* Recheck button - only for PENDING status, Master Agent and HQ, not for Agent */}
+                        {order.status === 'pending' && (order as any).billplz_bill_id && userRole !== 'agent' ? (
                           <Button
                             size="sm"
                             variant="outline"

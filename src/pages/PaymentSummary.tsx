@@ -70,19 +70,36 @@ const PaymentSummary = () => {
 
             // Update local state if status changed
             if (newStatus !== pendingOrder.status) {
+              // Update database status
+              await supabase
+                .from('pending_orders')
+                .update({ status: newStatus, updated_at: new Date().toISOString() })
+                .eq('id', pendingOrder.id);
+
               setOrderDetails({ ...pendingOrder, status: newStatus });
 
-              // Start countdown for redirect and stop polling
-              if (newStatus === 'completed' || newStatus === 'failed') {
+              // Start countdown for redirect and stop polling (only for completed)
+              if (newStatus === 'completed') {
                 shouldPollRef.current = false;
                 setCountdown(10);
               }
+              // For failed, just stop polling but don't redirect
+              else if (newStatus === 'failed') {
+                shouldPollRef.current = false;
+              }
             } else if (statusData.status && statusData.status !== pendingOrder.status) {
               // Fallback: use status from API if available
+              await supabase
+                .from('pending_orders')
+                .update({ status: statusData.status, updated_at: new Date().toISOString() })
+                .eq('id', pendingOrder.id);
+
               setOrderDetails({ ...pendingOrder, status: statusData.status });
-              if (statusData.status === 'completed' || statusData.status === 'failed') {
+              if (statusData.status === 'completed') {
                 shouldPollRef.current = false;
                 setCountdown(10);
+              } else if (statusData.status === 'failed') {
+                shouldPollRef.current = false;
               }
             }
           }
@@ -171,12 +188,22 @@ const PaymentSummary = () => {
             toast.info("Payment is still pending");
           }
 
+          // Update database if status changed
+          if (newStatus !== pendingOrder.status) {
+            await supabase
+              .from('pending_orders')
+              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .eq('id', pendingOrder.id);
+          }
+
           setOrderDetails({ ...pendingOrder, status: newStatus });
 
-          // Start countdown for redirect and stop polling
-          if (newStatus === 'completed' || newStatus === 'failed') {
+          // Start countdown for redirect and stop polling (only for completed)
+          if (newStatus === 'completed') {
             shouldPollRef.current = false;
             setCountdown(10);
+          } else if (newStatus === 'failed') {
+            shouldPollRef.current = false;
           }
         }
       }

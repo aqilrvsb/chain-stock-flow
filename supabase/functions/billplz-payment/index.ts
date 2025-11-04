@@ -287,11 +287,24 @@ async function handleWebhook(req: Request): Promise<Response> {
     if (isPaidSuccess) {
       console.log(`💰 Payment SUCCESSFUL - Processing order ${payment.order_number}`);
 
-      // Create completed transaction with bill ID
+      // Billplz is only used for Master Agent → HQ transactions
+      // Agent → Master Agent uses manual transactions (see TransactionAgent.tsx)
+      // So seller is always HQ for Billplz payments
+      const { data: hqUser } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'hq')
+        .limit(1)
+        .single();
+
+      const sellerId = hqUser?.user_id || null;
+
+      // Create completed transaction with bill ID and seller_id
       const { error: txError } = await supabase
         .from('transactions')
         .insert({
           buyer_id: payment.buyer_id,
+          seller_id: sellerId,
           product_id: payment.product_id,
           quantity: payment.quantity,
           unit_price: payment.unit_price,
@@ -305,7 +318,7 @@ async function handleWebhook(req: Request): Promise<Response> {
         return new Response('Error creating transaction', { status: 500 });
       }
 
-      // Update buyer's inventory
+      // Update buyer's inventory (increase)
       const { data: existingInventory } = await supabase
         .from('inventory')
         .select('*')
@@ -330,13 +343,36 @@ async function handleWebhook(req: Request): Promise<Response> {
           });
       }
 
+      // Update seller's inventory (decrease) - only if seller exists
+      if (sellerId) {
+        const { data: sellerInventory } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', sellerId)
+          .eq('product_id', payment.product_id)
+          .maybeSingle();
+
+        if (sellerInventory && sellerInventory.quantity >= payment.quantity) {
+          await supabase
+            .from('inventory')
+            .update({
+              quantity: sellerInventory.quantity - payment.quantity,
+            })
+            .eq('id', sellerInventory.id);
+
+          console.log(`📦 Seller inventory decreased by ${payment.quantity} units`);
+        } else {
+          console.warn(`⚠️ Seller inventory insufficient or not found. Current: ${sellerInventory?.quantity || 0}, Required: ${payment.quantity}`);
+        }
+      }
+
       // Mark pending order as completed
       await supabase
         .from('pending_orders')
         .update({ status: 'completed' })
         .eq('id', payment.id);
 
-      console.log('✅ Payment processed successfully, inventory updated');
+      console.log('✅ Payment processed successfully, buyer and seller inventory updated');
     } else {
       console.log(`❌ Payment NOT successful (paid: ${billData.paid}, state: ${billData.state})`);
       
@@ -478,7 +514,7 @@ async function checkBillStatus(req: Request): Promise<Response> {
                 billplz_bill_id: actualBillId,
               });
 
-            // Update buyer's inventory
+            // Update buyer's inventory (increase)
             const { data: existingInventory } = await supabase
               .from('inventory')
               .select('*')
@@ -499,6 +535,25 @@ async function checkBillStatus(req: Request): Promise<Response> {
                   product_id: order.product_id,
                   quantity: order.quantity,
                 });
+            }
+
+            // Update HQ's inventory (decrease)
+            const { data: hqInventory } = await supabase
+              .from('inventory')
+              .select('*')
+              .eq('user_id', hqUser.user_id)
+              .eq('product_id', order.product_id)
+              .maybeSingle();
+
+            if (hqInventory && hqInventory.quantity >= order.quantity) {
+              await supabase
+                .from('inventory')
+                .update({ quantity: hqInventory.quantity - order.quantity })
+                .eq('id', hqInventory.id);
+
+              console.log(`📦 HQ inventory decreased by ${order.quantity} units`);
+            } else {
+              console.warn(`⚠️ HQ inventory insufficient. Current: ${hqInventory?.quantity || 0}, Required: ${order.quantity}`);
             }
           }
         }
@@ -595,12 +650,23 @@ async function recheckPayment(billId: string): Promise<Response> {
     // If payment is now successful and order was failed/pending, process it
     if (isPaid && (order.status === 'failed' || order.status === 'pending')) {
       console.log(`✅ Recheck: Payment is now successful! Processing order ${order.order_number}`);
-      
+
+      // Get HQ as the seller (Billplz only for Master Agent → HQ)
+      const { data: hqUser } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'hq')
+        .limit(1)
+        .single();
+
+      const sellerId = hqUser?.user_id || null;
+
       // Create transaction
       const { error: txError } = await supabase
         .from('transactions')
         .insert({
           buyer_id: order.buyer_id,
+          seller_id: sellerId,
           product_id: order.product_id,
           quantity: order.quantity,
           unit_price: order.unit_price,
@@ -614,7 +680,7 @@ async function recheckPayment(billId: string): Promise<Response> {
         throw new Error('Failed to create transaction');
       }
 
-      // Update inventory
+      // Update buyer's inventory (increase)
       const { data: existingInventory } = await supabase
         .from('inventory')
         .select('*')
@@ -637,6 +703,27 @@ async function recheckPayment(billId: string): Promise<Response> {
           });
       }
 
+      // Update HQ's inventory (decrease)
+      if (sellerId) {
+        const { data: hqInventory } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', sellerId)
+          .eq('product_id', order.product_id)
+          .maybeSingle();
+
+        if (hqInventory && hqInventory.quantity >= order.quantity) {
+          await supabase
+            .from('inventory')
+            .update({ quantity: hqInventory.quantity - order.quantity })
+            .eq('id', hqInventory.id);
+
+          console.log(`📦 HQ inventory decreased by ${order.quantity} units`);
+        } else {
+          console.warn(`⚠️ HQ inventory insufficient. Current: ${hqInventory?.quantity || 0}, Required: ${order.quantity}`);
+        }
+      }
+
       // Update order status to completed
       await supabase
         .from('pending_orders')
@@ -644,7 +731,7 @@ async function recheckPayment(billId: string): Promise<Response> {
         .eq('id', order.id);
 
       status = 'completed';
-      console.log('✅ Recheck: Order processed successfully, inventory updated');
+      console.log('✅ Recheck: Order processed successfully, buyer and HQ inventory updated');
     } else if (!isPaid) {
       // Still not paid - keep as failed
       status = 'failed';
