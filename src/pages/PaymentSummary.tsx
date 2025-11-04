@@ -32,9 +32,12 @@ const PaymentSummary = () => {
           .from("pending_orders")
           .select(`
             *,
-            products:product_id (
+            products!product_id (
               name,
               image_url
+            ),
+            bundles!bundle_id (
+              name
             )
           `)
           .eq("order_number", orderNumber)
@@ -104,9 +107,12 @@ const PaymentSummary = () => {
           .from("pending_orders")
           .select(`
             *,
-            products:product_id (
+            products!product_id (
               name,
               image_url
+            ),
+            bundles!bundle_id (
+              name
             )
           `)
           .eq("order_number", orderNumber)
@@ -204,6 +210,13 @@ const PaymentSummary = () => {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Product:</span>
                   <span className="font-semibold">{orderDetails.products.name}</span>
+                </div>
+              )}
+
+              {orderDetails.bundles && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bundle:</span>
+                  <span className="font-semibold">{orderDetails.bundles.name}</span>
                 </div>
               )}
 
