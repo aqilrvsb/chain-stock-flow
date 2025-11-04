@@ -15,6 +15,7 @@ const PaymentSummary = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [shouldPoll, setShouldPoll] = useState(true);
 
   // Get status from URL params
   const status = searchParams.get("status") || "pending";
@@ -72,14 +73,16 @@ const PaymentSummary = () => {
               if (newStatus !== pendingOrder.status) {
                 setOrderDetails({ ...pendingOrder, status: newStatus });
 
-                // Start countdown for redirect
+                // Start countdown for redirect and stop polling
                 if (newStatus === 'completed' || newStatus === 'failed') {
+                  setShouldPoll(false);
                   setCountdown(10);
                 }
               } else if (statusData.status && statusData.status !== pendingOrder.status) {
                 // Fallback: use status from API if available
                 setOrderDetails({ ...pendingOrder, status: statusData.status });
                 if (statusData.status === 'completed' || statusData.status === 'failed') {
+                  setShouldPoll(false);
                   setCountdown(10);
                 }
               }
@@ -95,15 +98,15 @@ const PaymentSummary = () => {
 
     fetchOrderDetails();
 
-    // Poll for status updates if order is pending
+    // Poll for status updates if order is pending and polling is enabled
     const pollInterval = setInterval(() => {
-      if (orderDetails?.status === 'pending') {
+      if (orderDetails?.status === 'pending' && shouldPoll) {
         fetchOrderDetails();
       }
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(pollInterval);
-  }, [orderNumber, user?.id, orderDetails?.status]);
+  }, [orderNumber, user?.id, orderDetails?.status, shouldPoll]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -170,8 +173,9 @@ const PaymentSummary = () => {
 
           setOrderDetails({ ...pendingOrder, status: newStatus });
 
-          // Start countdown for redirect
+          // Start countdown for redirect and stop polling
           if (newStatus === 'completed' || newStatus === 'failed') {
+            setShouldPoll(false);
             setCountdown(10);
           }
         }
