@@ -50,11 +50,9 @@ const PaymentSummary = () => {
           // If order has a bill ID and is pending, check status directly with Billplz API
           if ((pendingOrder as any).billplz_bill_id && pendingOrder.status === 'pending') {
             const { data: statusData, error: statusError } = await supabase.functions.invoke(
-              'billplz-payment',
+              `billplz-payment?order_number=${orderNumber}`,
               {
-                method: 'GET',
-                // @ts-ignore
-                params: { order_number: orderNumber }
+                method: 'GET'
               }
             );
 
@@ -90,11 +88,9 @@ const PaymentSummary = () => {
     try {
       // Check payment status directly via Billplz API
       const { data: statusData, error: statusError } = await supabase.functions.invoke(
-        'billplz-payment',
+        `billplz-payment?order_number=${orderNumber}`,
         {
-          method: 'GET',
-          // @ts-ignore
-          params: { order_number: orderNumber }
+          method: 'GET'
         }
       );
 
