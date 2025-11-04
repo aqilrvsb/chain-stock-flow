@@ -1,19 +1,27 @@
 # Fix Billplz Edge Function 500 Error
 
-## Problem
-Edge function returns error: `{"error":"Billplz not configured. Please contact administrator."}`
+## Problems
+1. `{"error":"Billplz not configured. Please contact administrator."}`
+2. `{"error":"Failed to generate order number"}`
 
 ## Root Cause
-The `billplz-payment` edge function requires two settings in the `system_settings` table:
-- `billplz_api_key`
-- `billplz_collection_id`
+The `billplz-payment` edge function requires:
+1. Two settings in the `system_settings` table:
+   - `billplz_api_key`
+   - `billplz_collection_id`
+2. A database function: `generate_order_number()`
 
-## Solution - 3 SQL Scripts to Run
+## Solution - 4 SQL Scripts to Run
 
-### Step 1: Create the Upsert Function
-Run this in Supabase SQL Editor: [CREATE_UPSERT_FUNCTION.sql](CREATE_UPSERT_FUNCTION.sql)
+### Step 1: Create Required Functions
+Run these in Supabase SQL Editor:
 
-This creates a helper function that allows HQ to safely update system settings.
+**A. Upsert Function** - [CREATE_UPSERT_FUNCTION.sql](CREATE_UPSERT_FUNCTION.sql)
+- Allows HQ to safely update system settings
+
+**B. Order Number Generator** - [CREATE_GENERATE_ORDER_NUMBER_FUNCTION.sql](CREATE_GENERATE_ORDER_NUMBER_FUNCTION.sql)
+- Generates unique order numbers (ON1, ON2, ON3...)
+- Required by payment processing
 
 ### Step 2: Insert Billplz Configuration
 Run this in Supabase SQL Editor: [INSERT_BILLPLZ_CONFIG.sql](INSERT_BILLPLZ_CONFIG.sql)
