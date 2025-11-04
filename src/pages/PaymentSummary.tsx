@@ -86,7 +86,6 @@ const PaymentSummary = () => {
             }
           }
         }
-        }
       } catch (error) {
         console.error("Error fetching order details:", error);
       } finally {
