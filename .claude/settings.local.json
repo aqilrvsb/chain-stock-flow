@@ -7,7 +7,12 @@
       "Bash(npx supabase link:*)",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nMigrate to new Supabase instance\n\n- Update connection to new Supabase project (nzjolxsloobsoqltkpmi)\n- Complete database setup with all 13 tables and 46 RLS policies\n- Data migration from Lovable Cloud with UUID mapping\n- Update environment variables and config files\n- Add migration documentation and SQL scripts\n\nGenerated with Claude Code\nhttps://claude.com/claude-code\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "Bash(git branch:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
