@@ -1,0 +1,416 @@
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Upload } from "lucide-react";
+
+const Settings = () => {
+  const { user, userRole } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [billplzApiKey, setBillplzApiKey] = useState("");
+  const [billplzCollectionId, setBillplzCollectionId] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user?.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch Billplz configuration (HQ only)
+  const { data: billplzConfig } = useQuery({
+    queryKey: ["billplz-config"],
+    queryFn: async () => {
+      const { data: apiKey } = await (supabase as any)
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "billplz_api_key")
+        .maybeSingle();
+
+      const { data: collectionId } = await (supabase as any)
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "billplz_collection_id")
+        .maybeSingle();
+
+      return {
+        apiKey: apiKey?.setting_value || "",
+        collectionId: collectionId?.setting_value || "",
+      };
+    },
+    enabled: userRole === 'hq',
+  });
+
+  const updateProfile = useMutation({
+    mutationFn: async (updates: any) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user?.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Profile updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updatePassword = useMutation({
+    mutationFn: async (password: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const { data, error } = await supabase.functions.invoke('update-user-password', {
+        body: { userId: user?.id, password },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({ title: "Password updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Password update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleProfileUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    updateProfile.mutate({
+      phone_number: formData.get("phone_number"),
+      whatsapp_number: formData.get("whatsapp_number"),
+      delivery_address: formData.get("delivery_address"),
+    });
+  };
+
+  const handlePasswordUpdate = () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast({
+        title: "Invalid password",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure both passwords match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updatePassword.mutate(newPassword);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file",
+        description: "Please select an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+
+    try {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `system/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath);
+
+      // Update system settings (types will be regenerated after deployment)
+      const { error: updateError } = await (supabase as any)
+        .from('system_settings')
+        .upsert({
+          setting_key: 'logo_url',
+          setting_value: publicUrl,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'setting_key'
+        });
+
+      if (updateError) throw updateError;
+
+      toast({ title: "Logo uploaded successfully" });
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleBillplzUpdate = async () => {
+    if (!billplzApiKey || !billplzCollectionId) {
+      toast({
+        title: "Missing information",
+        description: "Please provide both API Key and Collection ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update both settings
+      await (supabase as any).rpc('upsert_system_setting', {
+        p_key: 'billplz_api_key',
+        p_value: billplzApiKey
+      });
+
+      await (supabase as any).rpc('upsert_system_setting', {
+        p_key: 'billplz_collection_id',
+        p_value: billplzCollectionId
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["billplz-config"] });
+      toast({ title: "Billplz configuration updated successfully" });
+      setBillplzApiKey("");
+      setBillplzCollectionId("");
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Settings</h1>
+
+      {userRole === 'hq' && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>System Logo</CardTitle>
+              <CardDescription>Upload a logo to display on the login page</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="logo">Logo Image</Label>
+                  <Input
+                    ref={fileInputRef}
+                    id="logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={uploadingLogo}
+                  />
+                </div>
+                {uploadingLogo && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading logo...
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Billplz Payment Gateway</CardTitle>
+              <CardDescription>Configure Billplz for payment processing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {billplzConfig && (
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  <p className="font-medium">Current Configuration:</p>
+                  <p className="text-muted-foreground">API Key: {billplzConfig.apiKey ? '••••••••' : 'Not set'}</p>
+                  <p className="text-muted-foreground">Collection ID: {billplzConfig.collectionId || 'Not set'}</p>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="billplz_api_key">Billplz API Key</Label>
+                <Input
+                  id="billplz_api_key"
+                  type="password"
+                  value={billplzApiKey}
+                  onChange={(e) => setBillplzApiKey(e.target.value)}
+                  placeholder="Enter Billplz API Key"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="billplz_collection_id">Billplz Collection ID</Label>
+                <Input
+                  id="billplz_collection_id"
+                  type="text"
+                  value={billplzCollectionId}
+                  onChange={(e) => setBillplzCollectionId(e.target.value)}
+                  placeholder="Enter Collection ID (e.g., watojri1)"
+                />
+              </div>
+
+              <Button onClick={handleBillplzUpdate}>
+                Save Billplz Configuration
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact & Delivery Information</CardTitle>
+          <CardDescription>Update your contact details and delivery address</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleProfileUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone_number">Phone Number</Label>
+              <Input
+                id="phone_number"
+                name="phone_number"
+                type="tel"
+                defaultValue={profile?.phone_number || ""}
+                placeholder="e.g., +60123456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp_number">WhatsApp Number</Label>
+              <Input
+                id="whatsapp_number"
+                name="whatsapp_number"
+                type="tel"
+                defaultValue={profile?.whatsapp_number || ""}
+                placeholder="e.g., +60123456789"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="delivery_address">Delivery Address</Label>
+              <Textarea
+                id="delivery_address"
+                name="delivery_address"
+                rows={4}
+                defaultValue={profile?.delivery_address || ""}
+                placeholder="Enter your complete delivery address"
+              />
+            </div>
+
+            <Button type="submit" disabled={updateProfile.isPending}>
+              {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Contact Information
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+          <CardDescription>Update your account password</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new_password">New Password</Label>
+            <Input
+              id="new_password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password (min. 6 characters)"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">Confirm New Password</Label>
+            <Input
+              id="confirm_password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+            />
+          </div>
+
+          <Button onClick={handlePasswordUpdate} disabled={updatePassword.isPending}>
+            {updatePassword.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Update Password
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Settings;

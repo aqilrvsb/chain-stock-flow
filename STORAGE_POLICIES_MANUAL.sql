@@ -1,0 +1,68 @@
+-- ============================================================
+-- STORAGE POLICIES - MANUAL SETUP
+-- ============================================================
+--
+-- IMPORTANT: These policies CANNOT be created via SQL due to
+-- permission restrictions. You must create them manually via
+-- the Supabase Dashboard.
+--
+-- ============================================================
+
+-- HOW TO CREATE STORAGE POLICIES MANUALLY:
+--
+-- 1. Go to your Supabase Dashboard:
+--    https://supabase.com/dashboard/project/rfjcdvaentqmpnuqymmz
+--
+-- 2. Navigate to: Storage > product-images > Policies
+--
+-- 3. Click "New Policy"
+--
+-- ============================================================
+-- POLICY 1: HQ can upload product images
+-- ============================================================
+--
+-- Policy Name: HQ can upload product images
+-- Allowed operation: INSERT
+-- Target roles: authenticated
+--
+-- Policy definition (USING clause):
+bucket_id = 'product-images' AND (SELECT has_role(auth.uid(), 'hq'::app_role))
+
+-- ============================================================
+-- POLICY 2: Anyone can view product images
+-- ============================================================
+--
+-- Policy Name: Anyone can view product images
+-- Allowed operation: SELECT
+-- Target roles: public
+--
+-- Policy definition (USING clause):
+bucket_id = 'product-images'
+
+-- ============================================================
+-- ALTERNATIVE: Use Supabase Dashboard UI
+-- ============================================================
+--
+-- If the above SQL syntax doesn't work, use the Dashboard UI:
+--
+-- For Policy 1 (HQ Upload):
+-- 1. Click "New Policy" in Storage Policies
+-- 2. Choose "Custom" policy
+-- 3. Name: HQ can upload product images
+-- 4. Policy command: INSERT
+-- 5. Target roles: authenticated
+-- 6. USING expression:
+--    bucket_id = 'product-images' AND (SELECT has_role(auth.uid(), 'hq'::app_role))
+-- 7. Click "Review" then "Save policy"
+--
+-- For Policy 2 (Public View):
+-- 1. Click "New Policy" in Storage Policies
+-- 2. Choose "Allow public access" template (or Custom)
+-- 3. Name: Anyone can view product images
+-- 4. Policy command: SELECT
+-- 5. Target roles: public
+-- 6. USING expression:
+--    bucket_id = 'product-images'
+-- 7. Click "Review" then "Save policy"
+--
+-- ============================================================

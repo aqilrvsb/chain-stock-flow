@@ -1,0 +1,7 @@
+project_id = "nzjolxsloobsoqltkpmi"
+
+[functions.bayarcash-callback]
+verify_jwt = false
+
+[functions.billplz-payment]
+verify_jwt = false
