@@ -33,7 +33,7 @@ const TransactionHistory = () => {
       if (endDate) {
         query = query.lte("created_at", new Date(endDate).toISOString());
       }
-      
+
       const { data: ordersData, error } = await query;
       if (error) throw error;
 
@@ -44,11 +44,20 @@ const TransactionHistory = () => {
         .select("id, name, sku")
         .in("id", productIds);
 
-      // Merge products with orders
+      // Fetch bundles data
+      const bundleIds = [...new Set(ordersData?.map(o => o.bundle_id).filter(Boolean))];
+      const { data: bundlesData } = await supabase
+        .from("bundles")
+        .select("id, name")
+        .in("id", bundleIds);
+
+      // Merge products and bundles with orders
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
+      const bundlesMap = new Map(bundlesData?.map(b => [b.id, b]));
       return ordersData?.map(order => ({
         ...order,
-        product: productsMap.get(order.product_id)
+        product: productsMap.get(order.product_id),
+        bundle: bundlesMap.get(order.bundle_id)
       }));
     },
   });
@@ -240,7 +249,7 @@ const TransactionHistory = () => {
                       {format(new Date(order.created_at), "dd-MM-yyyy")}
                     </TableCell>
                     <TableCell>{order.product?.name || "-"}</TableCell>
-                    <TableCell>{order.order_number || "-"}</TableCell>
+                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>
                       <span className="text-xs font-mono text-muted-foreground">
                         {(order as any).billplz_bill_id || "-"}

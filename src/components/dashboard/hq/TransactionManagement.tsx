@@ -35,21 +35,25 @@ const TransactionManagement = () => {
       const { data: ordersData, error } = await query;
       if (error) throw error;
 
-      // Fetch products and buyer data
+      // Fetch products, bundles, and buyer data
       const productIds = [...new Set(ordersData?.map(o => o.product_id))];
+      const bundleIds = [...new Set(ordersData?.map(o => o.bundle_id).filter(Boolean))];
       const buyerIds = [...new Set(ordersData?.map(o => o.buyer_id))];
-      
-      const [{ data: productsData }, { data: buyersData }] = await Promise.all([
+
+      const [{ data: productsData }, { data: bundlesData }, { data: buyersData }] = await Promise.all([
         supabase.from("products").select("id, name, sku").in("id", productIds),
+        supabase.from("bundles").select("id, name").in("id", bundleIds),
         supabase.from("profiles").select("id, full_name, email").in("id", buyerIds)
       ]);
 
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
+      const bundlesMap = new Map(bundlesData?.map(b => [b.id, b]));
       const buyersMap = new Map(buyersData?.map(b => [b.id, b]));
-      
+
       return ordersData?.map(order => ({
         ...order,
         product: productsMap.get(order.product_id),
+        bundle: bundlesMap.get(order.bundle_id),
         buyer: buyersMap.get(order.buyer_id)
       }));
     },
@@ -348,7 +352,7 @@ const TransactionManagement = () => {
                       </div>
                     </TableCell>
                     <TableCell>{order.product?.name || "-"}</TableCell>
-                    <TableCell>{order.order_number || "-"}</TableCell>
+                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}

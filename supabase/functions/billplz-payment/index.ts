@@ -176,6 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
         order_number: orderNumber,
         buyer_id: user.id,
         product_id: bundle.product_id,
+        bundle_id: bundleId,
         quantity: serverTotalQuantity,
         unit_price: serverUnitPrice,
         total_price: serverTotalPrice,
