@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,98 +15,98 @@ const PaymentSummary = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [shouldPoll, setShouldPoll] = useState(true);
+  const shouldPollRef = useRef(true);
 
   // Get status from URL params
   const status = searchParams.get("status") || "pending";
   const orderNumber = searchParams.get("order");
 
-  useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (!orderNumber || !user?.id) {
-        setLoading(false);
-        return;
-      }
+  const fetchOrderDetails = useCallback(async () => {
+    if (!orderNumber || !user?.id) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        // First fetch order details
-        const { data: pendingOrder } = await supabase
-          .from("pending_orders")
-          .select(`
-            *,
-            products!product_id (
-              name,
-              image_url
-            ),
-            bundles!bundle_id (
-              name
-            )
-          `)
-          .eq("order_number", orderNumber)
-          .eq("buyer_id", user.id)
-          .single();
+    try {
+      // First fetch order details
+      const { data: pendingOrder } = await supabase
+        .from("pending_orders")
+        .select(`
+          *,
+          products!product_id (
+            name,
+            image_url
+          ),
+          bundles!bundle_id (
+            name
+          )
+        `)
+        .eq("order_number", orderNumber)
+        .eq("buyer_id", user.id)
+        .single();
 
-        if (pendingOrder) {
-          setOrderDetails(pendingOrder);
+      if (pendingOrder) {
+        setOrderDetails(pendingOrder);
 
-          // If order has a bill ID and is pending, check status directly with Billplz API
-          if ((pendingOrder as any).billplz_bill_id && pendingOrder.status === 'pending') {
-            const { data: statusData, error: statusError } = await supabase.functions.invoke(
-              `billplz-payment?order_number=${orderNumber}`,
-              {
-                method: 'GET'
+        // If order has a bill ID and is pending, check status directly with Billplz API
+        if ((pendingOrder as any).billplz_bill_id && pendingOrder.status === 'pending' && shouldPollRef.current) {
+          const { data: statusData, error: statusError } = await supabase.functions.invoke(
+            `billplz-payment?order_number=${orderNumber}`,
+            {
+              method: 'GET'
+            }
+          );
+
+          if (!statusError && statusData) {
+            // Auto-update status based on Billplz response
+            let newStatus = pendingOrder.status;
+
+            if (statusData.paid === true) {
+              newStatus = 'completed';
+            } else if (statusData.paid === false && statusData.state !== 'pending') {
+              // If not paid and state is not pending (e.g., "due", "overdue"), mark as failed
+              newStatus = 'failed';
+            }
+
+            // Update local state if status changed
+            if (newStatus !== pendingOrder.status) {
+              setOrderDetails({ ...pendingOrder, status: newStatus });
+
+              // Start countdown for redirect and stop polling
+              if (newStatus === 'completed' || newStatus === 'failed') {
+                shouldPollRef.current = false;
+                setCountdown(10);
               }
-            );
-
-            if (!statusError && statusData) {
-              // Auto-update status based on Billplz response
-              let newStatus = pendingOrder.status;
-
-              if (statusData.paid === true) {
-                newStatus = 'completed';
-              } else if (statusData.paid === false && statusData.state !== 'pending') {
-                // If not paid and state is not pending (e.g., "due", "overdue"), mark as failed
-                newStatus = 'failed';
-              }
-
-              // Update local state if status changed
-              if (newStatus !== pendingOrder.status) {
-                setOrderDetails({ ...pendingOrder, status: newStatus });
-
-                // Start countdown for redirect and stop polling
-                if (newStatus === 'completed' || newStatus === 'failed') {
-                  setShouldPoll(false);
-                  setCountdown(10);
-                }
-              } else if (statusData.status && statusData.status !== pendingOrder.status) {
-                // Fallback: use status from API if available
-                setOrderDetails({ ...pendingOrder, status: statusData.status });
-                if (statusData.status === 'completed' || statusData.status === 'failed') {
-                  setShouldPoll(false);
-                  setCountdown(10);
-                }
+            } else if (statusData.status && statusData.status !== pendingOrder.status) {
+              // Fallback: use status from API if available
+              setOrderDetails({ ...pendingOrder, status: statusData.status });
+              if (statusData.status === 'completed' || statusData.status === 'failed') {
+                shouldPollRef.current = false;
+                setCountdown(10);
               }
             }
           }
         }
-      } catch (error) {
-        console.error("Error fetching order details:", error);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [orderNumber, user?.id]);
 
+  useEffect(() => {
     fetchOrderDetails();
 
     // Poll for status updates if order is pending and polling is enabled
     const pollInterval = setInterval(() => {
-      if (orderDetails?.status === 'pending' && shouldPoll) {
+      if (shouldPollRef.current) {
         fetchOrderDetails();
       }
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(pollInterval);
-  }, [orderNumber, user?.id, orderDetails?.status, shouldPoll]);
+  }, [fetchOrderDetails]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -175,7 +175,7 @@ const PaymentSummary = () => {
 
           // Start countdown for redirect and stop polling
           if (newStatus === 'completed' || newStatus === 'failed') {
-            setShouldPoll(false);
+            shouldPollRef.current = false;
             setCountdown(10);
           }
         }
