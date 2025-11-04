@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt } from "lucide-react";
 import Swal from "sweetalert2";
 
 const TransactionHistory = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -260,32 +260,39 @@ const TransactionHistory = () => {
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
-                      {order.status === 'failed' && (order as any).billplz_bill_id ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
-                          disabled={recheckingBills.has((order as any).billplz_bill_id)}
-                          className="gap-2"
-                          title="Recheck Payment Status"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
-                          Recheck
-                        </Button>
-                      ) : order.status === 'completed' && (order as any).billplz_bill_id ? (
-                        <a
-                          href={`https://www.billplz.com/bills/${(order as any).billplz_bill_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                          title="View Invoice"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {/* Recheck button - only for Master Agent and HQ, not for Agent */}
+                        {order.status === 'failed' && (order as any).billplz_bill_id && userRole !== 'agent' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
+                            disabled={recheckingBills.has((order as any).billplz_bill_id)}
+                            className="gap-2"
+                            title="Recheck Payment Status"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
+                            Recheck
+                          </Button>
+                        ) : null}
+
+                        {/* Invoice icon - for all completed orders */}
+                        {order.status === 'completed' ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
+                            className="gap-2"
+                            title="View Invoice"
+                          >
+                            <Receipt className="h-4 w-4" />
+                            Invoice
+                          </Button>
+                        ) : order.status === 'failed' && userRole === 'agent' ? (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        ) : null}
+
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

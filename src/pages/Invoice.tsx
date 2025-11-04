@@ -1,0 +1,310 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { Loader2, FileText } from "lucide-react";
+
+const Invoice = () => {
+  const [searchParams] = useSearchParams();
+  const orderNumber = searchParams.get("order");
+  const [orderData, setOrderData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [logoUrl, setLogoUrl] = useState<string>("");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch logo URL from system_settings
+        const { data: logoData } = await (supabase as any)
+          .from("system_settings")
+          .select("setting_value")
+          .eq("setting_key", "logo_url")
+          .maybeSingle();
+
+        if (logoData?.setting_value) {
+          setLogoUrl(logoData.setting_value);
+        }
+
+        // Fetch order details with all related data
+        const { data: orderDetails, error } = await supabase
+          .from("pending_orders")
+          .select(`
+            *,
+            buyer:profiles!buyer_id(
+              full_name,
+              email,
+              phone_number,
+              whatsapp_number,
+              delivery_address,
+              idstaff
+            ),
+            product:products!product_id(
+              name,
+              sku,
+              description
+            ),
+            bundle:bundles!bundle_id(
+              name,
+              units
+            )
+          `)
+          .eq("order_number", orderNumber)
+          .single();
+
+        if (error) throw error;
+        setOrderData(orderDetails);
+      } catch (error) {
+        console.error("Error fetching invoice data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (orderNumber) {
+      fetchData();
+    }
+  }, [orderNumber]);
+
+  useEffect(() => {
+    // Auto-print when data is loaded
+    if (orderData && !loading) {
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    }
+  }, [orderData, loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <p className="mt-4 text-gray-600">Loading invoice...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!orderData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800">Invoice Not Found</h2>
+          <p className="text-gray-600 mt-2">Order number: {orderNumber}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const statusColor = orderData.status === 'completed' ? 'text-green-600' :
+                      orderData.status === 'failed' ? 'text-red-600' :
+                      'text-yellow-600';
+
+  const statusBg = orderData.status === 'completed' ? 'bg-green-50' :
+                   orderData.status === 'failed' ? 'bg-red-50' :
+                   'bg-yellow-50';
+
+  return (
+    <div className="min-h-screen bg-white p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8 pb-8 border-b-2 border-gray-200">
+          <div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="Company Logo" className="h-16 w-auto mb-4" />
+            ) : (
+              <div className="h-16 w-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mb-4">
+                <span className="text-white font-bold text-xl">OJ System</span>
+              </div>
+            )}
+            <h1 className="text-3xl font-bold text-gray-900">INVOICE</h1>
+            <p className="text-gray-600 mt-1">Order #{orderData.order_number}</p>
+          </div>
+          <div className="text-right">
+            <div className={`inline-block px-4 py-2 rounded-lg ${statusBg} mb-4`}>
+              <span className={`font-bold text-lg uppercase ${statusColor}`}>
+                {orderData.status}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">Invoice Date</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {format(new Date(orderData.created_at), "dd MMMM yyyy")}
+            </p>
+            <p className="text-sm text-gray-600 mt-2">Transaction ID</p>
+            <p className="text-xs font-mono text-gray-700">
+              {orderData.transaction_id || orderData.billplz_bill_id || "-"}
+            </p>
+          </div>
+        </div>
+
+        {/* Billing Information */}
+        <div className="grid grid-cols-2 gap-8 mb-8">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-600 uppercase mb-3">Bill To</h2>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="font-bold text-lg text-gray-900">{orderData.buyer?.full_name || "N/A"}</p>
+              <p className="text-sm text-gray-600 mt-1">ID: {orderData.buyer?.idstaff || "N/A"}</p>
+              <p className="text-sm text-gray-700 mt-2">{orderData.buyer?.email || "N/A"}</p>
+              {orderData.buyer?.phone_number && (
+                <p className="text-sm text-gray-700">Phone: {orderData.buyer.phone_number}</p>
+              )}
+              {orderData.buyer?.whatsapp_number && (
+                <p className="text-sm text-gray-700">WhatsApp: {orderData.buyer.whatsapp_number}</p>
+              )}
+              {orderData.buyer?.delivery_address && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Delivery Address</p>
+                  <p className="text-sm text-gray-700">{orderData.buyer.delivery_address}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-600 uppercase mb-3">Payment Information</h2>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Payment Method</span>
+                  <span className="text-sm font-semibold text-gray-900">Billplz</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Bill ID</span>
+                  <span className="text-xs font-mono text-gray-700">{orderData.billplz_bill_id || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <span className={`text-sm font-bold uppercase ${statusColor}`}>{orderData.status}</span>
+                </div>
+                {orderData.updated_at && (
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                    <span className="text-sm text-gray-600">Last Updated</span>
+                    <span className="text-xs text-gray-700">
+                      {format(new Date(orderData.updated_at), "dd/MM/yyyy HH:mm")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Order Items */}
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-gray-600 uppercase mb-3">Order Details</h2>
+          <div className="overflow-hidden border border-gray-200 rounded-lg">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Product</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Bundle</th>
+                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Quantity</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Unit Price</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                <tr className="border-b border-gray-100">
+                  <td className="py-4 px-4">
+                    <p className="font-semibold text-gray-900">{orderData.product?.name || "N/A"}</p>
+                    {orderData.product?.sku && (
+                      <p className="text-xs text-gray-500">SKU: {orderData.product.sku}</p>
+                    )}
+                    {orderData.product?.description && (
+                      <p className="text-xs text-gray-600 mt-1">{orderData.product.description}</p>
+                    )}
+                  </td>
+                  <td className="py-4 px-4">
+                    <p className="font-medium text-gray-900">{orderData.bundle?.name || "-"}</p>
+                    {orderData.bundle?.units && (
+                      <p className="text-xs text-gray-500">{orderData.bundle.units} units per bundle</p>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 text-center">
+                    <span className="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-semibold">
+                      {orderData.quantity}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-right font-medium text-gray-900">
+                    RM {parseFloat(orderData.unit_price).toFixed(2)}
+                  </td>
+                  <td className="py-4 px-4 text-right font-bold text-gray-900">
+                    RM {parseFloat(orderData.total_price).toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Total Summary */}
+        <div className="flex justify-end mb-8">
+          <div className="w-80">
+            <div className="bg-gray-50 rounded-lg p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-semibold text-gray-900">
+                  RM {parseFloat(orderData.total_price).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Tax (0%)</span>
+                <span className="font-semibold text-gray-900">RM 0.00</span>
+              </div>
+              <div className="border-t border-gray-300 pt-3 flex justify-between">
+                <span className="text-lg font-bold text-gray-900">Total Amount</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  RM {parseFloat(orderData.total_price).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t-2 border-gray-200 pt-6 mt-8">
+          <div className="text-center space-y-2">
+            <p className="text-sm text-gray-600">Thank you for your business!</p>
+            <p className="text-xs text-gray-500">
+              This is a computer-generated invoice and does not require a signature.
+            </p>
+            <p className="text-xs text-gray-400 mt-4">
+              Generated on {format(new Date(), "dd MMMM yyyy 'at' HH:mm")}
+            </p>
+          </div>
+        </div>
+
+        {/* Print Button - Hidden when printing */}
+        <div className="mt-8 text-center print:hidden">
+          <button
+            onClick={() => window.print()}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition-colors"
+          >
+            Print Invoice
+          </button>
+          <button
+            onClick={() => window.close()}
+            className="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-8 py-3 rounded-lg transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* Print-specific styles */}
+      <style>{`
+        @media print {
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default Invoice;
