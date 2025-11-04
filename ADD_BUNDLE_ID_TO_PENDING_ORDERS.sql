@@ -28,8 +28,16 @@ FROM information_schema.columns
 WHERE table_name = 'pending_orders'
   AND column_name = 'bundle_id';
 
--- Show all pending_orders columns
-\d pending_orders;
+-- Show all pending_orders columns (alternative to \d)
+SELECT
+  column_name,
+  data_type,
+  character_maximum_length,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_name = 'pending_orders'
+ORDER BY ordinal_position;
 
 -- ============================================================
 -- NOTES
