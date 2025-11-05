@@ -9,22 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt } from "lucide-react";
 import Swal from "sweetalert2";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 const TransactionHistory = () => {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
-  const [remarkText, setRemarkText] = useState("");
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["pending_orders", user?.id, startDate, endDate, statusFilter],
@@ -167,31 +161,6 @@ const TransactionHistory = () => {
         return newSet;
       });
     }
-  };
-
-  // Mutation for saving remarks
-  const saveRemarkMutation = useMutation({
-    mutationFn: async ({ orderId, remark }: { orderId: string; remark: string }) => {
-      const { error } = await supabase
-        .from("pending_orders")
-        .update({ remarks: remark })
-        .eq("id", orderId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Remark saved successfully");
-      queryClient.invalidateQueries({ queryKey: ["pending_orders"] });
-      setRemarkText("");
-      setSelectedOrderId(null);
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to save remark");
-    },
-  });
-
-  const handleSaveRemark = (orderId: string) => {
-    saveRemarkMutation.mutate({ orderId, remark: remarkText });
   };
 
   const getStatusBadge = (status: string) => {
@@ -340,48 +309,9 @@ const TransactionHistory = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedOrderId(order.id);
-                              setRemarkText((order as any).remarks || "");
-                            }}
-                            className="gap-2"
-                            title="Add/View Remark"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>
-                              {userRole === 'hq' ? 'Order Remark' : 'HQ Remark'}
-                            </DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <Textarea
-                              placeholder={userRole === 'hq' ? "Enter remark here..." : "No remark from HQ"}
-                              value={remarkText}
-                              onChange={(e) => setRemarkText(e.target.value)}
-                              rows={5}
-                              disabled={userRole !== 'hq'}
-                              readOnly={userRole !== 'hq'}
-                              className={userRole !== 'hq' ? "bg-muted cursor-not-allowed" : ""}
-                            />
-                            {userRole === 'hq' && (
-                              <Button
-                                onClick={() => handleSaveRemark(order.id)}
-                                disabled={saveRemarkMutation.isPending}
-                              >
-                                {saveRemarkMutation.isPending ? "Saving..." : "Save Remark"}
-                              </Button>
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <span className="text-sm text-muted-foreground">
+                        {(order as any).remarks || "-"}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
