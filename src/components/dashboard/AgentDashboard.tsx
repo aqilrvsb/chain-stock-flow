@@ -2,7 +2,7 @@ import { useState } from "react";
 import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import PurchaseProducts from "./common/PurchaseProducts";
-import MyInventory from "./common/MyInventory";
+import AgentInventory from "./agent/AgentInventory";
 import AgentTransactions from "./agent/AgentTransactions";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
@@ -17,7 +17,7 @@ const AgentDashboard = () => {
       case "purchase":
         return <PurchaseProducts userType="agent" onNavigateToSettings={() => setActiveView("settings")} onNavigateToTransactions={() => setActiveView("transactions")} />;
       case "inventory":
-        return <MyInventory />;
+        return <AgentInventory />;
       case "transactions":
         return <AgentTransactions />;
       case "analytics":

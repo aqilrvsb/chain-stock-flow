@@ -3,7 +3,7 @@ import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import PurchaseProducts from "./common/PurchaseProducts";
 import TransactionHistory from "./common/TransactionHistory";
-import MyInventory from "./common/MyInventory";
+import MasterAgentInventory from "./master-agent/MasterAgentInventory";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
 import MyAnalytics from "./common/MyAnalytics";
@@ -19,7 +19,7 @@ const MasterAgentDashboard = () => {
       case "purchase":
         return <PurchaseProducts userType="master_agent" onNavigateToSettings={() => setActiveView("settings")} />;
       case "inventory":
-        return <MyInventory />;
+        return <MasterAgentInventory />;
       case "agents":
         return <MyAgents />;
       case "transactions":
