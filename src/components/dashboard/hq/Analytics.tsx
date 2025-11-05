@@ -325,20 +325,6 @@ const Analytics = () => {
       color: "text-rose-600",
     },
     {
-      title: "Total Reward Monthly MA Achieve",
-      value: analyticsData?.maRewardAchieveCount || 0,
-      icon: Award,
-      subtitle: "Master agents with rewards",
-      color: "text-yellow-600",
-    },
-    {
-      title: "Total Reward Monthly Agent Achieve",
-      value: analyticsData?.agentRewardAchieveCount || 0,
-      icon: Target,
-      subtitle: "Agents with rewards",
-      color: "text-amber-600",
-    },
-    {
       title: "Latest Balance Unit",
       value: analyticsData?.latestBalanceHQ || 0,
       icon: Package,
