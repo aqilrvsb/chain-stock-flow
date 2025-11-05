@@ -1,120 +1,274 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { DollarSign, TrendingUp, Users, Package, Calendar, Target, PhoneCall, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DollarSign,
+  TrendingUp,
+  Users,
+  Package,
+  ShoppingCart,
+  Target,
+  Award,
+  UserCheck,
+  TrendingDown,
+  ArrowUpCircle,
+  ArrowDownCircle
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const Analytics = () => {
-  const { data: transactions } = useQuery({
-    queryKey: ["hq-transactions"],
+  const { user } = useAuth();
+
+  // Get current month start and end dates
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  const [startDate, setStartDate] = useState(currentMonthStart.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(currentMonthEnd.toISOString().split('T')[0]);
+
+  // Fetch all data
+  const { data: analyticsData, isLoading } = useQuery({
+    queryKey: ["hq-analytics", startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase.from("transactions").select("*");
-      if (error) throw error;
-      return data;
+      const startDateTime = new Date(startDate).toISOString();
+      const endDateTime = new Date(new Date(endDate).setHours(23, 59, 59)).toISOString();
+
+      // 1. Total Unit In (Stock In HQ)
+      const { data: stockInData } = await supabase
+        .from("stock_in_hq")
+        .select("quantity")
+        .gte("date", startDateTime)
+        .lte("date", endDateTime);
+
+      const totalUnitIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+      // 2. Total Unit Master Agent Buy (pending_orders where success)
+      const { data: pendingOrders } = await supabase
+        .from("pending_orders")
+        .select("quantity, total_price, product_id")
+        .eq("status", "completed")
+        .gte("created_at", startDateTime)
+        .lte("created_at", endDateTime);
+
+      const totalUnitMABuy = pendingOrders?.reduce((sum, order) => sum + order.quantity, 0) || 0;
+      const totalSalesMA = pendingOrders?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
+
+      // 3. Total Unit Agent Buy (agent_purchases where success)
+      const { data: agentPurchases } = await supabase
+        .from("agent_purchases")
+        .select("quantity, total_price, product_id")
+        .eq("status", "completed")
+        .gte("created_at", startDateTime)
+        .lte("created_at", endDateTime);
+
+      const totalUnitAgentBuy = agentPurchases?.reduce((sum, purchase) => sum + purchase.quantity, 0) || 0;
+      const totalSalesAgent = agentPurchases?.reduce((sum, purchase) => sum + Number(purchase.total_price), 0) || 0;
+
+      // 4. Get all products to calculate profit
+      const { data: products } = await supabase
+        .from("products")
+        .select("id, base_cost");
+
+      const productsMap = new Map(products?.map(p => [p.id, p.base_cost]) || []);
+
+      // Calculate Profit Master Agent
+      let profitMA = 0;
+      pendingOrders?.forEach(order => {
+        const baseCost = productsMap.get(order.product_id) || 0;
+        const profit = Number(order.total_price) - (Number(baseCost) * order.quantity);
+        profitMA += profit;
+      });
+
+      // Calculate Profit Agent
+      let profitAgent = 0;
+      agentPurchases?.forEach(purchase => {
+        const baseCost = productsMap.get(purchase.product_id) || 0;
+        const profit = Number(purchase.total_price) - (Number(baseCost) * purchase.quantity);
+        profitAgent += profit;
+      });
+
+      // 5. Total Master Agent Aktif
+      const { data: masterAgents } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          user_roles!user_roles_user_id_fkey!inner(role)
+        `)
+        .eq("user_roles.role", "master_agent");
+
+      const totalMAActive = masterAgents?.length || 0;
+
+      // 6. Total Agent Aktif
+      const { data: agents } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          user_roles!user_roles_user_id_fkey!inner(role)
+        `)
+        .eq("user_roles.role", "agent");
+
+      const totalAgentActive = agents?.length || 0;
+
+      // 7. Total Reward Monthly Master Agent Achieve
+      const month = currentMonthStart.getMonth() + 1;
+      const year = currentMonthStart.getFullYear();
+
+      const { data: maRewards } = await supabase
+        .from("rewards_config")
+        .select("*")
+        .eq("role", "master_agent")
+        .eq("month", month)
+        .eq("year", year)
+        .eq("is_active", true);
+
+      // Get MA transactions for the month
+      const monthStartDate = new Date(year, month - 1, 1);
+      const monthEndDate = new Date(year, month, 0, 23, 59, 59);
+
+      let maRewardAchieveCount = 0;
+      if (maRewards && maRewards.length > 0 && masterAgents) {
+        for (const ma of masterAgents) {
+          const { data: maOrders } = await supabase
+            .from("pending_orders")
+            .select("quantity")
+            .eq("buyer_id", ma.id)
+            .eq("status", "completed")
+            .gte("created_at", monthStartDate.toISOString())
+            .lte("created_at", monthEndDate.toISOString());
+
+          const totalQty = maOrders?.reduce((sum, o) => sum + o.quantity, 0) || 0;
+
+          // Check if achieved any reward
+          const achieved = maRewards.some(reward => totalQty >= reward.min_quantity);
+          if (achieved) maRewardAchieveCount++;
+        }
+      }
+
+      // 8. Total Reward Monthly Agent Achieve
+      const { data: agentRewards } = await supabase
+        .from("rewards_config")
+        .select("*")
+        .eq("role", "agent")
+        .eq("month", month)
+        .eq("year", year)
+        .eq("is_active", true);
+
+      let agentRewardAchieveCount = 0;
+      if (agentRewards && agentRewards.length > 0 && agents) {
+        for (const agent of agents) {
+          const { data: agentOrders } = await supabase
+            .from("agent_purchases")
+            .select("quantity")
+            .eq("agent_id", agent.id)
+            .eq("status", "completed")
+            .gte("created_at", monthStartDate.toISOString())
+            .lte("created_at", monthEndDate.toISOString());
+
+          const totalQty = agentOrders?.reduce((sum, o) => sum + o.quantity, 0) || 0;
+
+          // Check if achieved any reward
+          const achieved = agentRewards.some(reward => totalQty >= reward.min_quantity);
+          if (achieved) agentRewardAchieveCount++;
+        }
+      }
+
+      return {
+        totalUnitIn,
+        totalUnitMABuy,
+        totalUnitAgentBuy,
+        totalSalesMA,
+        profitMA,
+        totalSalesAgent,
+        profitAgent,
+        totalMAActive,
+        totalAgentActive,
+        maRewardAchieveCount,
+        agentRewardAchieveCount,
+      };
     },
   });
-
-  const { data: products } = useQuery({
-    queryKey: ["hq-products"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: masterAgents } = useQuery({
-    queryKey: ["master-agents"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*").eq("role", "master_agent");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: agents } = useQuery({
-    queryKey: ["agents"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*").eq("role", "agent");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const totalSales = transactions?.reduce((sum, t) => sum + Number(t.total_price), 0) || 0;
-  const totalProfit = transactions?.reduce((sum, t) => {
-    const product = products?.find(p => p.id === t.product_id);
-    const profit = Number(t.total_price) - (Number(product?.base_cost || 0) * t.quantity);
-    return sum + profit;
-  }, 0) || 0;
-
-  const today = new Date().toISOString().split('T')[0];
 
   const stats = [
     {
-      title: "Total Sales",
-      value: `RM ${totalSales.toFixed(2)}`,
-      icon: Target,
-      subtitle: "All-time revenue",
-      iconBg: "bg-purple-100 dark:bg-purple-900/20",
-      iconColor: "text-purple-600 dark:text-purple-400",
+      title: "Total Unit In",
+      value: analyticsData?.totalUnitIn || 0,
+      icon: ArrowUpCircle,
+      subtitle: "Stock In HQ",
+      color: "text-blue-600",
     },
     {
-      title: "Total Contacts",
-      value: (masterAgents?.length || 0) + (agents?.length || 0),
+      title: "Total Unit Master Agent Buy",
+      value: analyticsData?.totalUnitMABuy || 0,
+      icon: ShoppingCart,
+      subtitle: "Success orders",
+      color: "text-green-600",
+    },
+    {
+      title: "Total Unit Agent Buy",
+      value: analyticsData?.totalUnitAgentBuy || 0,
+      icon: Package,
+      subtitle: "Success purchases",
+      color: "text-purple-600",
+    },
+    {
+      title: "Total Sales Master Agent",
+      value: `RM ${(analyticsData?.totalSalesMA || 0).toFixed(2)}`,
+      icon: DollarSign,
+      subtitle: "Revenue from MA",
+      color: "text-emerald-600",
+    },
+    {
+      title: "Profit Master Agent",
+      value: `RM ${(analyticsData?.profitMA || 0).toFixed(2)}`,
+      icon: TrendingUp,
+      subtitle: "Total profit from MA",
+      color: "text-teal-600",
+    },
+    {
+      title: "Total Sales Agent",
+      value: `RM ${(analyticsData?.totalSalesAgent || 0).toFixed(2)}`,
+      icon: DollarSign,
+      subtitle: "Revenue from Agents",
+      color: "text-cyan-600",
+    },
+    {
+      title: "Profit Agent",
+      value: `RM ${(analyticsData?.profitAgent || 0).toFixed(2)}`,
+      icon: TrendingUp,
+      subtitle: "Total profit from Agents",
+      color: "text-indigo-600",
+    },
+    {
+      title: "Total Master Agent Active",
+      value: analyticsData?.totalMAActive || 0,
       icon: Users,
-      subtitle: "Active users",
-      iconBg: "bg-purple-100 dark:bg-purple-900/20",
-      iconColor: "text-purple-600 dark:text-purple-400",
+      subtitle: "Active master agents",
+      color: "text-orange-600",
     },
     {
-      title: "Total Minutes Used",
-      value: `${totalProfit.toFixed(1)} min`,
-      icon: Calendar,
-      subtitle: "Pro account usage",
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      title: "Total Agent Active",
+      value: analyticsData?.totalAgentActive || 0,
+      icon: UserCheck,
+      subtitle: "Active agents",
+      color: "text-pink-600",
     },
     {
-      title: "Remaining Minutes",
-      value: `${(products?.length || 0)} min`,
-      icon: Calendar,
-      subtitle: "Pro account balance",
-      iconBg: "bg-green-100 dark:bg-green-900/20",
-      iconColor: "text-green-600 dark:text-green-400",
+      title: "MA Reward Achievers (Monthly)",
+      value: analyticsData?.maRewardAchieveCount || 0,
+      icon: Award,
+      subtitle: "Master agents with rewards",
+      color: "text-yellow-600",
     },
     {
-      title: "Total Calls",
-      value: transactions?.length || 0,
-      icon: PhoneCall,
-      subtitle: "All transactions",
-      iconBg: "bg-blue-100 dark:bg-blue-900/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
-    },
-    {
-      title: "Answered",
-      value: transactions?.filter(t => t.transaction_type === "purchase").length || 0,
-      icon: CheckCircle,
-      subtitle: "Completed purchases",
-      iconBg: "bg-green-100 dark:bg-green-900/20",
-      iconColor: "text-green-600 dark:text-green-400",
-    },
-    {
-      title: "Unanswered",
-      value: 0,
-      icon: XCircle,
-      subtitle: "Pending items",
-      iconBg: "bg-orange-100 dark:bg-orange-900/20",
-      iconColor: "text-orange-600 dark:text-orange-400",
-    },
-    {
-      title: "Voicemail/Failed",
-      value: 0,
-      icon: AlertCircle,
-      subtitle: "Failed transactions",
-      iconBg: "bg-red-100 dark:bg-red-900/20",
-      iconColor: "text-red-600 dark:text-red-400",
+      title: "Agent Reward Achievers (Monthly)",
+      value: analyticsData?.agentRewardAchieveCount || 0,
+      icon: Target,
+      subtitle: "Agents with rewards",
+      color: "text-red-600",
     },
   ];
 
@@ -122,43 +276,56 @@ const Analytics = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Date Filters
-          </CardTitle>
+          <CardTitle>Date Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="from-date">From Date</Label>
-              <Input id="from-date" type="date" defaultValue={today} className="w-full" />
+              <Input
+                id="from-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="to-date">To Date</Label>
-              <Input id="to-date" type="date" defaultValue={today} className="w-full" />
+              <Input
+                id="to-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full"
+              />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                  <p className="text-3xl font-bold text-primary">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+      {isLoading ? (
+        <div className="text-center py-8">Loading analytics...</div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {stats.map((stat) => (
+            <Card key={stat.title} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                  </div>
+                  <div className="p-2 rounded-full bg-muted">
+                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                  </div>
                 </div>
-                <div className={`p-3 rounded-full ${stat.iconBg}`}>
-                  <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

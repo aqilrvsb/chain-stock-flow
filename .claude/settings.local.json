@@ -16,7 +16,8 @@
       "Bash(git checkout:*)",
       "Bash(nul)",
       "Bash(findstr:*)",
-      "Bash(del \"supabase\\migrations\\20251105000005_create_public_storage_bucket.sql\")"
+      "Bash(del \"supabase\\migrations\\20251105000005_create_public_storage_bucket.sql\")",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
