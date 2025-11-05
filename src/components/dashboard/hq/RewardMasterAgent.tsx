@@ -68,12 +68,12 @@ const RewardMasterAgent = () => {
 
       const progressData = await Promise.all(
         masterAgents.map(async (ma) => {
+          // Get completed purchases only from pending_orders table
           const { data: transactions } = await supabase
-            .from("transactions")
+            .from("pending_orders")
             .select("quantity")
             .eq("buyer_id", ma.id)
-            .eq("seller_id", hqUser.id)
-            .eq("transaction_type", "purchase")
+            .eq("status", "completed")
             .gte("created_at", startDate.toISOString())
             .lte("created_at", endDate.toISOString());
 
