@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Users, Award, Target, TrendingUp } from "lucide-react";
 
 const RewardAgent = () => {
@@ -159,50 +160,53 @@ const RewardAgent = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filter by Period</CardTitle>
-          <div className="grid gap-4 md:grid-cols-3 mt-4">
+          <div className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="periodType">Period Type</Label>
-              <Select value={periodFilter} onValueChange={(value: any) => setPeriodFilter(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Period Type</Label>
+              <RadioGroup value={periodFilter} onValueChange={(value: any) => setPeriodFilter(value)} className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="monthly" id="agent-filter-monthly" />
+                  <Label htmlFor="agent-filter-monthly" className="font-normal cursor-pointer">Monthly</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="yearly" id="agent-filter-yearly" />
+                  <Label htmlFor="agent-filter-yearly" className="font-normal cursor-pointer">Yearly</Label>
+                </div>
+              </RadioGroup>
             </div>
-            {periodFilter === "monthly" && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {periodFilter === "monthly" && (
+                <div className="space-y-2">
+                  <Label htmlFor="month">Month</Label>
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {monthNames.map((name, index) => (
+                        <SelectItem key={index + 1} value={(index + 1).toString()}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
-                <Label htmlFor="month">Month</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <Label htmlFor="year">Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {monthNames.map((name, index) => (
-                      <SelectItem key={index + 1} value={(index + 1).toString()}>
-                        {name}
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="year">Year</Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((y) => (
-                    <SelectItem key={y} value={y.toString()}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardHeader>
