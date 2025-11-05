@@ -29,38 +29,65 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Verify the caller is HQ
+    // Verify the caller is authenticated
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
-    
+
     if (authError || !user) {
       console.error('Authentication error:', authError)
       throw new Error('Unauthorized')
     }
 
-    // Check if user is HQ
+    // Check if user is HQ or Master Agent
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .single()
 
-    if (roleError || roleData?.role !== 'hq') {
-      console.error('Authorization error - user is not HQ')
-      throw new Error('Only HQ can update user passwords')
+    if (roleError) {
+      console.error('Authorization error:', roleError)
+      throw new Error('Unauthorized')
+    }
+
+    const userRole = roleData?.role
+
+    // Only HQ and Master Agent can update passwords
+    if (userRole !== 'hq' && userRole !== 'master_agent') {
+      console.error('Authorization error - user is not HQ or Master Agent')
+      throw new Error('Unauthorized to update user passwords')
     }
 
     // Parse and validate input
     const requestBody = await req.json()
     const validationResult = UpdatePasswordSchema.safeParse(requestBody)
-    
+
     if (!validationResult.success) {
       const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
       throw new Error(`Validation failed: ${errors}`)
     }
 
     const { userId, password } = validationResult.data
+
+    // Additional check: Master Agents can only update passwords for their own agents
+    if (userRole === 'master_agent') {
+      const { data: relationship, error: relError } = await supabaseAdmin
+        .from('master_agent_relationships')
+        .select('master_agent_id')
+        .eq('agent_id', userId)
+        .maybeSingle()
+
+      if (relError) {
+        console.error('Error checking relationship:', relError)
+        throw new Error('Error verifying agent relationship')
+      }
+
+      if (!relationship || relationship.master_agent_id !== user.id) {
+        console.error('Master Agent attempting to update password for agent not under their management')
+        throw new Error('You can only update passwords for your own agents')
+      }
+    }
 
     console.log('Updating password for user:', userId)
 
