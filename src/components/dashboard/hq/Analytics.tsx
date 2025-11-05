@@ -351,7 +351,7 @@ const Analytics = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Date Filters</CardTitle>
+          <CardTitle>Filter by Date Range</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
