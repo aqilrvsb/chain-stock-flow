@@ -112,7 +112,7 @@ const TransactionHistory = () => {
       color: "text-emerald-600",
     },
     {
-      title: "Total Price (Success)",
+      title: "Total Sales (Success)",
       value: `RM ${totalPriceSuccess.toFixed(2)}`,
       icon: DollarSign,
       color: "text-purple-600",

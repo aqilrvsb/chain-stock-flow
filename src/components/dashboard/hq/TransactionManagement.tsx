@@ -228,7 +228,7 @@ const TransactionManagement = () => {
       color: "text-yellow-600",
     },
     {
-      title: "Total Price (Success)",
+      title: "Total Sales (Success)",
       value: `RM ${totalPriceSuccess.toFixed(2)}`,
       icon: DollarSign,
       color: "text-emerald-600",
