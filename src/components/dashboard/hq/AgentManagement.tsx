@@ -239,26 +239,13 @@ const AgentManagement = () => {
 
   const deleteProfile = useMutation({
     mutationFn: async (userId: string) => {
-      // First delete master_agent_relationships
-      await supabase
-        .from("master_agent_relationships")
-        .delete()
-        .eq("agent_id", userId);
-
-      // Then delete user_roles
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
-      if (roleError) throw roleError;
-
-      // Then delete from auth
-      const { error: authError } = await supabase.functions.invoke('delete-user', {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { userId }
       });
 
-      if (authError) throw authError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
@@ -266,11 +253,13 @@ const AgentManagement = () => {
       toast({ title: "Agent deleted successfully" });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error deleting Agent",
-        description: error.message,
-        variant: "destructive",
+      Swal.fire({
+        icon: "error",
+        title: "Error Deleting Agent",
+        text: error.message || "Failed to delete agent",
+        confirmButtonText: "OK",
       });
+      setDeleteUserId(null);
     },
   });
 
