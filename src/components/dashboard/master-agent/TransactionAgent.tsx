@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, CheckCircle2, XCircle, Clock, Package } from "lucide-react";
+import { ShoppingCart, CheckCircle2, XCircle, Clock, Package, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const TransactionAgent = () => {
   const queryClient = useQueryClient();
@@ -19,6 +20,7 @@ const TransactionAgent = () => {
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingRemarks, setEditingRemarks] = useState<{ [key: string]: string }>({});
+  const [remarkDialogOpen, setRemarkDialogOpen] = useState<{ [key: string]: boolean }>({});
 
   const { data: purchases, isLoading } = useQuery({
     queryKey: ["agent-purchases", startDate, endDate, statusFilter],
@@ -148,10 +150,11 @@ const TransactionAgent = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success("Remarks updated successfully");
       queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
       setEditingRemarks({});
+      setRemarkDialogOpen(prev => ({ ...prev, [variables.purchaseId]: false }));
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to update remarks");
@@ -376,32 +379,51 @@ const TransactionAgent = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{purchase.remarks || "-"}</span>
+                      <Dialog
+                        open={remarkDialogOpen[purchase.id]}
+                        onOpenChange={(open) => {
+                          setRemarkDialogOpen(prev => ({ ...prev, [purchase.id]: open }));
+                          if (open) {
+                            setEditingRemarks(prev => ({ ...prev, [purchase.id]: purchase.remarks || "" }));
+                          }
+                        }}
+                      >
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[500px]">
+                          <DialogHeader>
+                            <DialogTitle>Order Remark</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <Textarea
+                              value={editingRemarks[purchase.id] ?? ""}
+                              onChange={(e) => setEditingRemarks(prev => ({
+                                ...prev,
+                                [purchase.id]: e.target.value
+                              }))}
+                              placeholder="Enter remark here..."
+                              className="min-h-[120px]"
+                            />
+                            <Button
+                              onClick={() =>
+                                updateRemarksMutation.mutate({
+                                  purchaseId: purchase.id,
+                                  remarks: editingRemarks[purchase.id] || ""
+                                })
+                              }
+                              className="w-full"
+                            >
+                              Save Remark
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2 items-center min-w-[200px]">
-                        <Input
-                          value={editingRemarks[purchase.id] ?? ""}
-                          onChange={(e) => setEditingRemarks(prev => ({
-                            ...prev,
-                            [purchase.id]: e.target.value
-                          }))}
-                          placeholder="Enter remark"
-                          className="h-8"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            updateRemarksMutation.mutate({
-                              purchaseId: purchase.id,
-                              remarks: editingRemarks[purchase.id] || ""
-                            })
-                          }
-                          disabled={!editingRemarks[purchase.id]?.trim()}
-                        >
-                          Save
-                        </Button>
-                      </div>
+                      <span className="text-sm">{purchase.remarks || "-"}</span>
                     </TableCell>
                   </TableRow>
                 ))}
