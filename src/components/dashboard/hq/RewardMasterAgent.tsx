@@ -10,13 +10,14 @@ import { Users, Award, Target, TrendingUp } from "lucide-react";
 
 const RewardMasterAgent = () => {
   const currentDate = new Date();
+  const [periodFilter, setPeriodFilter] = useState<"monthly" | "yearly">("monthly");
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
 
   const { data: rewardData, isLoading } = useQuery({
-    queryKey: ["reward-ma-progress", selectedMonth, selectedYear],
+    queryKey: ["reward-ma-progress", periodFilter, selectedMonth, selectedYear],
     queryFn: async () => {
-      const month = parseInt(selectedMonth);
+      const month = periodFilter === "monthly" ? parseInt(selectedMonth) : 0;
       const year = parseInt(selectedYear);
 
       // Get HQ user
@@ -31,14 +32,15 @@ const RewardMasterAgent = () => {
 
       if (!hqUser) return { masterAgents: [], rewards: [] };
 
-      // Get active rewards for master agents in this month/year
+      // Get active rewards for master agents - filter by period type
       const { data: rewards } = await supabase
         .from("rewards_config")
         .select("*")
         .eq("role", "master_agent")
         .eq("month", month)
         .eq("year", year)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("month", { ascending: false });
 
       // Get all master agents
       const { data: masterAgents } = await supabase
@@ -55,8 +57,13 @@ const RewardMasterAgent = () => {
       if (!masterAgents) return { masterAgents: [], rewards: rewards || [] };
 
       // Get transactions for each master agent (purchases from HQ)
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0, 23, 59, 59);
+      // For yearly: Jan 1 to Dec 31, For monthly: specific month
+      const startDate = periodFilter === "yearly"
+        ? new Date(year, 0, 1)
+        : new Date(year, month - 1, 1);
+      const endDate = periodFilter === "yearly"
+        ? new Date(year, 11, 31, 23, 59, 59)
+        : new Date(year, month, 0, 23, 59, 59);
 
       const progressData = await Promise.all(
         masterAgents.map(async (ma) => {
@@ -153,22 +160,36 @@ const RewardMasterAgent = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filter by Period</CardTitle>
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="grid gap-4 md:grid-cols-3 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="month">Month</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <Label htmlFor="periodType">Period Type</Label>
+              <Select value={periodFilter} onValueChange={(value: any) => setPeriodFilter(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {monthNames.map((name, index) => (
-                    <SelectItem key={index + 1} value={(index + 1).toString()}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {periodFilter === "monthly" && (
+              <div className="space-y-2">
+                <Label htmlFor="month">Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthNames.map((name, index) => (
+                      <SelectItem key={index + 1} value={(index + 1).toString()}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="year">Year</Label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>

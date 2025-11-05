@@ -376,20 +376,35 @@ const RewardsManagement = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-month">Month</Label>
-                    <Select value={month} onValueChange={setMonth}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {monthNames.map((name, index) => (
-                          <SelectItem key={index + 1} value={(index + 1).toString()}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Period Type</Label>
+                    <RadioGroup value={periodType} onValueChange={(value: any) => setPeriodType(value)}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="monthly" id="edit-monthly" />
+                        <Label htmlFor="edit-monthly" className="font-normal cursor-pointer">Monthly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="yearly" id="edit-yearly" />
+                        <Label htmlFor="edit-yearly" className="font-normal cursor-pointer">Yearly</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
+                  {periodType === "monthly" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-month">Month</Label>
+                      <Select value={month} onValueChange={setMonth}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthNames.map((name, index) => (
+                            <SelectItem key={index + 1} value={(index + 1).toString()}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="edit-year">Year</Label>
                     <Select value={year} onValueChange={setYear}>

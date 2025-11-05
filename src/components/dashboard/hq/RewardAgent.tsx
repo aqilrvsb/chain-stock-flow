@@ -10,23 +10,25 @@ import { Users, Award, Target, TrendingUp } from "lucide-react";
 
 const RewardAgent = () => {
   const currentDate = new Date();
+  const [periodFilter, setPeriodFilter] = useState<"monthly" | "yearly">("monthly");
   const [selectedMonth, setSelectedMonth] = useState((currentDate.getMonth() + 1).toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
 
   const { data: rewardData, isLoading } = useQuery({
-    queryKey: ["reward-agent-progress", selectedMonth, selectedYear],
+    queryKey: ["reward-agent-progress", periodFilter, selectedMonth, selectedYear],
     queryFn: async () => {
-      const month = parseInt(selectedMonth);
+      const month = periodFilter === "monthly" ? parseInt(selectedMonth) : 0;
       const year = parseInt(selectedYear);
 
-      // Get active rewards for agents in this month/year
+      // Get active rewards for agents - filter by period type
       const { data: rewards } = await supabase
         .from("rewards_config")
         .select("*")
         .eq("role", "agent")
         .eq("month", month)
         .eq("year", year)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("month", { ascending: false });
 
       // Get all agents
       const { data: agents } = await supabase
@@ -54,8 +56,13 @@ const RewardAgent = () => {
       const masterAgentIds = masterAgents?.map(ma => ma.id) || [];
 
       // Get transactions for each agent (purchases from Master Agents)
-      const startDate = new Date(year, month - 1, 1);
-      const endDate = new Date(year, month, 0, 23, 59, 59);
+      // For yearly: Jan 1 to Dec 31, For monthly: specific month
+      const startDate = periodFilter === "yearly"
+        ? new Date(year, 0, 1)
+        : new Date(year, month - 1, 1);
+      const endDate = periodFilter === "yearly"
+        ? new Date(year, 11, 31, 23, 59, 59)
+        : new Date(year, month, 0, 23, 59, 59);
 
       const progressData = await Promise.all(
         agents.map(async (agent) => {
@@ -152,22 +159,36 @@ const RewardAgent = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filter by Period</CardTitle>
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="grid gap-4 md:grid-cols-3 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="month">Month</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <Label htmlFor="periodType">Period Type</Label>
+              <Select value={periodFilter} onValueChange={(value: any) => setPeriodFilter(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {monthNames.map((name, index) => (
-                    <SelectItem key={index + 1} value={(index + 1).toString()}>
-                      {name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {periodFilter === "monthly" && (
+              <div className="space-y-2">
+                <Label htmlFor="month">Month</Label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthNames.map((name, index) => (
+                      <SelectItem key={index + 1} value={(index + 1).toString()}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="year">Year</Label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
