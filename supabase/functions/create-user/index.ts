@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       }
     )
 
-    // Verify the caller is HQ
+    // Verify the caller is authenticated
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
@@ -43,27 +43,41 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    // Check if user is HQ
+    // Check if user is HQ or Master Agent
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .single()
 
-    if (roleError || roleData?.role !== 'hq') {
-      throw new Error('Only HQ can create users')
+    if (roleError) {
+      throw new Error('Unauthorized')
+    }
+
+    const userRole = roleData?.role
+
+    // Authorization checks:
+    // - HQ can create: hq, master_agent, agent
+    // - Master Agent can create: agent only
+    if (userRole !== 'hq' && userRole !== 'master_agent') {
+      throw new Error('Unauthorized to create users')
     }
 
     // Parse and validate input
     const requestBody = await req.json()
     const validationResult = CreateUserSchema.safeParse(requestBody)
-    
+
     if (!validationResult.success) {
       const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
       throw new Error(`Validation failed: ${errors}`)
     }
 
     const { email, password, fullName, role, masterAgentId, idstaff, state } = validationResult.data
+
+    // Additional authorization: Master Agents can only create agents
+    if (userRole === 'master_agent' && role !== 'agent') {
+      throw new Error('Master Agents can only create agent accounts')
+    }
 
     // Validate idstaff uniqueness
     if (idstaff) {
