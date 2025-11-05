@@ -352,9 +352,7 @@ const MasterAgentManagement = () => {
                   <Input
                     id="edit-idstaff"
                     value={idstaff}
-                    onChange={(e) => setIdstaff(e.target.value)}
-                    required
-                    placeholder="Unique staff ID"
+                    disabled
                   />
                 </div>
                 <div className="space-y-2">
