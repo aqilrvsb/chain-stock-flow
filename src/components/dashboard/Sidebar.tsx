@@ -57,7 +57,6 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Dashboard", icon: Home, value: "dashboard" },
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
-        { title: "My Purchases", icon: DollarSign, value: "my-purchases" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Analytics", icon: BarChart3, value: "analytics" },
       ];

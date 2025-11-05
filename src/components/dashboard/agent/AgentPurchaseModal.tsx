@@ -24,6 +24,7 @@ interface AgentPurchaseModalProps {
   quantity: number;
   price: number;
   masterAgentId: string;
+  onSuccess?: () => void;
 }
 
 const AgentPurchaseModal = ({
@@ -35,6 +36,7 @@ const AgentPurchaseModal = ({
   quantity,
   price,
   masterAgentId,
+  onSuccess,
 }: AgentPurchaseModalProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -86,11 +88,15 @@ const AgentPurchaseModal = ({
     onSuccess: () => {
       toast.success("Purchase submitted successfully. Waiting for approval.");
       queryClient.invalidateQueries({ queryKey: ["my-agent-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
       onOpenChange(false);
       setBankHolderName("");
       setBankName("");
       setReceiptDate("");
       setReceiptImage(null);
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to submit purchase");

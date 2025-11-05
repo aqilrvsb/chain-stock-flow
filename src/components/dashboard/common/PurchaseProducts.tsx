@@ -14,11 +14,12 @@ import AgentPurchaseModal from "../agent/AgentPurchaseModal";
 interface PurchaseProductsProps {
   userType: "master_agent" | "agent";
   onNavigateToSettings?: () => void;
+  onNavigateToTransactions?: () => void;
 }
 
 const ITEMS_PER_PAGE = 12;
 
-const PurchaseProducts = ({ userType, onNavigateToSettings }: PurchaseProductsProps) => {
+const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransactions }: PurchaseProductsProps) => {
   // Check if user is still active when purchase page loads
   useActiveStatusCheck();
   const [searchQuery, setSearchQuery] = useState("");
@@ -395,6 +396,11 @@ const PurchaseProducts = ({ userType, onNavigateToSettings }: PurchaseProductsPr
           quantity={agentPurchaseModal.quantity}
           price={agentPurchaseModal.price}
           masterAgentId={agentPurchaseModal.masterAgentId}
+          onSuccess={() => {
+            if (onNavigateToTransactions) {
+              onNavigateToTransactions();
+            }
+          }}
         />
       )}
     </div>
