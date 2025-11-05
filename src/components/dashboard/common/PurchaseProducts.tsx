@@ -98,13 +98,12 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
           products!inner (
             name,
             sku,
-            image_url,
             is_active
           )
         `)
         .eq("is_active", true)
         .eq("products.is_active", true);
-      
+
       if (error) throw error;
       return data;
     },
@@ -317,10 +316,10 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
             return (
               <Card key={bundle.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square relative overflow-hidden bg-muted">
-                  {bundle.products?.image_url ? (
+                  {bundle.image_url ? (
                     <img
-                      src={bundle.products.image_url}
-                      alt={bundle.products?.name}
+                      src={bundle.image_url}
+                      alt={bundle.name}
                       className="w-full h-full object-cover"
                     />
                   ) : (
