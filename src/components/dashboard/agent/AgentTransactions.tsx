@@ -34,10 +34,10 @@ const AgentTransactions = () => {
         .order("created_at", { ascending: false });
 
       if (startDate) {
-        query = query.gte("created_at", new Date(startDate + 'T00:00:00').toISOString());
+        query = query.gte("created_at", startDate + 'T00:00:00.000Z');
       }
       if (endDate) {
-        query = query.lte("created_at", new Date(endDate + 'T23:59:59').toISOString());
+        query = query.lte("created_at", endDate + 'T23:59:59.999Z');
       }
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);

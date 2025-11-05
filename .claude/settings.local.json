@@ -17,7 +17,10 @@
       "Bash(nul)",
       "Bash(findstr:*)",
       "Bash(del \"supabase\\migrations\\20251105000005_create_public_storage_bucket.sql\")",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(del nul 2)",
+      "Bash(node -e:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

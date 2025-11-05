@@ -34,11 +34,10 @@ const Analytics = () => {
   const { data: analyticsData, isLoading } = useQuery({
     queryKey: ["hq-analytics", startDate, endDate],
     queryFn: async () => {
-      // Convert date picker values (local Malaysia dates) to UTC
-      // Date picker gives us YYYY-MM-DD in local time
-      // We need to convert to UTC considering Malaysia is GMT+8
-      const startDateTime = new Date(startDate + 'T00:00:00').toISOString();
-      const endDateTime = new Date(endDate + 'T23:59:59').toISOString();
+      // Convert date strings to ISO format for database queries
+      // Date picker gives YYYY-MM-DD, we interpret as UTC midnight
+      const startDateTime = startDate + 'T00:00:00.000Z';
+      const endDateTime = endDate + 'T23:59:59.999Z';
 
       // 1. Total HQ Unit In (Stock In HQ)
       const { data: stockInData } = await supabase

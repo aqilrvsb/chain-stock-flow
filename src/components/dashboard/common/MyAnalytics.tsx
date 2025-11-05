@@ -31,10 +31,10 @@ const MyAnalytics = () => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],
     queryFn: async () => {
-      // Convert date picker values (local Malaysia dates) to UTC
-      // Date picker gives us YYYY-MM-DD in local time
-      const startDateTime = new Date(startDate + 'T00:00:00').toISOString();
-      const endDateTime = new Date(endDate + 'T23:59:59').toISOString();
+      // Convert date strings to ISO format for database queries
+      // Date picker gives YYYY-MM-DD, we interpret as UTC midnight
+      const startDateTime = startDate + 'T00:00:00.000Z';
+      const endDateTime = endDate + 'T23:59:59.999Z';
 
       // Get current inventory
       const { data: inventory } = await supabase
