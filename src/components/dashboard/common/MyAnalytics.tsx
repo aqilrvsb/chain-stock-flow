@@ -113,13 +113,12 @@ const MyAnalytics = () => {
           .eq("year", year)
           .eq("is_active", true);
 
-        // Get yearly rewards for master agent (only rewards without specific month)
+        // Get yearly rewards for master agent (all rewards for the year)
         const { data: yearlyRewards } = await supabase
           .from("rewards_config")
           .select("*")
           .eq("role", "master_agent")
           .eq("year", year)
-          .is("month", null)
           .eq("is_active", true);
 
         return {
@@ -177,13 +176,12 @@ const MyAnalytics = () => {
           .eq("year", year)
           .eq("is_active", true);
 
-        // Get yearly rewards for agent (only rewards without specific month)
+        // Get yearly rewards for agent (all rewards for the year)
         const { data: yearlyRewards } = await supabase
           .from("rewards_config")
           .select("*")
           .eq("role", "agent")
           .eq("year", year)
-          .is("month", null)
           .eq("is_active", true);
 
         return {
