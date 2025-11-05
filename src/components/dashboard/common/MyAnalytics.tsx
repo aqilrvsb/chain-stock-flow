@@ -20,21 +20,28 @@ import {
 const MyAnalytics = () => {
   const { user, userRole } = useAuth();
 
-  // Get current month start (1st) and current date
-  const now = new Date();
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const currentDate = now;
-
-  const [startDate, setStartDate] = useState(currentMonthStart.toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
+  // Date filters start as empty
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],
     queryFn: async () => {
-      // Convert date strings to ISO format for database queries
-      // Date picker gives YYYY-MM-DD, we interpret as UTC midnight
-      const startDateTime = startDate + 'T00:00:00.000Z';
-      const endDateTime = endDate + 'T23:59:59.999Z';
+      // Get Malaysia current date
+      const now = new Date();
+      const malaysiaNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
+
+      // Default to 1st of current month if startDate is empty
+      const defaultStartDate = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
+      const defaultEndDate = malaysiaNow;
+
+      // Use provided dates or defaults
+      const effectiveStartDate = startDate || defaultStartDate.toISOString().split('T')[0];
+      const effectiveEndDate = endDate || defaultEndDate.toISOString().split('T')[0];
+
+      // Convert to UTC for database queries
+      const startDateTime = effectiveStartDate + 'T00:00:00.000Z';
+      const endDateTime = effectiveEndDate + 'T23:59:59.999Z';
 
       // Get current inventory
       const { data: inventory } = await supabase

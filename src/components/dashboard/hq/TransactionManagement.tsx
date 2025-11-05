@@ -26,17 +26,29 @@ const TransactionManagement = () => {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["all_pending_orders", startDate, endDate, statusFilter],
     queryFn: async () => {
+      // Get Malaysia current date
+      const now = new Date();
+      const malaysiaNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
+
+      // Default to 1st of current month if startDate is empty
+      const defaultStartDate = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
+      const defaultEndDate = malaysiaNow;
+
+      // Use provided dates or defaults
+      const effectiveStartDate = startDate || defaultStartDate.toISOString().split('T')[0];
+      const effectiveEndDate = endDate || defaultEndDate.toISOString().split('T')[0];
+
+      // Convert to UTC for database queries
+      const startDateTime = effectiveStartDate + 'T00:00:00.000Z';
+      const endDateTime = effectiveEndDate + 'T23:59:59.999Z';
+
       let query = supabase
         .from("pending_orders")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .gte("created_at", startDateTime)
+        .lte("created_at", endDateTime);
 
-      if (startDate) {
-        query = query.gte("created_at", startDate + 'T00:00:00.000Z');
-      }
-      if (endDate) {
-        query = query.lte("created_at", endDate + 'T23:59:59.999Z');
-      }
       if (statusFilter !== "all") {
         if (statusFilter === "completed_no_remarks") {
           query = query.eq("status", "completed").or("remarks.is.null,remarks.eq.");
