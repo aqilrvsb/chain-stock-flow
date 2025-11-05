@@ -96,14 +96,28 @@ const MyAnalytics = () => {
         // Get unique agents count
         const uniqueAgents = new Set(agentSales?.map(s => s.agent_id)).size;
 
+        // Calculate Total Unit In (pending orders where success)
+        const totalUnitIn = completedPurchases.reduce((sum, tx) => sum + tx.quantity, 0);
+
+        // Calculate Total Unit Out (agent purchases where success)
+        const totalUnitOut = agentUnitsSold;
+
         // Get rewards for master agent
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
-        const { data: rewards } = await supabase
+        const { data: monthlyRewards } = await supabase
           .from("rewards_config")
           .select("*")
           .eq("role", "master_agent")
           .eq("month", month)
+          .eq("year", year)
+          .eq("is_active", true);
+
+        // Get yearly rewards for master agent
+        const { data: yearlyRewards } = await supabase
+          .from("rewards_config")
+          .select("*")
+          .eq("role", "master_agent")
           .eq("year", year)
           .eq("is_active", true);
 
@@ -119,7 +133,10 @@ const MyAnalytics = () => {
           agentUnitsSold,
           agentProfit,
           uniqueAgents,
-          rewards,
+          totalUnitIn,
+          totalUnitOut,
+          monthlyRewards,
+          yearlyRewards,
         };
       } else {
         // Agent specific analytics
@@ -145,14 +162,25 @@ const MyAnalytics = () => {
         const totalQuantity = completedPurchases.reduce((sum, tx) => sum + tx.quantity, 0);
         const pendingAmount = pendingPurchases.reduce((sum, tx) => sum + Number(tx.total_price), 0);
 
+        // Calculate Total Unit In (agent purchases where success)
+        const totalUnitIn = totalQuantity;
+
         // Get rewards for agent
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
-        const { data: rewards } = await supabase
+        const { data: monthlyRewards } = await supabase
           .from("rewards_config")
           .select("*")
           .eq("role", "agent")
           .eq("month", month)
+          .eq("year", year)
+          .eq("is_active", true);
+
+        // Get yearly rewards for agent
+        const { data: yearlyRewards } = await supabase
+          .from("rewards_config")
+          .select("*")
+          .eq("role", "agent")
           .eq("year", year)
           .eq("is_active", true);
 
@@ -164,7 +192,9 @@ const MyAnalytics = () => {
           completedCount: completedPurchases.length,
           pendingCount: pendingPurchases.length,
           rejectedCount: rejectedPurchases.length,
-          rewards,
+          totalUnitIn,
+          monthlyRewards,
+          yearlyRewards,
         };
       }
     },
@@ -212,39 +242,69 @@ const MyAnalytics = () => {
 
     if (userRole === "master_agent") {
       return [
-        ...baseCards,
         {
-          title: "Agent Sales",
+          title: "Total Unit In",
+          value: stats?.totalUnitIn || 0,
+          subtitle: "Pending orders success",
+          icon: Package,
+          color: "text-blue-600",
+        },
+        {
+          title: "Total Unit Out",
+          value: stats?.totalUnitOut || 0,
+          subtitle: "Agent purchases success",
+          icon: Package,
+          color: "text-orange-600",
+        },
+        {
+          title: "Total Sales",
           value: `RM ${(stats?.agentSalesTotal || 0).toFixed(2)}`,
           subtitle: "Revenue from agents",
           icon: DollarSign,
-          color: "text-cyan-600",
+          color: "text-emerald-600",
         },
         {
-          title: "Agent Units Sold",
-          value: stats?.agentUnitsSold || 0,
-          subtitle: "Total units to agents",
-          icon: Package,
-          color: "text-indigo-600",
-        },
-        {
-          title: "Agent Profit",
+          title: "Total Profit",
           value: `RM ${(stats?.agentProfit || 0).toFixed(2)}`,
           subtitle: "Profit from agent sales",
           icon: TrendingUp,
           color: "text-teal-600",
         },
         {
-          title: "Active Agents",
+          title: "Total Agent Aktif",
           value: stats?.uniqueAgents || 0,
-          subtitle: "Agents purchased",
+          subtitle: "Active agents",
           icon: Users,
           color: "text-pink-600",
+        },
+        {
+          title: "Latest Balance Unit",
+          value: stats?.currentStock || 0,
+          subtitle: "Current inventory",
+          icon: Package,
+          color: "text-violet-600",
         },
       ];
     }
 
-    return baseCards;
+    // Agent cards
+    return [
+      {
+        title: "Total Unit In",
+        value: stats?.totalUnitIn || 0,
+        subtitle: "Agent purchases success",
+        icon: Package,
+        color: "text-blue-600",
+      },
+      {
+        title: "Latest Balance Unit",
+        value: stats?.currentStock || 0,
+        subtitle: "Current inventory",
+        icon: Package,
+        color: "text-violet-600",
+      },
+      ...baseCards,
+    ];
   };
 
   const statCards = getStatCards();
@@ -312,9 +372,9 @@ const MyAnalytics = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {stats?.rewards && stats.rewards.length > 0 ? (
+          {stats?.monthlyRewards && stats.monthlyRewards.length > 0 ? (
             <div className="space-y-3">
-              {stats.rewards.map((reward) => {
+              {stats.monthlyRewards.map((reward) => {
                 const progress = (stats.totalQuantity || 0);
                 const achieved = progress >= reward.min_quantity;
                 const percentAchieve = reward.min_quantity > 0
@@ -365,6 +425,72 @@ const MyAnalytics = () => {
           ) : (
             <p className="text-muted-foreground text-center py-4">
               No active rewards for this month
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="h-5 w-5 text-amber-600" />
+            Yearly Rewards Progress
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats?.yearlyRewards && stats.yearlyRewards.length > 0 ? (
+            <div className="space-y-3">
+              {stats.yearlyRewards.map((reward) => {
+                const progress = (stats.totalQuantity || 0);
+                const achieved = progress >= reward.min_quantity;
+                const percentAchieve = reward.min_quantity > 0
+                  ? Math.min((progress / reward.min_quantity) * 100, 100)
+                  : 0;
+
+                return (
+                  <div
+                    key={reward.id}
+                    className={`p-4 rounded-lg border transition-all ${
+                      achieved
+                        ? "bg-green-50 border-green-200 shadow-sm"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{reward.reward_description}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Target: {reward.min_quantity} units {reward.month ? `(Month ${reward.month})` : '(Yearly)'}
+                        </p>
+                      </div>
+                      {achieved && (
+                        <div className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
+                          <Award className="h-5 w-5 text-amber-600" />
+                          <span className="text-sm font-medium text-green-700">Achieved!</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">Progress: {progress} / {reward.min_quantity}</span>
+                        <span className="font-medium">{Math.round(percentAchieve)}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-3">
+                        <div
+                          className={`h-3 rounded-full transition-all ${
+                            achieved ? "bg-green-500" : "bg-primary"
+                          }`}
+                          style={{ width: `${percentAchieve}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-4">
+              No active rewards for this year
             </p>
           )}
         </CardContent>

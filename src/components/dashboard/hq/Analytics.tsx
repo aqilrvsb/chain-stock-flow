@@ -143,6 +143,24 @@ const Analytics = () => {
 
       const totalMAActive = masterAgents?.length || 0;
 
+      // Get HQ user ID for latest balance
+      const { data: hqUser } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "hq")
+        .single();
+
+      // Get HQ latest balance (current inventory)
+      let latestBalanceHQ = 0;
+      if (hqUser) {
+        const { data: hqInventory } = await supabase
+          .from("inventory")
+          .select("quantity")
+          .eq("user_id", hqUser.user_id);
+
+        latestBalanceHQ = hqInventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      }
+
       // 6. Total Agent Aktif
       const { data: agents } = await supabase
         .from("profiles")
@@ -230,6 +248,7 @@ const Analytics = () => {
         totalAgentActive,
         maRewardAchieveCount,
         agentRewardAchieveCount,
+        latestBalanceHQ,
       };
     },
   });
@@ -318,6 +337,13 @@ const Analytics = () => {
       icon: Target,
       subtitle: "Agents with rewards",
       color: "text-amber-600",
+    },
+    {
+      title: "Latest Balance Unit",
+      value: analyticsData?.latestBalanceHQ || 0,
+      icon: Package,
+      subtitle: "Current HQ inventory",
+      color: "text-violet-600",
     },
   ];
 
