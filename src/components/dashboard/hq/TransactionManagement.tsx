@@ -418,8 +418,10 @@ const TransactionManagement = () => {
                         </a>
                       ) : "-"}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate" title={order.buyer?.delivery_address}>
-                      {order.buyer?.delivery_address || "-"}
+                    <TableCell>
+                      <span className="text-sm">
+                        {order.buyer?.delivery_address || "-"}
+                      </span>
                     </TableCell>
                     <TableCell>{order.product?.name || "-"}</TableCell>
                     <TableCell>{order.bundle?.name || "-"}</TableCell>
