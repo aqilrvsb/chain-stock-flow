@@ -171,6 +171,8 @@ const PurchaseProducts = ({ userType, onNavigateToSettings }: PurchaseProductsPr
       }
 
       // Check Master Agent inventory
+      console.log("Checking master agent inventory:", { masterAgentId, productId, units });
+
       const { data: masterInventory, error } = await supabase
         .from("inventory")
         .select("quantity")
@@ -178,7 +180,15 @@ const PurchaseProducts = ({ userType, onNavigateToSettings }: PurchaseProductsPr
         .eq("product_id", productId)
         .maybeSingle();
 
+      console.log("Master agent inventory query result:", { masterInventory, error });
+
       if (error || !masterInventory || masterInventory.quantity < units) {
+        console.error("Insufficient inventory:", {
+          error,
+          masterInventory,
+          required: units,
+          available: masterInventory?.quantity
+        });
         toast({
           title: "Insufficient Stock",
           description: "Master Agent doesn't have enough inventory for this product",
