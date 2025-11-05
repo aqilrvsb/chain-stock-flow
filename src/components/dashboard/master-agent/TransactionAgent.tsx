@@ -18,6 +18,7 @@ const TransactionAgent = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [editingRemarks, setEditingRemarks] = useState<{ [key: string]: string }>({});
 
   const { data: purchases, isLoading } = useQuery({
     queryKey: ["agent-purchases", startDate, endDate, statusFilter],
@@ -26,7 +27,7 @@ const TransactionAgent = () => {
         .from("agent_purchases" as any)
         .select(`
           *,
-          agent:profiles!agent_id(full_name, email),
+          agent:profiles!agent_id(idstaff, full_name, whatsapp_number, delivery_address),
           product:products(name, sku),
           bundle:bundles(name)
         `)
@@ -135,6 +136,25 @@ const TransactionAgent = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to update status");
+    },
+  });
+
+  const updateRemarksMutation = useMutation({
+    mutationFn: async ({ purchaseId, remarks }: { purchaseId: string; remarks: string }) => {
+      const { error } = await supabase
+        .from("agent_purchases" as any)
+        .update({ remarks, updated_at: new Date().toISOString() })
+        .eq("id", purchaseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Remarks updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
+      setEditingRemarks({});
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update remarks");
     },
   });
 
@@ -274,7 +294,10 @@ const TransactionAgent = () => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Agent</TableHead>
+                  <TableHead>IDSTAFF</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>No Whatsapp</TableHead>
+                  <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
@@ -284,7 +307,8 @@ const TransactionAgent = () => {
                   <TableHead>Receipt</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
-                  <TableHead>Remarks</TableHead>
+                  <TableHead>Remark</TableHead>
+                  <TableHead>Remark Done</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -292,7 +316,10 @@ const TransactionAgent = () => {
                   <TableRow key={purchase.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{format(new Date(purchase.created_at), "dd-MM-yyyy")}</TableCell>
-                    <TableCell>{purchase.agent?.full_name || purchase.agent?.email}</TableCell>
+                    <TableCell>{purchase.agent?.idstaff || "-"}</TableCell>
+                    <TableCell>{purchase.agent?.full_name || "-"}</TableCell>
+                    <TableCell>{purchase.agent?.whatsapp_number || "-"}</TableCell>
+                    <TableCell>{purchase.agent?.delivery_address || "-"}</TableCell>
                     <TableCell>{purchase.product?.name}</TableCell>
                     <TableCell>{purchase.bundle?.name}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
@@ -348,7 +375,34 @@ const TransactionAgent = () => {
                         <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell>{purchase.remarks || "-"}</TableCell>
+                    <TableCell>
+                      <span className="text-sm">{purchase.remarks || "-"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2 items-center min-w-[200px]">
+                        <Input
+                          value={editingRemarks[purchase.id] ?? ""}
+                          onChange={(e) => setEditingRemarks(prev => ({
+                            ...prev,
+                            [purchase.id]: e.target.value
+                          }))}
+                          placeholder="Enter remark"
+                          className="h-8"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            updateRemarksMutation.mutate({
+                              purchaseId: purchase.id,
+                              remarks: editingRemarks[purchase.id] || ""
+                            })
+                          }
+                          disabled={!editingRemarks[purchase.id]?.trim()}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
