@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           // Defer role fetching with setTimeout
           setTimeout(() => {
@@ -53,6 +53,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Continuous monitoring of user active status
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Check active status immediately
+    const checkAndLogoutIfInactive = async () => {
+      const isActive = await checkUserActiveStatus(user.id);
+      if (!isActive) {
+        // User has been deactivated, logout immediately
+        await signOut();
+      }
+    };
+
+    // Initial check
+    checkAndLogoutIfInactive();
+
+    // Set up interval to check every 30 seconds
+    const intervalId = setInterval(checkAndLogoutIfInactive, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [user?.id]);
+
   const fetchUserRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -69,32 +91,71 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const checkUserActiveStatus = async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", userId)
+        .single();
+
+      if (error || !data) {
+        console.error("Error checking user active status:", error);
+        return false;
+      }
+
+      return data.is_active === true;
+    } catch (error) {
+      console.error("Error checking user active status:", error);
+      return false;
+    }
+  };
+
   const signIn = async (emailOrIdstaff: string, password: string) => {
     let email = emailOrIdstaff;
-    
+
     // Check if input is an IDSTAFF instead of email
     if (!emailOrIdstaff.includes('@')) {
       // Look up the email from idstaff using edge function
       const { data, error: lookupError } = await supabase.functions.invoke('get-email-from-idstaff', {
         body: { idstaff: emailOrIdstaff },
       });
-      
+
       if (lookupError || !data?.email) {
         return { error: { message: 'Invalid IDSTAFF or password' } };
       }
-      
+
       email = data.email;
     }
-    
-    const { error } = await supabase.auth.signInWithPassword({
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    
+
+    if (error) {
+      return { error };
+    }
+
+    // Check if user is active
+    if (authData?.user) {
+      const isActive = await checkUserActiveStatus(authData.user.id);
+
+      if (!isActive) {
+        // User is inactive, sign them out immediately
+        await supabase.auth.signOut();
+        return {
+          error: {
+            message: 'Your account has been deactivated. Please contact an administrator.'
+          }
+        };
+      }
+    }
+
     if (!error) {
       navigate("/dashboard");
     }
-    
+
     return { error };
   };
 
