@@ -49,6 +49,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "My Agents", icon: Users, value: "agents" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
+        { title: "Reward Agent", icon: Award, value: "reward-agent" },
       ];
     } else if (userRole === "agent") {
       return [

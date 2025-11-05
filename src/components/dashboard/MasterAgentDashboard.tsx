@@ -6,6 +6,7 @@ import TransactionHistory from "./common/TransactionHistory";
 import MasterAgentInventory from "./master-agent/MasterAgentInventory";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
+import RewardAgentMA from "./master-agent/RewardAgentMA";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
 
@@ -26,6 +27,8 @@ const MasterAgentDashboard = () => {
         return <TransactionHistory />;
       case "transaction-agent":
         return <TransactionAgent />;
+      case "reward-agent":
+        return <RewardAgentMA />;
       case "analytics":
         return <MyAnalytics />;
       case "settings":

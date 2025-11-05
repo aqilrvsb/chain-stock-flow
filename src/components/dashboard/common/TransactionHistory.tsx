@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt, Package } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt, Package, DollarSign } from "lucide-react";
 import Swal from "sweetalert2";
 
 const TransactionHistory = () => {
@@ -76,6 +76,9 @@ const TransactionHistory = () => {
   const totalUnitSuccess = orders
     ?.filter(o => o.status === "completed")
     .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
+  const totalPriceSuccess = orders
+    ?.filter(o => o.status === "completed")
+    .reduce((sum, o) => sum + (Number(o.total_price) || 0), 0) || 0;
 
   const stats = [
     {
@@ -107,6 +110,12 @@ const TransactionHistory = () => {
       value: totalUnitSuccess,
       icon: Package,
       color: "text-emerald-600",
+    },
+    {
+      title: "Total Price (Success)",
+      value: `RM ${totalPriceSuccess.toFixed(2)}`,
+      icon: DollarSign,
+      color: "text-purple-600",
     },
   ];
 
