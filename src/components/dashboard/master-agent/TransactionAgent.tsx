@@ -42,7 +42,11 @@ const TransactionAgent = () => {
         query = query.lte("created_at", new Date(endDate).toISOString());
       }
       if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
+        if (statusFilter === "completed_no_remarks") {
+          query = query.eq("status", "completed").or("remarks.is.null,remarks.eq.");
+        } else {
+          query = query.eq("status", statusFilter);
+        }
       }
 
       const { data, error } = await query;
@@ -280,6 +284,7 @@ const TransactionAgent = () => {
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="completed">Success</SelectItem>
                         <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="completed_no_remarks">Success with No Remarks</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
