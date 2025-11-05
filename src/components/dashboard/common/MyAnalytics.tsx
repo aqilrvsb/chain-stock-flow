@@ -79,8 +79,8 @@ const MyAnalytics = () => {
 
         let agentProfit = 0;
         completedAgentSales.forEach(sale => {
-          const maPricePerUnit = bundlesMap.get(sale.bundle_id) || 0;
-          const profit = Number(sale.total_price) - (Number(maPricePerUnit) * sale.quantity);
+          const maPrice = bundlesMap.get(sale.bundle_id) || 0;
+          const profit = Number(sale.total_price) - Number(maPrice);
           agentProfit += profit;
         });
 

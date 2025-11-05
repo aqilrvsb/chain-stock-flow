@@ -89,7 +89,7 @@ const Analytics = () => {
       let profitHQ = 0;
       pendingOrders?.forEach(order => {
         const baseCost = productsMap.get(order.product_id) || 0;
-        const profit = Number(order.total_price) - (Number(baseCost) * order.quantity);
+        const profit = Number(order.total_price) - Number(baseCost);
         profitHQ += profit;
       });
 
@@ -103,8 +103,8 @@ const Analytics = () => {
       // Calculate Total Profit Master Agent (from agent_purchases)
       let profitMA = 0;
       agentPurchases?.forEach(purchase => {
-        const maPricePerUnit = bundlesMap.get(purchase.bundle_id) || 0;
-        const profit = Number(purchase.total_price) - (Number(maPricePerUnit) * purchase.quantity);
+        const maPrice = bundlesMap.get(purchase.bundle_id) || 0;
+        const profit = Number(purchase.total_price) - Number(maPrice);
         profitMA += profit;
       });
 
