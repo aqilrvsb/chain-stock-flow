@@ -62,7 +62,7 @@ const MyAnalytics = () => {
         // Get agent sales (agents buying from this MA)
         const { data: agentSales } = await supabase
           .from("agent_purchases")
-          .select("quantity, total_price, status, product_id, agent_id")
+          .select("quantity, total_price, status, bundle_id, agent_id")
           .eq("master_agent_id", user?.id)
           .gte("created_at", startDateTime)
           .lte("created_at", endDateTime);
@@ -71,16 +71,16 @@ const MyAnalytics = () => {
         const agentSalesTotal = completedAgentSales.reduce((sum, s) => sum + Number(s.total_price), 0);
         const agentUnitsSold = completedAgentSales.reduce((sum, s) => sum + s.quantity, 0);
 
-        // Calculate profit from agent sales
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, base_cost");
-        const productsMap = new Map(products?.map(p => [p.id, p.base_cost]) || []);
+        // Calculate profit from agent sales using bundle master_agent_price
+        const { data: bundles } = await supabase
+          .from("bundles")
+          .select("id, master_agent_price");
+        const bundlesMap = new Map(bundles?.map(b => [b.id, b.master_agent_price]) || []);
 
         let agentProfit = 0;
         completedAgentSales.forEach(sale => {
-          const baseCost = productsMap.get(sale.product_id) || 0;
-          const profit = Number(sale.total_price) - (Number(baseCost) * sale.quantity);
+          const maPricePerUnit = bundlesMap.get(sale.bundle_id) || 0;
+          const profit = Number(sale.total_price) - (Number(maPricePerUnit) * sale.quantity);
           agentProfit += profit;
         });
 

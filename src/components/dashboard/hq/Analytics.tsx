@@ -37,16 +37,16 @@ const Analytics = () => {
       const startDateTime = new Date(startDate).toISOString();
       const endDateTime = new Date(new Date(endDate).setHours(23, 59, 59)).toISOString();
 
-      // 1. Total Unit In (Stock In HQ)
+      // 1. Total HQ Unit In (Stock In HQ)
       const { data: stockInData } = await supabase
         .from("stock_in_hq")
         .select("quantity")
         .gte("date", startDateTime)
         .lte("date", endDateTime);
 
-      const totalUnitIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      const totalHQUnitIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-      // 2. Total Unit Master Agent Buy (pending_orders where success)
+      // 2. Total Master Agent Unit Buy (pending_orders where success)
       const { data: pendingOrders } = await supabase
         .from("pending_orders")
         .select("quantity, total_price, product_id")
@@ -54,41 +54,58 @@ const Analytics = () => {
         .gte("created_at", startDateTime)
         .lte("created_at", endDateTime);
 
-      const totalUnitMABuy = pendingOrders?.reduce((sum, order) => sum + order.quantity, 0) || 0;
-      const totalSalesMA = pendingOrders?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
+      const totalMAUnitBuy = pendingOrders?.reduce((sum, order) => sum + order.quantity, 0) || 0;
+      const totalSalesHQ = pendingOrders?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
 
-      // 3. Total Unit Agent Buy (agent_purchases where success)
+      // 2b. Total HQ Unit Out (Stock Out HQ)
+      const { data: stockOutData } = await supabase
+        .from("stock_out_hq")
+        .select("quantity")
+        .gte("date", startDateTime)
+        .lte("date", endDateTime);
+
+      const stockOutHQ = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+      const totalHQUnitOut = stockOutHQ + totalMAUnitBuy;
+
+      // 3. Total Agent Unit Buy (agent_purchases where success)
       const { data: agentPurchases } = await supabase
         .from("agent_purchases")
-        .select("quantity, total_price, product_id")
+        .select("quantity, total_price, product_id, bundle_id")
         .eq("status", "completed")
         .gte("created_at", startDateTime)
         .lte("created_at", endDateTime);
 
-      const totalUnitAgentBuy = agentPurchases?.reduce((sum, purchase) => sum + purchase.quantity, 0) || 0;
-      const totalSalesAgent = agentPurchases?.reduce((sum, purchase) => sum + Number(purchase.total_price), 0) || 0;
+      const totalAgentUnitBuy = agentPurchases?.reduce((sum, purchase) => sum + purchase.quantity, 0) || 0;
+      const totalSalesMA = agentPurchases?.reduce((sum, purchase) => sum + Number(purchase.total_price), 0) || 0;
 
-      // 4. Get all products to calculate profit
+      // 4. Get all products to calculate HQ profit
       const { data: products } = await supabase
         .from("products")
         .select("id, base_cost");
 
       const productsMap = new Map(products?.map(p => [p.id, p.base_cost]) || []);
 
-      // Calculate Profit Master Agent
-      let profitMA = 0;
+      // Calculate Total Profit HQ (from pending_orders)
+      let profitHQ = 0;
       pendingOrders?.forEach(order => {
         const baseCost = productsMap.get(order.product_id) || 0;
         const profit = Number(order.total_price) - (Number(baseCost) * order.quantity);
-        profitMA += profit;
+        profitHQ += profit;
       });
 
-      // Calculate Profit Agent
-      let profitAgent = 0;
+      // 5. Get all bundles to calculate MA profit
+      const { data: bundles } = await supabase
+        .from("bundles")
+        .select("id, master_agent_price");
+
+      const bundlesMap = new Map(bundles?.map(b => [b.id, b.master_agent_price]) || []);
+
+      // Calculate Total Profit Master Agent (from agent_purchases)
+      let profitMA = 0;
       agentPurchases?.forEach(purchase => {
-        const baseCost = productsMap.get(purchase.product_id) || 0;
-        const profit = Number(purchase.total_price) - (Number(baseCost) * purchase.quantity);
-        profitAgent += profit;
+        const maPricePerUnit = bundlesMap.get(purchase.bundle_id) || 0;
+        const profit = Number(purchase.total_price) - (Number(maPricePerUnit) * purchase.quantity);
+        profitMA += profit;
       });
 
       // 5. Total Master Agent Aktif
@@ -177,13 +194,14 @@ const Analytics = () => {
       }
 
       return {
-        totalUnitIn,
-        totalUnitMABuy,
-        totalUnitAgentBuy,
+        totalHQUnitIn,
+        totalHQUnitOut,
+        totalMAUnitBuy,
+        totalAgentUnitBuy,
+        totalSalesHQ,
+        profitHQ,
         totalSalesMA,
         profitMA,
-        totalSalesAgent,
-        profitAgent,
         totalMAActive,
         totalAgentActive,
         maRewardAchieveCount,
@@ -194,52 +212,59 @@ const Analytics = () => {
 
   const stats = [
     {
-      title: "Total Unit In",
-      value: analyticsData?.totalUnitIn || 0,
+      title: "Total HQ Unit In",
+      value: analyticsData?.totalHQUnitIn || 0,
       icon: ArrowUpCircle,
       subtitle: "Stock In HQ",
       color: "text-blue-600",
     },
     {
-      title: "Total Unit Master Agent Buy",
-      value: analyticsData?.totalUnitMABuy || 0,
+      title: "Total HQ Unit Out",
+      value: analyticsData?.totalHQUnitOut || 0,
+      icon: ArrowDownCircle,
+      subtitle: "Stock Out HQ + MA Buy",
+      color: "text-orange-600",
+    },
+    {
+      title: "Total Master Agent Unit Buy",
+      value: analyticsData?.totalMAUnitBuy || 0,
       icon: ShoppingCart,
       subtitle: "Success orders",
       color: "text-green-600",
     },
     {
-      title: "Total Unit Agent Buy",
-      value: analyticsData?.totalUnitAgentBuy || 0,
+      title: "Total Agent Unit Buy",
+      value: analyticsData?.totalAgentUnitBuy || 0,
       icon: Package,
       subtitle: "Success purchases",
       color: "text-purple-600",
     },
     {
-      title: "Total Sales Master Agent",
-      value: `RM ${(analyticsData?.totalSalesMA || 0).toFixed(2)}`,
+      title: "Total Sales HQ",
+      value: `RM ${(analyticsData?.totalSalesHQ || 0).toFixed(2)}`,
       icon: DollarSign,
       subtitle: "Revenue from MA",
       color: "text-emerald-600",
     },
     {
-      title: "Profit Master Agent",
-      value: `RM ${(analyticsData?.profitMA || 0).toFixed(2)}`,
+      title: "Total Profit HQ",
+      value: `RM ${(analyticsData?.profitHQ || 0).toFixed(2)}`,
       icon: TrendingUp,
-      subtitle: "Total profit from MA",
+      subtitle: "Profit from MA sales",
       color: "text-teal-600",
     },
     {
-      title: "Total Sales Agent",
-      value: `RM ${(analyticsData?.totalSalesAgent || 0).toFixed(2)}`,
+      title: "Total Sales Master Agent",
+      value: `RM ${(analyticsData?.totalSalesMA || 0).toFixed(2)}`,
       icon: DollarSign,
       subtitle: "Revenue from Agents",
       color: "text-cyan-600",
     },
     {
-      title: "Profit Agent",
-      value: `RM ${(analyticsData?.profitAgent || 0).toFixed(2)}`,
+      title: "Total Profit Master Agent",
+      value: `RM ${(analyticsData?.profitMA || 0).toFixed(2)}`,
       icon: TrendingUp,
-      subtitle: "Total profit from Agents",
+      subtitle: "Profit from agent sales",
       color: "text-indigo-600",
     },
     {
@@ -247,28 +272,28 @@ const Analytics = () => {
       value: analyticsData?.totalMAActive || 0,
       icon: Users,
       subtitle: "Active master agents",
-      color: "text-orange-600",
+      color: "text-pink-600",
     },
     {
       title: "Total Agent Active",
       value: analyticsData?.totalAgentActive || 0,
       icon: UserCheck,
       subtitle: "Active agents",
-      color: "text-pink-600",
+      color: "text-rose-600",
     },
     {
-      title: "MA Reward Achievers (Monthly)",
+      title: "Total Reward Monthly MA Achieve",
       value: analyticsData?.maRewardAchieveCount || 0,
       icon: Award,
       subtitle: "Master agents with rewards",
       color: "text-yellow-600",
     },
     {
-      title: "Agent Reward Achievers (Monthly)",
+      title: "Total Reward Monthly Agent Achieve",
       value: analyticsData?.agentRewardAchieveCount || 0,
       icon: Target,
       subtitle: "Agents with rewards",
-      color: "text-red-600",
+      color: "text-amber-600",
     },
   ];
 
