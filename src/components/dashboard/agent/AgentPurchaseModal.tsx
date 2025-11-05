@@ -73,7 +73,7 @@ const AgentPurchaseModal = ({
           bundle_id: bundleId,
           quantity,
           unit_price: price,
-          total_price: price * quantity,
+          total_price: price,
           bank_holder_name: bankHolderName,
           bank_name: bankName,
           receipt_date: receiptDate,
@@ -108,7 +108,7 @@ const AgentPurchaseModal = ({
             <Label>Quantity: {quantity} units</Label>
           </div>
           <div>
-            <Label>Total Price: RM {price * quantity}</Label>
+            <Label>Total Price: RM {price.toFixed(2)}</Label>
           </div>
           <div>
             <Label htmlFor="bankHolder">Bank Holder Name</Label>
