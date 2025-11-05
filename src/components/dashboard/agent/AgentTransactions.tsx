@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ShoppingCart, CheckCircle2, XCircle, Clock, Package } from "lucide-react";
 
 const AgentTransactions = () => {
   const { user } = useAuth();
@@ -55,6 +55,9 @@ const AgentTransactions = () => {
   const totalSuccess = purchases?.filter(p => p.status === "completed").length || 0;
   const totalFailed = purchases?.filter(p => p.status === "failed").length || 0;
   const totalPending = purchases?.filter(p => p.status === "pending").length || 0;
+  const totalUnitSuccess = purchases
+    ?.filter(p => p.status === "completed")
+    .reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -70,7 +73,7 @@ const AgentTransactions = () => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -115,6 +118,18 @@ const AgentTransactions = () => {
                 <h3 className="text-3xl font-bold mt-2">{totalPending}</h3>
               </div>
               <Clock className="h-8 w-8 text-yellow-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Unit (Success)</p>
+                <h3 className="text-3xl font-bold mt-2">{totalUnitSuccess}</h3>
+              </div>
+              <Package className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>

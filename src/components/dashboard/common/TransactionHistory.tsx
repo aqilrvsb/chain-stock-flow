@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt, Package } from "lucide-react";
 import Swal from "sweetalert2";
 
 const TransactionHistory = () => {
@@ -73,6 +73,9 @@ const TransactionHistory = () => {
   const totalSuccess = orders?.filter(o => o.status === "completed").length || 0;
   const totalFailed = orders?.filter(o => o.status === "failed").length || 0;
   const totalPending = orders?.filter(o => o.status === "pending").length || 0;
+  const totalUnitSuccess = orders
+    ?.filter(o => o.status === "completed")
+    .reduce((sum, o) => sum + (o.quantity || 0), 0) || 0;
 
   const stats = [
     {
@@ -98,6 +101,12 @@ const TransactionHistory = () => {
       value: totalPending,
       icon: Clock,
       color: "text-yellow-600",
+    },
+    {
+      title: "Total Unit (Success)",
+      value: totalUnitSuccess,
+      icon: Package,
+      color: "text-emerald-600",
     },
   ];
 
@@ -172,7 +181,7 @@ const TransactionHistory = () => {
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
