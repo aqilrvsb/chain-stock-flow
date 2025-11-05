@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X, Package } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
@@ -198,6 +198,9 @@ const TransactionManagement = () => {
   const totalPriceSuccess = orders
     ?.filter(o => o.status === "completed")
     .reduce((sum, o) => sum + Number(o.total_price), 0) || 0;
+  const totalUnitSuccess = orders
+    ?.filter(o => o.status === "completed")
+    .reduce((sum, o) => sum + Number(o.quantity), 0) || 0;
 
   const stats = [
     {
@@ -229,6 +232,12 @@ const TransactionManagement = () => {
       value: `RM ${totalPriceSuccess.toFixed(2)}`,
       icon: DollarSign,
       color: "text-emerald-600",
+    },
+    {
+      title: "Total Unit (Success)",
+      value: totalUnitSuccess,
+      icon: Package,
+      color: "text-purple-600",
     },
   ];
 
@@ -310,7 +319,7 @@ const TransactionManagement = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
