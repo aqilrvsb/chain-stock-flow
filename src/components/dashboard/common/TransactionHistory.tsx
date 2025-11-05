@@ -437,21 +437,28 @@ const TransactionHistory = () => {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Order Remark</DialogTitle>
+                            <DialogTitle>
+                              {userRole === 'hq' ? 'Order Remark' : 'HQ Remark'}
+                            </DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4">
                             <Textarea
-                              placeholder="Enter remark here..."
+                              placeholder={userRole === 'hq' ? "Enter remark here..." : "No remark from HQ"}
                               value={remarkText}
                               onChange={(e) => setRemarkText(e.target.value)}
                               rows={5}
+                              disabled={userRole !== 'hq'}
+                              readOnly={userRole !== 'hq'}
+                              className={userRole !== 'hq' ? "bg-muted cursor-not-allowed" : ""}
                             />
-                            <Button
-                              onClick={() => handleSaveRemark(order.id)}
-                              disabled={saveRemarkMutation.isPending}
-                            >
-                              {saveRemarkMutation.isPending ? "Saving..." : "Save Remark"}
-                            </Button>
+                            {userRole === 'hq' && (
+                              <Button
+                                onClick={() => handleSaveRemark(order.id)}
+                                disabled={saveRemarkMutation.isPending}
+                              >
+                                {saveRemarkMutation.isPending ? "Saving..." : "Save Remark"}
+                              </Button>
+                            )}
                           </div>
                         </DialogContent>
                       </Dialog>
