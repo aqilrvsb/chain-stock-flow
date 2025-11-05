@@ -290,10 +290,10 @@ const ProductManagement = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-          Product Management
+          Inventory Management
         </h1>
         <p className="text-muted-foreground mt-2">
-          Manage your product catalog and inventory
+          Manage your inventory quantities and stock levels
         </p>
       </div>
 
@@ -315,7 +315,7 @@ const ProductManagement = () => {
 
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Product Management</CardTitle>
+        <CardTitle>Inventory Management</CardTitle>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -328,20 +328,6 @@ const ProductManagement = () => {
               <DialogTitle>Add New Product</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="image">Product Image</Label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-                {imagePreview && (
-                  <div className="mt-2">
-                    <img src={imagePreview} alt="Preview" className="h-32 w-32 object-cover rounded-lg border" />
-                  </div>
-                )}
-              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
@@ -400,20 +386,6 @@ const ProductManagement = () => {
               <DialogTitle>Edit Product</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleEdit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-image">Product Image</Label>
-                <Input
-                  id="edit-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-                {imagePreview && (
-                  <div className="mt-2">
-                    <img src={imagePreview} alt="Preview" className="h-32 w-32 object-cover rounded-lg border" />
-                  </div>
-                )}
-              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Product Name</Label>
@@ -477,7 +449,6 @@ const ProductManagement = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Image</TableHead>
                 <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Base Cost</TableHead>
@@ -492,15 +463,6 @@ const ProductManagement = () => {
                 
                 return (
                   <TableRow key={product.id}>
-                    <TableCell>
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="h-12 w-12 object-cover rounded border" />
-                      ) : (
-                        <div className="h-12 w-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
-                          No image
-                        </div>
-                      )}
-                    </TableCell>
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>RM {product.base_cost}</TableCell>
