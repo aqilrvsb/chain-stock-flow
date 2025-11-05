@@ -38,6 +38,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Stock Out Master Agent", icon: Package, value: "stock-out-ma" },
         { title: "Stock In Master Agent", icon: Package, value: "stock-in-ma" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
+        { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
         { title: "Rewards", icon: Gift, value: "rewards" },
         { title: "Reward Master Agent", icon: Award, value: "reward-ma" },
         { title: "Reward Agent", icon: Award, value: "reward-agent" },

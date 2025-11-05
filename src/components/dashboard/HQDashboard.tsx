@@ -13,6 +13,7 @@ import StockInMasterAgent from "./hq/StockInMasterAgent";
 import RewardMasterAgent from "./hq/RewardMasterAgent";
 import RewardAgent from "./hq/RewardAgent";
 import TransactionManagement from "./hq/TransactionManagement";
+import TransactionAgent from "./hq/TransactionAgent";
 import Settings from "./common/Settings";
 
 const HQDashboard = () => {
@@ -44,6 +45,8 @@ const HQDashboard = () => {
         return <RewardAgent />;
       case "transactions":
         return <TransactionManagement />;
+      case "transaction-agent":
+        return <TransactionAgent />;
       case "settings":
         return <Settings />;
       case "dashboard":
