@@ -8,8 +8,6 @@ import UserManagement from "./hq/UserManagement";
 import RewardsManagement from "./hq/RewardsManagement";
 import StockOutHQ from "./hq/StockOutHQ";
 import StockInHQ from "./hq/StockInHQ";
-import StockOutMasterAgent from "./hq/StockOutMasterAgent";
-import StockInMasterAgent from "./hq/StockInMasterAgent";
 import RewardMasterAgent from "./hq/RewardMasterAgent";
 import RewardAgent from "./hq/RewardAgent";
 import TransactionManagement from "./hq/TransactionManagement";
@@ -33,10 +31,6 @@ const HQDashboard = () => {
         return <StockOutHQ />;
       case "stock-in-hq":
         return <StockInHQ />;
-      case "stock-out-ma":
-        return <StockOutMasterAgent />;
-      case "stock-in-ma":
-        return <StockInMasterAgent />;
       case "rewards":
         return <RewardsManagement />;
       case "reward-ma":

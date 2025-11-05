@@ -1,35 +1,59 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Users, DollarSign, ShoppingCart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Package, Minus, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const StockOutHQ = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: transactions, isLoading } = useQuery({
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [description, setDescription] = useState("");
+
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: stockOuts, isLoading } = useQuery({
     queryKey: ["stock-out-hq", startDate, endDate],
     queryFn: async () => {
       let query = supabase
-        .from("transactions")
+        .from("stock_out_hq")
         .select(`
           *,
-          buyer:profiles!transactions_buyer_id_fkey(full_name, email),
           product:products(name, sku)
         `)
-        .eq("transaction_type", "purchase")
-        .order("created_at", { ascending: false });
+        .order("date", { ascending: false });
 
       if (startDate) {
-        query = query.gte("created_at", startDate);
+        query = query.gte("date", startDate);
       }
       if (endDate) {
-        query = query.lte("created_at", endDate);
+        query = query.lte("date", endDate);
       }
 
       const { data, error } = await query;
@@ -38,31 +62,146 @@ const StockOutHQ = () => {
     },
   });
 
-  // Calculate summary stats
-  const totalTransactions = transactions?.length || 0;
-  const totalQuantity = transactions?.reduce((sum, tx) => sum + tx.quantity, 0) || 0;
-  const totalRevenue = transactions?.reduce((sum, tx) => sum + parseFloat(String(tx.total_price)), 0) || 0;
-  const uniqueMasterAgents = new Set(transactions?.map(tx => tx.buyer_id)).size;
+  const removeStock = useMutation({
+    mutationFn: async () => {
+      // Check if sufficient inventory exists
+      const { data: existing, error: fetchError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("product_id", selectedProduct)
+        .single();
+
+      if (fetchError || !existing) {
+        throw new Error("No inventory found for this product");
+      }
+
+      const quantityToRemove = parseInt(quantity);
+      if (existing.quantity < quantityToRemove) {
+        throw new Error(`Insufficient inventory. Available: ${existing.quantity}, Requested: ${quantityToRemove}`);
+      }
+
+      // Insert stock out record
+      const { error: stockOutError } = await supabase
+        .from("stock_out_hq")
+        .insert({
+          user_id: user?.id,
+          product_id: selectedProduct,
+          quantity: quantityToRemove,
+          date: stockDate,
+          description: description || null,
+        });
+
+      if (stockOutError) throw stockOutError;
+
+      // Update inventory (decrease)
+      const newQuantity = existing.quantity - quantityToRemove;
+      const { error: updateError } = await supabase
+        .from("inventory")
+        .update({ quantity: newQuantity })
+        .eq("id", existing.id);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Stock removed successfully");
+      setIsDialogOpen(false);
+      setSelectedProduct("");
+      setQuantity("");
+      setStockDate(format(new Date(), "yyyy-MM-dd"));
+      setDescription("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to remove stock");
+    },
+  });
+
+  const totalRecords = stockOuts?.length || 0;
+  const totalQuantity = stockOuts?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   const stats = [
-    { title: "Total Transactions", value: totalTransactions, icon: ShoppingCart, color: "text-blue-600" },
-    { title: "Master Agents", value: uniqueMasterAgents, icon: Users, color: "text-green-600" },
-    { title: "Total Units", value: totalQuantity, icon: Package, color: "text-purple-600" },
-    { title: "Total Price", value: `RM ${totalRevenue.toFixed(2)}`, icon: DollarSign, color: "text-orange-600" },
+    { title: "Total Records", value: totalRecords, icon: Calendar, color: "text-blue-600" },
+    { title: "Total Units", value: totalQuantity, icon: Package, color: "text-red-600" },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-          Stock Out HQ
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Track all transactions from HQ to Master Agents
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            Stock Out HQ
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage HQ inventory and stock removals
+          </p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="destructive">
+              <Minus className="mr-2 h-4 w-4" />
+              Remove Stock
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Remove Stock from HQ</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Product</Label>
+                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={stockDate}
+                  onChange={(e) => setStockDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description (Optional)</Label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add notes about this stock removal..."
+                />
+              </div>
+              <Button
+                onClick={() => removeStock.mutate()}
+                className="w-full"
+                variant="destructive"
+              >
+                Remove Stock
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
@@ -104,30 +243,26 @@ const StockOutHQ = () => {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p>Loading transactions...</p>
+            <p>Loading stock records...</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Master Agent</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Bundle Name</TableHead>
                   <TableHead>Quantity</TableHead>
-                  <TableHead>Total Price</TableHead>
+                  <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions?.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell>{format(new Date(tx.created_at), "dd-MM-yyyy")}</TableCell>
-                    <TableCell>{tx.buyer?.full_name || tx.buyer?.email}</TableCell>
-                    <TableCell>{tx.product?.name}</TableCell>
-                    <TableCell>{tx.product?.sku}</TableCell>
-                    <TableCell>RM {parseFloat(String(tx.unit_price)).toFixed(2)}</TableCell>
-                    <TableCell>{tx.quantity}</TableCell>
-                    <TableCell className="font-bold">RM {parseFloat(String(tx.total_price)).toFixed(2)}</TableCell>
+                {stockOuts?.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{format(new Date(item.date), "dd-MM-yyyy")}</TableCell>
+                    <TableCell>{item.product?.name}</TableCell>
+                    <TableCell>{item.product?.sku}</TableCell>
+                    <TableCell className="font-bold text-red-600">{item.quantity}</TableCell>
+                    <TableCell>{item.description || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
