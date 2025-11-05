@@ -9,7 +9,7 @@ const corsHeaders = {
 // Validation schema for password update
 const UpdatePasswordSchema = z.object({
   userId: z.string().uuid({ message: "Invalid user ID format" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }).max(100),
+  password: z.string().min(4, { message: "Password must be at least 4 characters" }).max(100),
 });
 
 Deno.serve(async (req) => {

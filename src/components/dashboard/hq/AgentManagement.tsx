@@ -399,7 +399,7 @@ const AgentManagement = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={4}
                   />
                 </div>
                 <div className="space-y-2">
@@ -511,7 +511,7 @@ const AgentManagement = () => {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Leave blank to keep current password"
-                    minLength={6}
+                    minLength={4}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={updateProfile.isPending}>

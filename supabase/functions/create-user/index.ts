@@ -9,7 +9,7 @@ const corsHeaders = {
 // Validation schema for user creation
 const CreateUserSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email format" }).max(255),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }).max(100),
+  password: z.string().min(4, { message: "Password must be at least 4 characters" }).max(100),
   fullName: z.string().trim().min(1, { message: "Full name is required" }).max(100),
   role: z.enum(['hq', 'master_agent', 'agent'], { invalid_type_error: "Invalid role" }),
   masterAgentId: z.string().uuid().optional(),
