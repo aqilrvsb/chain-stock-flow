@@ -62,9 +62,9 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
-            <img src={logoUrl} alt="OJ System Logo" className="h-24 w-auto object-contain" />
+            <img src={logoUrl} alt="OliveJardin Hub Logo" className="h-24 w-auto object-contain" />
           </div>
-          <CardTitle className="text-3xl font-bold text-center">OJ System</CardTitle>
+          <CardTitle className="text-3xl font-bold text-center">OliveJardin Hub</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4 mt-4">

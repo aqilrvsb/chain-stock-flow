@@ -67,7 +67,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <h1 className="text-xl font-bold text-primary">
-          {open ? "OJ System" : "OJ"}
+          {open ? "OliveJardin Hub" : "OJ"}
         </h1>
       </SidebarHeader>
 

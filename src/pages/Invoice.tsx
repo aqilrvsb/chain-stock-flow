@@ -115,7 +115,7 @@ const Invoice = () => {
               <img src={logoUrl} alt="Company Logo" className="h-16 w-auto mb-4" />
             ) : (
               <div className="h-16 w-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-white font-bold text-xl">OJ System</span>
+                <span className="text-white font-bold text-xl">OliveJardin Hub</span>
               </div>
             )}
             <h1 className="text-3xl font-bold text-gray-900">INVOICE</h1>
