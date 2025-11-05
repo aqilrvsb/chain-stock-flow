@@ -6,19 +6,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
 const TransactionManagement = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
+  const [remarkText, setRemarkText] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["all_pending_orders", startDate, endDate],
+    queryKey: ["all_pending_orders", startDate, endDate, statusFilter],
     queryFn: async () => {
       let query = supabase
         .from("pending_orders")
@@ -31,11 +37,14 @@ const TransactionManagement = () => {
       if (endDate) {
         query = query.lte("created_at", new Date(endDate).toISOString());
       }
-      
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
+      }
+
       const { data: ordersData, error } = await query;
       if (error) throw error;
 
-      // Fetch products, bundles, and buyer data
+      // Fetch products, bundles, and buyer data with complete information
       const productIds = [...new Set(ordersData?.map(o => o.product_id))];
       const bundleIds = [...new Set(ordersData?.map(o => o.bundle_id).filter(Boolean))];
       const buyerIds = [...new Set(ordersData?.map(o => o.buyer_id))];
@@ -43,7 +52,7 @@ const TransactionManagement = () => {
       const [{ data: productsData }, { data: bundlesData }, { data: buyersData }] = await Promise.all([
         supabase.from("products").select("id, name, sku").in("id", productIds),
         supabase.from("bundles").select("id, name").in("id", bundleIds),
-        supabase.from("profiles").select("id, full_name, email").in("id", buyerIds)
+        supabase.from("profiles").select("id, idstaff, full_name, email, whatsapp_number, delivery_address").in("id", buyerIds)
       ]);
 
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
@@ -151,6 +160,31 @@ const TransactionManagement = () => {
       toast.error(`Failed to update order: ${error.message}`);
     },
   });
+
+  // Mutation for saving remarks
+  const saveRemarkMutation = useMutation({
+    mutationFn: async ({ orderId, remark }: { orderId: string; remark: string }) => {
+      const { error } = await supabase
+        .from("pending_orders")
+        .update({ remarks: remark })
+        .eq("id", orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Remark saved successfully");
+      queryClient.invalidateQueries({ queryKey: ["all_pending_orders"] });
+      setRemarkText("");
+      setSelectedOrderId(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to save remark");
+    },
+  });
+
+  const handleSaveRemark = (orderId: string) => {
+    saveRemarkMutation.mutate({ orderId, remark: remarkText });
+  };
 
   // Calculate statistics
   const totalTransactions = orders?.length || 0;
@@ -294,12 +328,12 @@ const TransactionManagement = () => {
           <CardTitle>All Transactions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Date Filters */}
+          {/* Filters */}
           <Card className="border-dashed">
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Filter by Date</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold">Filters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Start Date</label>
                     <Input
@@ -316,6 +350,20 @@ const TransactionManagement = () => {
                       onChange={(e) => setEndDate(e.target.value)}
                     />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="completed">Success</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -330,12 +378,17 @@ const TransactionManagement = () => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Buyer</TableHead>
+                  <TableHead>Bill ID</TableHead>
+                  <TableHead>IDSTAFF</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>No Whatsapp</TableHead>
+                  <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Remark</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -346,10 +399,26 @@ const TransactionManagement = () => {
                       {format(new Date(order.created_at), "dd-MM-yyyy")}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        <div className="font-medium">{order.buyer?.full_name || "-"}</div>
-                        <div className="text-muted-foreground">{order.buyer?.email || "-"}</div>
-                      </div>
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {(order as any).billplz_bill_id || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell>{order.buyer?.idstaff || "-"}</TableCell>
+                    <TableCell>{order.buyer?.full_name || "-"}</TableCell>
+                    <TableCell>
+                      {order.buyer?.whatsapp_number ? (
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${order.buyer.whatsapp_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-700 hover:underline"
+                        >
+                          {order.buyer.whatsapp_number}
+                        </a>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate" title={order.buyer?.delivery_address}>
+                      {order.buyer?.delivery_address || "-"}
                     </TableCell>
                     <TableCell>{order.product?.name || "-"}</TableCell>
                     <TableCell>{order.bundle?.name || "-"}</TableCell>
@@ -358,61 +427,93 @@ const TransactionManagement = () => {
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
-                      {order.status === "pending" && (
-                        <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
+                        {order.status === 'pending' ? (
+                          <>
+                            {(order as any).billplz_bill_id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
+                                disabled={recheckingBills.has((order as any).billplz_bill_id)}
+                                className="gap-2"
+                                title="Recheck Payment Status"
+                              >
+                                <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
+                                Recheck
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'completed' })}
+                              className="gap-2 bg-green-600 hover:bg-green-700"
+                              title="Approve Order"
+                            >
+                              <Check className="h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'failed' })}
+                              className="gap-2"
+                              title="Reject Order"
+                            >
+                              <X className="h-4 w-4" />
+                              Reject
+                            </Button>
+                          </>
+                        ) : order.status === 'completed' ? (
                           <Button
                             size="sm"
-                            variant="default"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => updateStatusMutation.mutate({ 
-                              orderId: order.id, 
-                              status: "completed" 
-                            })}
-                            disabled={updateStatusMutation.isPending}
+                            variant="ghost"
+                            onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
+                            className="gap-2"
+                            title="View Invoice"
                           >
-                            Approve
+                            <Receipt className="h-4 w-4" />
+                            Invoice
                           </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
                           <Button
                             size="sm"
-                            variant="destructive"
-                            onClick={() => updateStatusMutation.mutate({ 
-                              orderId: order.id, 
-                              status: "failed" 
-                            })}
-                            disabled={updateStatusMutation.isPending}
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedOrderId(order.id);
+                              setRemarkText((order as any).remarks || "");
+                            }}
+                            className="gap-2"
+                            title="Add/View Remark"
                           >
-                            Reject
+                            <MessageSquare className="h-4 w-4" />
                           </Button>
-                        </div>
-                      )}
-                      {order.status === "failed" && (order as any).billplz_bill_id && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
-                          disabled={recheckingBills.has((order as any).billplz_bill_id)}
-                          className="gap-2"
-                          title="Recheck Payment Status"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
-                          Recheck
-                        </Button>
-                      )}
-                      {order.status === "completed" && (order as any).billplz_bill_id && (
-                        <a
-                          href={`https://www.billplz.com/bills/${(order as any).billplz_bill_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                          title="View Invoice"
-                        >
-                          <FileText className="h-4 w-4" />
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                      {order.status === "completed" && !(order as any).billplz_bill_id && (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Order Remark</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <Textarea
+                              placeholder="Enter remark here..."
+                              value={remarkText}
+                              onChange={(e) => setRemarkText(e.target.value)}
+                              rows={5}
+                            />
+                            <Button
+                              onClick={() => handleSaveRemark(order.id)}
+                              disabled={saveRemarkMutation.isPending}
+                            >
+                              {saveRemarkMutation.isPending ? "Saving..." : "Save Remark"}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))}
