@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt } from "lucide-react";
 import Swal from "sweetalert2";
@@ -16,22 +17,26 @@ const TransactionHistory = () => {
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["pending_orders", user?.id, startDate, endDate],
+    queryKey: ["pending_orders", user?.id, startDate, endDate, statusFilter],
     queryFn: async () => {
       let query = supabase
         .from("pending_orders")
         .select("*")
         .eq("buyer_id", user?.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false});
 
       if (startDate) {
         query = query.gte("created_at", new Date(startDate).toISOString());
       }
       if (endDate) {
         query = query.lte("created_at", new Date(endDate).toISOString());
+      }
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
       }
 
       const { data: ordersData, error } = await query;
@@ -197,12 +202,12 @@ const TransactionHistory = () => {
           <CardTitle>Transaction History</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Date Filters */}
+          {/* Filters */}
           <Card className="border-dashed">
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Filter by Date</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold">Filters</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Start Date</label>
                     <Input
@@ -218,6 +223,20 @@ const TransactionHistory = () => {
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="completed">Success</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

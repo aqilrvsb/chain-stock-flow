@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ const RewardsManagement = () => {
   const [role, setRole] = useState<"master_agent" | "agent">("master_agent");
   const [minQuantity, setMinQuantity] = useState("");
   const [description, setDescription] = useState("");
+  const [periodType, setPeriodType] = useState<"monthly" | "yearly">("monthly");
   const [month, setMonth] = useState("1");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [filterYear, setFilterYear] = useState("all");
@@ -154,7 +156,7 @@ const RewardsManagement = () => {
       role,
       min_quantity: parseInt(minQuantity),
       reward_description: description,
-      month: parseInt(month),
+      month: periodType === "yearly" ? 0 : parseInt(month),
       year: parseInt(year),
     });
   };
@@ -165,7 +167,7 @@ const RewardsManagement = () => {
       role,
       min_quantity: parseInt(minQuantity),
       reward_description: description,
-      month: parseInt(month),
+      month: periodType === "yearly" ? 0 : parseInt(month),
       year: parseInt(year),
     });
   };
@@ -181,7 +183,8 @@ const RewardsManagement = () => {
     setRole(reward.role);
     setMinQuantity(reward.min_quantity.toString());
     setDescription(reward.reward_description);
-    setMonth(reward.month.toString());
+    setPeriodType(reward.month === 0 ? "yearly" : "monthly");
+    setMonth(reward.month === 0 ? "1" : reward.month.toString());
     setYear(reward.year.toString());
     setIsEditOpen(true);
   };
@@ -195,6 +198,7 @@ const RewardsManagement = () => {
     setRole("master_agent");
     setMinQuantity("");
     setDescription("");
+    setPeriodType("monthly");
     setMonth("1");
     setYear(new Date().getFullYear().toString());
   };
@@ -282,20 +286,35 @@ const RewardsManagement = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="month">Month</Label>
-                    <Select value={month} onValueChange={setMonth}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {monthNames.map((name, index) => (
-                          <SelectItem key={index + 1} value={(index + 1).toString()}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Period Type</Label>
+                    <RadioGroup value={periodType} onValueChange={(value: any) => setPeriodType(value)}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="monthly" id="monthly" />
+                        <Label htmlFor="monthly" className="font-normal cursor-pointer">Monthly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="yearly" id="yearly" />
+                        <Label htmlFor="yearly" className="font-normal cursor-pointer">Yearly</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
+                  {periodType === "monthly" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="month">Month</Label>
+                      <Select value={month} onValueChange={setMonth}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthNames.map((name, index) => (
+                            <SelectItem key={index + 1} value={(index + 1).toString()}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="year">Year</Label>
                     <Select value={year} onValueChange={setYear}>
