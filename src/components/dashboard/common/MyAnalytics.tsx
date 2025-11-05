@@ -31,9 +31,10 @@ const MyAnalytics = () => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],
     queryFn: async () => {
-      // Use Malaysia timezone (GMT+8)
-      const startDateTime = new Date(startDate + 'T00:00:00+08:00').toISOString();
-      const endDateTime = new Date(endDate + 'T23:59:59+08:00').toISOString();
+      // Convert date picker values (local Malaysia dates) to UTC
+      // Date picker gives us YYYY-MM-DD in local time
+      const startDateTime = new Date(startDate + 'T00:00:00').toISOString();
+      const endDateTime = new Date(endDate + 'T23:59:59').toISOString();
 
       // Get current inventory
       const { data: inventory } = await supabase

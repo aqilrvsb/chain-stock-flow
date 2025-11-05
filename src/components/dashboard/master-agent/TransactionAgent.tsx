@@ -36,10 +36,10 @@ const TransactionAgent = () => {
         .order("created_at", { ascending: false });
 
       if (startDate) {
-        query = query.gte("created_at", new Date(startDate + 'T00:00:00+08:00').toISOString());
+        query = query.gte("created_at", new Date(startDate + 'T00:00:00').toISOString());
       }
       if (endDate) {
-        query = query.lte("created_at", new Date(endDate + 'T23:59:59+08:00').toISOString());
+        query = query.lte("created_at", new Date(endDate + 'T23:59:59').toISOString());
       }
       if (statusFilter !== "all") {
         if (statusFilter === "completed_no_remarks") {
