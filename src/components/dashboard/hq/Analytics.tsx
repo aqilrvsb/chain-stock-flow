@@ -22,13 +22,13 @@ import { Label } from "@/components/ui/label";
 const Analytics = () => {
   const { user } = useAuth();
 
-  // Get current month start and end dates
+  // Get current month start (1st) and current date
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const currentDate = now;
 
   const [startDate, setStartDate] = useState(currentMonthStart.toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(currentMonthEnd.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
 
   // Fetch all data
   const { data: analyticsData, isLoading } = useQuery({
