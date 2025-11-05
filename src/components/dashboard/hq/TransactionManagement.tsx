@@ -389,6 +389,7 @@ const TransactionManagement = () => {
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Remark</TableHead>
+                  <TableHead>Remark Done</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -514,6 +515,11 @@ const TransactionManagement = () => {
                           </div>
                         </DialogContent>
                       </Dialog>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
+                        {(order as any).remarks || "-"}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
