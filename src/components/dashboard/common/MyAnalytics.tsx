@@ -367,71 +367,8 @@ const MyAnalytics = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-yellow-600" />
-            Monthly Rewards Progress
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stats?.monthlyRewards && stats.monthlyRewards.length > 0 ? (
-            <div className="space-y-3">
-              {stats.monthlyRewards.map((reward) => {
-                const progress = (stats.totalQuantity || 0);
-                const achieved = progress >= reward.min_quantity;
-                const percentAchieve = reward.min_quantity > 0
-                  ? Math.min((progress / reward.min_quantity) * 100, 100)
-                  : 0;
-
-                return (
-                  <div
-                    key={reward.id}
-                    className={`p-4 rounded-lg border transition-all ${
-                      achieved
-                        ? "bg-green-50 border-green-200 shadow-sm"
-                        : "bg-gray-50 border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <p className="font-semibold text-base">{reward.reward_description}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Target: {reward.min_quantity} units
-                        </p>
-                      </div>
-                      {achieved && (
-                        <span className="text-sm font-medium text-green-700">Achieved!</span>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">Progress: {progress} / {reward.min_quantity}</span>
-                        <span className="font-medium">{Math.round(percentAchieve)}%</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-3">
-                        <div
-                          className={`h-3 rounded-full transition-all ${
-                            achieved ? "bg-green-500" : "bg-primary"
-                          }`}
-                          style={{ width: `${percentAchieve}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">
-              No active rewards for this month
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
             <Award className="h-5 w-5 text-amber-600" />
-            Yearly Rewards Progress
+            Rewards Progress
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -484,7 +421,7 @@ const MyAnalytics = () => {
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-4">
-              No active rewards for this year
+              No active rewards available
             </p>
           )}
         </CardContent>
