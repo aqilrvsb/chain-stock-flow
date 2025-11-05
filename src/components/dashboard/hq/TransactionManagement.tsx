@@ -400,6 +400,7 @@ const TransactionManagement = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Total Sale</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Remark</TableHead>
@@ -440,6 +441,7 @@ const TransactionManagement = () => {
                     <TableCell>{order.product?.name || "-"}</TableCell>
                     <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>{order.quantity}</TableCell>
+                    <TableCell>RM {Number(order.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
                     </TableCell>

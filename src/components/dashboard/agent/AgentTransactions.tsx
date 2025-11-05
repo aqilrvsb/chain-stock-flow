@@ -213,6 +213,7 @@ const AgentTransactions = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Total Sale</TableHead>
                   <TableHead>Bank Holder</TableHead>
                   <TableHead>Bank</TableHead>
                   <TableHead>Receipt Date</TableHead>
@@ -229,6 +230,7 @@ const AgentTransactions = () => {
                     <TableCell>{purchase.product?.name}</TableCell>
                     <TableCell>{purchase.bundle?.name}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
+                    <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>{purchase.bank_holder_name || "-"}</TableCell>
                     <TableCell>{purchase.bank_name || "-"}</TableCell>
                     <TableCell>{purchase.receipt_date ? format(new Date(purchase.receipt_date), "dd-MM-yyyy") : "-"}</TableCell>

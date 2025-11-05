@@ -266,6 +266,7 @@ const TransactionHistory = () => {
                   <TableHead>Bundle</TableHead>
                   <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Total Sale</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Remarks</TableHead>
@@ -286,6 +287,7 @@ const TransactionHistory = () => {
                       </span>
                     </TableCell>
                     <TableCell>{order.quantity}</TableCell>
+                    <TableCell>RM {Number(order.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
                     </TableCell>
