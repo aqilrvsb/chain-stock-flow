@@ -9,8 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt } from "lucide-react";
+import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X } from "lucide-react";
 import Swal from "sweetalert2";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const TransactionHistory = () => {
   const { user, userRole } = useAuth();
@@ -19,6 +23,8 @@ const TransactionHistory = () => {
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
+  const [remarkText, setRemarkText] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["pending_orders", user?.id, startDate, endDate, statusFilter],
@@ -39,7 +45,7 @@ const TransactionHistory = () => {
         query = query.eq("status", statusFilter);
       }
 
-      const { data: ordersData, error } = await query;
+      const { data: ordersData, error} = await query;
       if (error) throw error;
 
       // Fetch products data
@@ -56,13 +62,23 @@ const TransactionHistory = () => {
         .select("id, name")
         .in("id", bundleIds);
 
-      // Merge products and bundles with orders
+      // Fetch buyer profiles with complete information
+      const buyerIds = [...new Set(ordersData?.map(o => o.buyer_id))];
+      const { data: buyersData } = await supabase
+        .from("profiles")
+        .select("id, idstaff, full_name, whatsapp_number, delivery_address")
+        .in("id", buyerIds);
+
+      // Merge all data with orders
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
       const bundlesMap = new Map(bundlesData?.map(b => [b.id, b]));
+      const buyersMap = new Map(buyersData?.map(b => [b.id, b]));
+
       return ordersData?.map(order => ({
         ...order,
         product: productsMap.get(order.product_id),
-        bundle: bundlesMap.get(order.bundle_id)
+        bundle: bundlesMap.get(order.bundle_id),
+        buyer: buyersMap.get(order.buyer_id)
       }));
     },
   });
@@ -162,13 +178,57 @@ const TransactionHistory = () => {
     }
   };
 
+  // Mutation for updating order status (Approve/Reject)
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      const { error } = await supabase
+        .from("pending_orders")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Order ${variables.status === 'completed' ? 'approved' : 'rejected'} successfully`);
+      queryClient.invalidateQueries({ queryKey: ["pending_orders"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update status");
+    },
+  });
+
+  // Mutation for saving remarks
+  const saveRemarkMutation = useMutation({
+    mutationFn: async ({ orderId, remark }: { orderId: string; remark: string }) => {
+      const { error } = await supabase
+        .from("pending_orders")
+        .update({ remarks: remark })
+        .eq("id", orderId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Remark saved successfully");
+      queryClient.invalidateQueries({ queryKey: ["pending_orders"] });
+      setRemarkText("");
+      setSelectedOrderId(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to save remark");
+    },
+  });
+
+  const handleSaveRemark = (orderId: string) => {
+    saveRemarkMutation.mutate({ orderId, remark: remarkText });
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
       completed: { variant: "default", className: "bg-green-600 hover:bg-green-700" },
       failed: { variant: "destructive", className: "" },
       pending: { variant: "secondary", className: "bg-yellow-600 hover:bg-yellow-700 text-white" },
     };
-    
+
     const config = variants[status] || variants.pending;
     return (
       <Badge variant={config.variant} className={config.className}>
@@ -252,12 +312,17 @@ const TransactionHistory = () => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Bill ID</TableHead>
+                  <TableHead>IDSTAFF</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>No Whatsapp</TableHead>
+                  <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
-                  <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
+                  <TableHead>Remark</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,36 +332,80 @@ const TransactionHistory = () => {
                     <TableCell>
                       {format(new Date(order.created_at), "dd-MM-yyyy")}
                     </TableCell>
-                    <TableCell>{order.product?.name || "-"}</TableCell>
-                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>
                       <span className="text-xs font-mono text-muted-foreground">
                         {(order as any).billplz_bill_id || "-"}
                       </span>
                     </TableCell>
+                    <TableCell>{(order as any).buyer?.idstaff || "-"}</TableCell>
+                    <TableCell>{(order as any).buyer?.full_name || "-"}</TableCell>
+                    <TableCell>
+                      {(order as any).buyer?.whatsapp_number ? (
+                        <a
+                          href={`https://api.whatsapp.com/send?phone=${(order as any).buyer.whatsapp_number}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-green-600 hover:text-green-700 hover:underline"
+                        >
+                          {(order as any).buyer.whatsapp_number}
+                        </a>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate" title={(order as any).buyer?.delivery_address}>
+                      {(order as any).buyer?.delivery_address || "-"}
+                    </TableCell>
+                    <TableCell>{order.product?.name || "-"}</TableCell>
+                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {/* Recheck button - only for PENDING status, Master Agent and HQ, not for Agent */}
-                        {order.status === 'pending' && (order as any).billplz_bill_id && userRole !== 'agent' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
-                            disabled={recheckingBills.has((order as any).billplz_bill_id)}
-                            className="gap-2"
-                            title="Recheck Payment Status"
-                          >
-                            <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
-                            Recheck
-                          </Button>
-                        ) : null}
-
-                        {/* Invoice icon - for all completed orders */}
-                        {order.status === 'completed' ? (
+                        {/* For pending status */}
+                        {order.status === 'pending' ? (
+                          <>
+                            {/* Recheck button - for Master Agent and HQ */}
+                            {(order as any).billplz_bill_id && userRole !== 'agent' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
+                                disabled={recheckingBills.has((order as any).billplz_bill_id)}
+                                className="gap-2"
+                                title="Recheck Payment Status"
+                              >
+                                <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
+                                Recheck
+                              </Button>
+                            )}
+                            {/* Approve/Reject buttons - only for HQ */}
+                            {userRole === 'hq' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'completed' })}
+                                  className="gap-2 bg-green-600 hover:bg-green-700"
+                                  title="Approve Order"
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'failed' })}
+                                  className="gap-2"
+                                  title="Reject Order"
+                                >
+                                  <X className="h-4 w-4" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </>
+                        ) : order.status === 'completed' ? (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -307,11 +416,45 @@ const TransactionHistory = () => {
                             <Receipt className="h-4 w-4" />
                             Invoice
                           </Button>
-                        ) : order.status === 'failed' && userRole === 'agent' ? (
-                          <span className="text-xs text-muted-foreground">-</span>
                         ) : null}
-
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedOrderId(order.id);
+                              setRemarkText((order as any).remarks || "");
+                            }}
+                            className="gap-2"
+                            title="Add/View Remark"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Order Remark</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <Textarea
+                              placeholder="Enter remark here..."
+                              value={remarkText}
+                              onChange={(e) => setRemarkText(e.target.value)}
+                              rows={5}
+                            />
+                            <Button
+                              onClick={() => handleSaveRemark(order.id)}
+                              disabled={saveRemarkMutation.isPending}
+                            >
+                              {saveRemarkMutation.isPending ? "Saving..." : "Save Remark"}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 ))}
