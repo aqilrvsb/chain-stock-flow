@@ -34,8 +34,9 @@ const Analytics = () => {
   const { data: analyticsData, isLoading } = useQuery({
     queryKey: ["hq-analytics", startDate, endDate],
     queryFn: async () => {
-      const startDateTime = new Date(startDate).toISOString();
-      const endDateTime = new Date(new Date(endDate).setHours(23, 59, 59)).toISOString();
+      // Use Malaysia timezone (GMT+8)
+      const startDateTime = new Date(startDate + 'T00:00:00+08:00').toISOString();
+      const endDateTime = new Date(endDate + 'T23:59:59+08:00').toISOString();
 
       // 1. Total HQ Unit In (Stock In HQ)
       const { data: stockInData } = await supabase

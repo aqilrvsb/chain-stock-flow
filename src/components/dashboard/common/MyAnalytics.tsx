@@ -31,8 +31,9 @@ const MyAnalytics = () => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],
     queryFn: async () => {
-      const startDateTime = new Date(startDate).toISOString();
-      const endDateTime = new Date(new Date(endDate).setHours(23, 59, 59)).toISOString();
+      // Use Malaysia timezone (GMT+8)
+      const startDateTime = new Date(startDate + 'T00:00:00+08:00').toISOString();
+      const endDateTime = new Date(endDate + 'T23:59:59+08:00').toISOString();
 
       // Get current inventory
       const { data: inventory } = await supabase
