@@ -16,7 +16,7 @@ const AgentDashboard = () => {
   const renderView = () => {
     switch (activeView) {
       case "purchase":
-        return <PurchaseProducts userType="agent" />;
+        return <PurchaseProducts userType="agent" onNavigateToSettings={() => setActiveView("settings")} />;
       case "inventory":
         return <MyInventory />;
       case "my-purchases":

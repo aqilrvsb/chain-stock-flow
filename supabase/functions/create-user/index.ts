@@ -138,15 +138,27 @@ Deno.serve(async (req) => {
     if (roleInsertError) throw roleInsertError
 
     // If agent, create master_agent_relationship
-    if (role === 'agent' && masterAgentId) {
-      const { error: relationshipError } = await supabaseAdmin
-        .from('master_agent_relationships')
-        .insert({
-          agent_id: authData.user.id,
-          master_agent_id: masterAgentId
-        })
+    if (role === 'agent') {
+      // Determine the master agent ID
+      // If masterAgentId is provided (from HQ), use it
+      // If not provided but creator is a master_agent, use creator's ID
+      const effectiveMasterAgentId = masterAgentId || (userRole === 'master_agent' ? user.id : null)
 
-      if (relationshipError) throw relationshipError
+      if (effectiveMasterAgentId) {
+        const { error: relationshipError } = await supabaseAdmin
+          .from('master_agent_relationships')
+          .insert({
+            agent_id: authData.user.id,
+            master_agent_id: effectiveMasterAgentId
+          })
+
+        if (relationshipError) {
+          console.error('Error creating relationship:', relationshipError)
+          throw relationshipError
+        }
+      } else {
+        throw new Error('Agent must be assigned to a Master Agent')
+      }
     }
 
     return new Response(

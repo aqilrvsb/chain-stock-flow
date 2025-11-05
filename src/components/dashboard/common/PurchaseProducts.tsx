@@ -13,11 +13,12 @@ import AgentPurchaseModal from "../agent/AgentPurchaseModal";
 
 interface PurchaseProductsProps {
   userType: "master_agent" | "agent";
+  onNavigateToSettings?: () => void;
 }
 
 const ITEMS_PER_PAGE = 12;
 
-const PurchaseProducts = ({ userType }: PurchaseProductsProps) => {
+const PurchaseProducts = ({ userType, onNavigateToSettings }: PurchaseProductsProps) => {
   // Check if user is still active when purchase page loads
   useActiveStatusCheck();
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,19 +59,30 @@ const PurchaseProducts = ({ userType }: PurchaseProductsProps) => {
     enabled: !!user?.id,
   });
 
-  const { data: masterAgentId } = useQuery({
+  const { data: masterAgentId, isLoading: isLoadingMasterAgent, error: masterAgentError } = useQuery({
     queryKey: ["master-agent-id", user?.id],
     queryFn: async () => {
       if (userType !== "agent") return null;
-      
+
+      console.log("Fetching master agent relationship for user:", user?.id);
+
       const { data, error } = await supabase
         .from("master_agent_relationships")
         .select("master_agent_id")
         .eq("agent_id", user?.id)
         .maybeSingle();
-      
-      if (error) throw error;
-      return data?.master_agent_id;
+
+      console.log("Master agent relationship query result:", { data, error });
+
+      if (error) {
+        console.error("Error fetching master agent relationship:", error);
+        throw error;
+      }
+
+      const masterAgentId = data?.master_agent_id;
+      console.log("Master Agent ID:", masterAgentId);
+
+      return masterAgentId;
     },
     enabled: !!user?.id && userType === "agent",
   });
@@ -128,8 +140,8 @@ const PurchaseProducts = ({ userType }: PurchaseProductsProps) => {
         confirmButtonText: "Go to Settings",
         showCancelButton: true,
       }).then((result) => {
-        if (result.isConfirmed) {
-          // User can manually navigate to settings
+        if (result.isConfirmed && onNavigateToSettings) {
+          onNavigateToSettings();
         }
       });
       return false;
@@ -144,7 +156,12 @@ const PurchaseProducts = ({ userType }: PurchaseProductsProps) => {
 
     // Agent purchases from Master Agent (different flow)
     if (userType === "agent") {
+      console.log("Agent attempting purchase. Master Agent ID:", masterAgentId);
+      console.log("Is loading master agent:", isLoadingMasterAgent);
+      console.log("Master agent error:", masterAgentError);
+
       if (!masterAgentId) {
+        console.error("No master agent ID found for agent");
         toast({
           title: "Error",
           description: "You are not assigned to any Master Agent",
