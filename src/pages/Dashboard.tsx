@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveStatusCheck } from "@/hooks/useActiveStatusCheck";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import HQDashboard from "@/components/dashboard/HQDashboard";
@@ -9,6 +10,9 @@ import AgentDashboard from "@/components/dashboard/AgentDashboard";
 const Dashboard = () => {
   const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user is still active when dashboard loads
+  useActiveStatusCheck();
 
   useEffect(() => {
     if (!loading && !user) {

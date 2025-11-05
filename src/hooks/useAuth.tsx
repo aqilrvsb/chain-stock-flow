@@ -11,6 +11,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  checkUserActiveStatus: (userId: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,27 +54,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Continuous monitoring of user active status
-  useEffect(() => {
-    if (!user?.id) return;
-
-    // Check active status immediately
-    const checkAndLogoutIfInactive = async () => {
-      const isActive = await checkUserActiveStatus(user.id);
-      if (!isActive) {
-        // User has been deactivated, logout immediately
-        await signOut();
-      }
-    };
-
-    // Initial check
-    checkAndLogoutIfInactive();
-
-    // Set up interval to check every 30 seconds
-    const intervalId = setInterval(checkAndLogoutIfInactive, 30000);
-
-    return () => clearInterval(intervalId);
-  }, [user?.id]);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -190,6 +170,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         signIn,
         signUp,
         signOut,
+        checkUserActiveStatus,
       }}
     >
       {children}

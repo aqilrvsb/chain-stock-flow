@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveStatusCheck } from "@/hooks/useActiveStatusCheck";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,8 @@ interface PurchaseProductsProps {
 const ITEMS_PER_PAGE = 12;
 
 const PurchaseProducts = ({ userType }: PurchaseProductsProps) => {
+  // Check if user is still active when purchase page loads
+  useActiveStatusCheck();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [agentPurchaseModal, setAgentPurchaseModal] = useState<{
