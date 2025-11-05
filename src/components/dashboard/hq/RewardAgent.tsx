@@ -217,7 +217,7 @@ const RewardAgent = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Month</TableHead>
+                  {periodFilter === "monthly" && <TableHead>Month</TableHead>}
                   <TableHead>Year</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Target Quantity</TableHead>
@@ -231,7 +231,7 @@ const RewardAgent = () => {
                   a.rewardProgress.length > 0 ? (
                     a.rewardProgress.map((rp, idx) => (
                       <TableRow key={`${a.agent.id}-${idx}`}>
-                        <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>
+                        {periodFilter === "monthly" && <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>}
                         <TableCell>{selectedYear}</TableCell>
                         <TableCell>{a.agent.idstaff || a.agent.full_name || a.agent.email}</TableCell>
                         <TableCell>{rp.min_quantity}</TableCell>
@@ -239,7 +239,7 @@ const RewardAgent = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="w-full max-w-[100px] bg-muted rounded-full h-2">
-                              <div 
+                              <div
                                 className="bg-primary h-2 rounded-full transition-all"
                                 style={{ width: `${rp.percentAchieve}%` }}
                               />
@@ -256,7 +256,7 @@ const RewardAgent = () => {
                     ))
                   ) : (
                     <TableRow key={a.agent.id}>
-                      <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>
+                      {periodFilter === "monthly" && <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>}
                       <TableCell>{selectedYear}</TableCell>
                       <TableCell>{a.agent.idstaff || a.agent.full_name || a.agent.email}</TableCell>
                       <TableCell>-</TableCell>

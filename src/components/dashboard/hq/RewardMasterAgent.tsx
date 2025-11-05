@@ -218,7 +218,7 @@ const RewardMasterAgent = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Month</TableHead>
+                  {periodFilter === "monthly" && <TableHead>Month</TableHead>}
                   <TableHead>Year</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Target Quantity</TableHead>
@@ -232,7 +232,7 @@ const RewardMasterAgent = () => {
                   ma.rewardProgress.length > 0 ? (
                     ma.rewardProgress.map((rp, idx) => (
                       <TableRow key={`${ma.masterAgent.id}-${idx}`}>
-                        <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>
+                        {periodFilter === "monthly" && <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>}
                         <TableCell>{selectedYear}</TableCell>
                         <TableCell>{ma.masterAgent.idstaff || ma.masterAgent.full_name || ma.masterAgent.email}</TableCell>
                         <TableCell>{rp.min_quantity}</TableCell>
@@ -240,7 +240,7 @@ const RewardMasterAgent = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="w-full max-w-[100px] bg-muted rounded-full h-2">
-                              <div 
+                              <div
                                 className="bg-primary h-2 rounded-full transition-all"
                                 style={{ width: `${rp.percentAchieve}%` }}
                               />
@@ -257,7 +257,7 @@ const RewardMasterAgent = () => {
                     ))
                   ) : (
                     <TableRow key={ma.masterAgent.id}>
-                      <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>
+                      {periodFilter === "monthly" && <TableCell>{monthNames[parseInt(selectedMonth) - 1]}</TableCell>}
                       <TableCell>{selectedYear}</TableCell>
                       <TableCell>{ma.masterAgent.idstaff || ma.masterAgent.full_name || ma.masterAgent.email}</TableCell>
                       <TableCell>-</TableCell>
