@@ -77,7 +77,6 @@ const AgentInventory = () => {
                 <TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Base Cost</TableHead>
                   <TableHead>Quantity</TableHead>
                 </TableRow>
               </TableHeader>
@@ -89,7 +88,6 @@ const AgentInventory = () => {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.sku}</TableCell>
                       <TableCell>{product.name}</TableCell>
-                      <TableCell>RM {product.base_cost}</TableCell>
                       <TableCell className="font-medium">{totalQuantity}</TableCell>
                     </TableRow>
                   );

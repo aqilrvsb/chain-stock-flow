@@ -51,7 +51,6 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "My Agents", icon: Users, value: "agents" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
-        { title: "Analytics", icon: BarChart3, value: "analytics" },
       ];
     } else if (userRole === "agent") {
       return [
@@ -59,7 +58,6 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
-        { title: "Analytics", icon: BarChart3, value: "analytics" },
       ];
     }
     return [{ title: "Dashboard", icon: Home, value: "dashboard" }];
