@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -40,6 +40,8 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Rewards", icon: Gift, value: "rewards" },
         { title: "Reward Master Agent", icon: Award, value: "reward-ma" },
         { title: "Reward Agent", icon: Award, value: "reward-agent" },
+        { title: "Reporting Master Agent", icon: FileText, value: "reporting-ma" },
+        { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
       ];
     } else if (userRole === "master_agent") {
       return [
@@ -50,6 +52,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
         { title: "Reward Agent", icon: Award, value: "reward-agent" },
+        { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
       ];
     } else if (userRole === "agent") {
       return [
