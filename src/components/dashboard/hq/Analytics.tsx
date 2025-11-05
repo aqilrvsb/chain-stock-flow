@@ -30,59 +30,74 @@ const Analytics = () => {
   const { data: analyticsData, isLoading } = useQuery({
     queryKey: ["hq-analytics", startDate, endDate],
     queryFn: async () => {
-      // Get Malaysia current date
       const now = new Date();
-      const malaysiaNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
-
-      // Default to 1st of current month if startDate is empty
-      const defaultStartDate = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
-      const defaultEndDate = malaysiaNow;
-
-      // Use provided dates or defaults
-      const effectiveStartDate = startDate || defaultStartDate.toISOString().split('T')[0];
-      const effectiveEndDate = endDate || defaultEndDate.toISOString().split('T')[0];
-
-      // Convert to UTC for database queries
-      const startDateTime = effectiveStartDate + 'T00:00:00.000Z';
-      const endDateTime = effectiveEndDate + 'T23:59:59.999Z';
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
       // 1. Total HQ Unit In (Stock In HQ)
-      const { data: stockInData } = await supabase
+      let stockInQuery = supabase
         .from("stock_in_hq")
-        .select("quantity")
-        .gte("date", startDateTime)
-        .lte("date", endDateTime);
+        .select("quantity");
+
+      if (startDate) {
+        stockInQuery = stockInQuery.gte("date", startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        stockInQuery = stockInQuery.lte("date", endDate + 'T23:59:59.999Z');
+      }
+
+      const { data: stockInData } = await stockInQuery;
 
       const totalHQUnitIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
       // 2. Total Master Agent Unit Buy (pending_orders where success)
-      const { data: pendingOrders } = await supabase
+      let pendingOrdersQuery = supabase
         .from("pending_orders")
         .select("quantity, total_price, product_id")
-        .eq("status", "completed")
-        .gte("created_at", startDateTime)
-        .lte("created_at", endDateTime);
+        .eq("status", "completed");
+
+      if (startDate) {
+        pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+      }
+
+      const { data: pendingOrders } = await pendingOrdersQuery;
 
       const totalMAUnitBuy = pendingOrders?.reduce((sum, order) => sum + order.quantity, 0) || 0;
       const totalSalesHQ = pendingOrders?.reduce((sum, order) => sum + Number(order.total_price), 0) || 0;
 
       // 2b. Total HQ Unit Out (Stock Out HQ)
-      const { data: stockOutData } = await supabase
+      let stockOutQuery = supabase
         .from("stock_out_hq")
-        .select("quantity")
-        .gte("date", startDateTime)
-        .lte("date", endDateTime);
+        .select("quantity");
+
+      if (startDate) {
+        stockOutQuery = stockOutQuery.gte("date", startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        stockOutQuery = stockOutQuery.lte("date", endDate + 'T23:59:59.999Z');
+      }
+
+      const { data: stockOutData } = await stockOutQuery;
 
       const stockOutHQ = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
       const totalHQUnitOut = stockOutHQ + totalMAUnitBuy;
 
       // 3. Total Agent Unit Buy (agent_purchases where success)
-      const { data: agentPurchases } = await supabase
+      let agentPurchasesQuery = supabase
         .from("agent_purchases")
         .select("quantity, total_price, product_id, bundle_id")
-        .eq("status", "completed")
-        .gte("created_at", startDateTime)
-        .lte("created_at", endDateTime);
+        .eq("status", "completed");
+
+      if (startDate) {
+        agentPurchasesQuery = agentPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+      }
+      if (endDate) {
+        agentPurchasesQuery = agentPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+      }
+
+      const { data: agentPurchases } = await agentPurchasesQuery;
 
       const totalAgentUnitBuy = agentPurchases?.reduce((sum, purchase) => sum + purchase.quantity, 0) || 0;
       const totalSalesMA = agentPurchases?.reduce((sum, purchase) => sum + Number(purchase.total_price), 0) || 0;

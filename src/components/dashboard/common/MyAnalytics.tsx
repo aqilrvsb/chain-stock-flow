@@ -24,24 +24,10 @@ const MyAnalytics = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading} = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],
     queryFn: async () => {
-      // Get Malaysia current date
       const now = new Date();
-      const malaysiaNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }));
-
-      // Default to 1st of current month if startDate is empty
-      const defaultStartDate = new Date(malaysiaNow.getFullYear(), malaysiaNow.getMonth(), 1);
-      const defaultEndDate = malaysiaNow;
-
-      // Use provided dates or defaults
-      const effectiveStartDate = startDate || defaultStartDate.toISOString().split('T')[0];
-      const effectiveEndDate = endDate || defaultEndDate.toISOString().split('T')[0];
-
-      // Convert to UTC for database queries
-      const startDateTime = effectiveStartDate + 'T00:00:00.000Z';
-      const endDateTime = effectiveEndDate + 'T23:59:59.999Z';
 
       // Get current inventory
       const { data: inventory } = await supabase
@@ -53,12 +39,19 @@ const MyAnalytics = () => {
 
       if (userRole === "master_agent") {
         // Master Agent specific analytics
-        const { data: purchases } = await supabase
+        let purchasesQuery = supabase
           .from("pending_orders")
           .select("quantity, total_price, status, product_id")
-          .eq("buyer_id", user?.id)
-          .gte("created_at", startDateTime)
-          .lte("created_at", endDateTime);
+          .eq("buyer_id", user?.id);
+
+        if (startDate) {
+          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        }
+        if (endDate) {
+          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        }
+
+        const { data: purchases } = await purchasesQuery;
 
         const completedPurchases = purchases?.filter(p => p.status === "completed") || [];
         const pendingPurchases = purchases?.filter(p => p.status === "pending") || [];
@@ -69,12 +62,19 @@ const MyAnalytics = () => {
         const pendingAmount = pendingPurchases.reduce((sum, tx) => sum + Number(tx.total_price), 0);
 
         // Get agent sales (agents buying from this MA)
-        const { data: agentSales } = await supabase
+        let agentSalesQuery = supabase
           .from("agent_purchases")
           .select("quantity, total_price, status, bundle_id, agent_id")
-          .eq("master_agent_id", user?.id)
-          .gte("created_at", startDateTime)
-          .lte("created_at", endDateTime);
+          .eq("master_agent_id", user?.id);
+
+        if (startDate) {
+          agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        }
+        if (endDate) {
+          agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        }
+
+        const { data: agentSales } = await agentSalesQuery;
 
         const completedAgentSales = agentSales?.filter(s => s.status === "completed") || [];
         const agentSalesTotal = completedAgentSales.reduce((sum, s) => sum + Number(s.total_price), 0);
@@ -123,12 +123,19 @@ const MyAnalytics = () => {
         };
       } else {
         // Agent specific analytics
-        const { data: purchases } = await supabase
+        let purchasesQuery = supabase
           .from("agent_purchases")
           .select("quantity, total_price, status, product_id")
-          .eq("agent_id", user?.id)
-          .gte("created_at", startDateTime)
-          .lte("created_at", endDateTime);
+          .eq("agent_id", user?.id);
+
+        if (startDate) {
+          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        }
+        if (endDate) {
+          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        }
+
+        const { data: purchases } = await purchasesQuery;
 
         const completedPurchases = purchases?.filter(p => p.status === "completed") || [];
         const pendingPurchases = purchases?.filter(p => p.status === "pending") || [];
