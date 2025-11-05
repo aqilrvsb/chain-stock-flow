@@ -17,9 +17,11 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const [billplzApiKey, setBillplzApiKey] = useState("");
   const [billplzCollectionId, setBillplzCollectionId] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", user?.id],
@@ -206,6 +208,83 @@ const Settings = () => {
     }
   };
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type (accept .ico, .png, .svg)
+    const validTypes = ['image/x-icon', 'image/vnd.microsoft.icon', 'image/png', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file",
+        description: "Please select a valid favicon file (.ico, .png, or .svg)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFavicon(true);
+
+    try {
+      // Upload to storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `favicon.${fileExt}`;
+      const filePath = `system/${fileName}`;
+
+      // Remove old favicon if exists
+      await supabase.storage.from('public').remove([filePath]);
+
+      const { error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath);
+
+      // Update system settings
+      const { error: updateError } = await (supabase as any)
+        .from('system_settings')
+        .upsert({
+          setting_key: 'favicon_url',
+          setting_value: publicUrl,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'setting_key'
+        });
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Favicon uploaded successfully",
+        description: "Please refresh the page to see the new favicon"
+      });
+
+      // Reset file input
+      if (faviconInputRef.current) {
+        faviconInputRef.current.value = '';
+      }
+
+      // Update the favicon in the document
+      const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
+      link.type = 'image/x-icon';
+      link.rel = 'shortcut icon';
+      link.href = publicUrl;
+      document.getElementsByTagName('head')[0].appendChild(link);
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFavicon(false);
+    }
+  };
+
   const handleBillplzUpdate = async () => {
     if (!billplzApiKey || !billplzCollectionId) {
       toast({
@@ -277,6 +356,37 @@ const Settings = () => {
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Uploading logo...
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>System Favicon</CardTitle>
+              <CardDescription>Upload a favicon to display in browser tabs (.ico, .png, or .svg)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="favicon">Favicon Image</Label>
+                  <Input
+                    ref={faviconInputRef}
+                    id="favicon"
+                    type="file"
+                    accept=".ico,.png,.svg,image/x-icon,image/vnd.microsoft.icon,image/png,image/svg+xml"
+                    onChange={handleFaviconUpload}
+                    disabled={uploadingFavicon}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Recommended: 32x32 or 16x16 pixels. Supports .ico, .png, and .svg formats.
+                  </p>
+                </div>
+                {uploadingFavicon && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading favicon...
                   </div>
                 )}
               </div>
