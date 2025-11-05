@@ -62,23 +62,14 @@ const TransactionHistory = () => {
         .select("id, name")
         .in("id", bundleIds);
 
-      // Fetch buyer profiles with complete information
-      const buyerIds = [...new Set(ordersData?.map(o => o.buyer_id))];
-      const { data: buyersData } = await supabase
-        .from("profiles")
-        .select("id, idstaff, full_name, whatsapp_number, delivery_address")
-        .in("id", buyerIds);
-
       // Merge all data with orders
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
       const bundlesMap = new Map(bundlesData?.map(b => [b.id, b]));
-      const buyersMap = new Map(buyersData?.map(b => [b.id, b]));
 
       return ordersData?.map(order => ({
         ...order,
         product: productsMap.get(order.product_id),
-        bundle: bundlesMap.get(order.bundle_id),
-        buyer: buyersMap.get(order.buyer_id)
+        bundle: bundlesMap.get(order.bundle_id)
       }));
     },
   });
@@ -177,25 +168,6 @@ const TransactionHistory = () => {
       });
     }
   };
-
-  // Mutation for updating order status (Approve/Reject)
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      const { error } = await supabase
-        .from("pending_orders")
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq("id", orderId);
-
-      if (error) throw error;
-    },
-    onSuccess: (_, variables) => {
-      toast.success(`Order ${variables.status === 'completed' ? 'approved' : 'rejected'} successfully`);
-      queryClient.invalidateQueries({ queryKey: ["pending_orders"] });
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Failed to update status");
-    },
-  });
 
   // Mutation for saving remarks
   const saveRemarkMutation = useMutation({
@@ -312,17 +284,13 @@ const TransactionHistory = () => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Bill ID</TableHead>
-                  <TableHead>IDSTAFF</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>No Whatsapp</TableHead>
-                  <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
+                  <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
-                  <TableHead>Remark</TableHead>
+                  <TableHead>Remarks</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -332,92 +300,44 @@ const TransactionHistory = () => {
                     <TableCell>
                       {format(new Date(order.created_at), "dd-MM-yyyy")}
                     </TableCell>
+                    <TableCell>{order.product?.name || "-"}</TableCell>
+                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>
                       <span className="text-xs font-mono text-muted-foreground">
                         {(order as any).billplz_bill_id || "-"}
                       </span>
                     </TableCell>
-                    <TableCell>{(order as any).buyer?.idstaff || "-"}</TableCell>
-                    <TableCell>{(order as any).buyer?.full_name || "-"}</TableCell>
-                    <TableCell>
-                      {(order as any).buyer?.whatsapp_number ? (
-                        <a
-                          href={`https://api.whatsapp.com/send?phone=${(order as any).buyer.whatsapp_number}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-green-600 hover:text-green-700 hover:underline"
-                        >
-                          {(order as any).buyer.whatsapp_number}
-                        </a>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate" title={(order as any).buyer?.delivery_address}>
-                      {(order as any).buyer?.delivery_address || "-"}
-                    </TableCell>
-                    <TableCell>{order.product?.name || "-"}</TableCell>
-                    <TableCell>{order.bundle?.name || "-"}</TableCell>
                     <TableCell>{order.quantity}</TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {/* For pending status */}
-                        {order.status === 'pending' ? (
-                          <>
-                            {/* Recheck button - for Master Agent and HQ */}
-                            {(order as any).billplz_bill_id && userRole !== 'agent' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
-                                disabled={recheckingBills.has((order as any).billplz_bill_id)}
-                                className="gap-2"
-                                title="Recheck Payment Status"
-                              >
-                                <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
-                                Recheck
-                              </Button>
-                            )}
-                            {/* Approve/Reject buttons - only for HQ */}
-                            {userRole === 'hq' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'completed' })}
-                                  className="gap-2 bg-green-600 hover:bg-green-700"
-                                  title="Approve Order"
-                                >
-                                  <Check className="h-4 w-4" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => updateStatusMutation.mutate({ orderId: order.id, status: 'failed' })}
-                                  className="gap-2"
-                                  title="Reject Order"
-                                >
-                                  <X className="h-4 w-4" />
-                                  Reject
-                                </Button>
-                              </>
-                            )}
-                          </>
-                        ) : order.status === 'completed' ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
-                            className="gap-2"
-                            title="View Invoice"
-                          >
-                            <Receipt className="h-4 w-4" />
-                            Invoice
-                          </Button>
-                        ) : null}
-                      </div>
+                      {order.status === 'pending' && (order as any).billplz_bill_id ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
+                          disabled={recheckingBills.has((order as any).billplz_bill_id)}
+                          className="gap-2"
+                          title="Recheck Payment Status"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
+                          Recheck
+                        </Button>
+                      ) : order.status === 'completed' ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
+                          className="gap-2"
+                          title="View Invoice"
+                        >
+                          <Receipt className="h-4 w-4" />
+                          Invoice
+                        </Button>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Dialog>
