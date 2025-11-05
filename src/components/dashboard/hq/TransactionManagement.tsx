@@ -314,7 +314,7 @@ const TransactionManagement = () => {
       <div>
         <h1 className="text-3xl font-bold">Transaction Management</h1>
         <p className="text-muted-foreground mt-2">
-          View and manage all pending orders from the system
+          View and manage all transactions from the system
         </p>
       </div>
 

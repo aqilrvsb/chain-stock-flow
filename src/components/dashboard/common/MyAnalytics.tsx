@@ -96,7 +96,7 @@ const MyAnalytics = () => {
         // Get unique agents count
         const uniqueAgents = new Set(agentSales?.map(s => s.agent_id)).size;
 
-        // Calculate Total Unit In (pending orders where success)
+        // Calculate Total Unit In (transactions where success)
         const totalUnitIn = completedPurchases.reduce((sum, tx) => sum + tx.quantity, 0);
 
         // Calculate Total Unit Out (agent purchases where success)
@@ -234,7 +234,7 @@ const MyAnalytics = () => {
       {
         title: "Pending Amount",
         value: `RM ${(stats?.pendingAmount || 0).toFixed(2)}`,
-        subtitle: `${stats?.pendingCount || 0} pending orders`,
+        subtitle: `${stats?.pendingCount || 0} pending transactions`,
         icon: TrendingUp,
         color: "text-orange-600",
       },
@@ -245,7 +245,7 @@ const MyAnalytics = () => {
         {
           title: "Total Unit In",
           value: stats?.totalUnitIn || 0,
-          subtitle: "Pending orders success",
+          subtitle: "Transactions success",
           icon: Package,
           color: "text-blue-600",
         },
@@ -398,10 +398,7 @@ const MyAnalytics = () => {
                         </p>
                       </div>
                       {achieved && (
-                        <div className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
-                          <Award className="h-5 w-5 text-yellow-600" />
-                          <span className="text-sm font-medium text-green-700">Achieved!</span>
-                        </div>
+                        <span className="text-sm font-medium text-green-700">Achieved!</span>
                       )}
                     </div>
                     <div className="mt-3">
@@ -464,10 +461,7 @@ const MyAnalytics = () => {
                         </p>
                       </div>
                       {achieved && (
-                        <div className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
-                          <Award className="h-5 w-5 text-amber-600" />
-                          <span className="text-sm font-medium text-green-700">Achieved!</span>
-                        </div>
+                        <span className="text-sm font-medium text-green-700">Achieved!</span>
                       )}
                     </div>
                     <div className="mt-3">

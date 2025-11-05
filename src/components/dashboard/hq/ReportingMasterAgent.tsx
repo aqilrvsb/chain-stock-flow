@@ -43,7 +43,7 @@ const ReportingMasterAgent = () => {
 
           const latestBalance = inventory?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Stock In (pending orders where success)
+          // Stock In (transactions where success)
           let stockInQuery = supabase
             .from("pending_orders")
             .select("quantity")
