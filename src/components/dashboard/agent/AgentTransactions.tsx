@@ -197,10 +197,12 @@ const AgentTransactions = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
-                  <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Bank Holder</TableHead>
+                  <TableHead>Bank</TableHead>
+                  <TableHead>Receipt Date</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Action</TableHead>
                   <TableHead>Remarks</TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,9 +213,10 @@ const AgentTransactions = () => {
                     <TableCell>{format(new Date(purchase.created_at), "dd-MM-yyyy")}</TableCell>
                     <TableCell>{purchase.product?.name}</TableCell>
                     <TableCell>{purchase.bundle?.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{purchase.id.slice(0, 13)}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
-                    <TableCell>{getStatusBadge(purchase.status)}</TableCell>
+                    <TableCell>{purchase.bank_holder_name || "-"}</TableCell>
+                    <TableCell>{purchase.bank_name || "-"}</TableCell>
+                    <TableCell>{purchase.receipt_date ? format(new Date(purchase.receipt_date), "dd-MM-yyyy") : "-"}</TableCell>
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -231,7 +234,8 @@ const AgentTransactions = () => {
                         </DialogContent>
                       </Dialog>
                     </TableCell>
-                    <TableCell>-</TableCell>
+                    <TableCell>{getStatusBadge(purchase.status)}</TableCell>
+                    <TableCell>{purchase.remarks || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
