@@ -42,15 +42,23 @@ const StockOutHQ = () => {
   const { data: masterAgents } = useQuery({
     queryKey: ["master-agents"],
     queryFn: async () => {
+      // First get all user_ids with master_agent role
+      const { data: userRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "master_agent");
+
+      if (rolesError) throw rolesError;
+      if (!userRoles || userRoles.length === 0) return [];
+
+      const masterAgentIds = userRoles.map(ur => ur.user_id);
+
+      // Then get profiles for those user_ids
       const { data, error } = await supabase
         .from("profiles")
-        .select(`
-          id,
-          full_name,
-          id_staff,
-          user_roles!user_roles_user_id_fkey!inner(role)
-        `)
-        .eq("user_roles.role", "master_agent");
+        .select("id, full_name, id_staff")
+        .in("id", masterAgentIds);
+
       if (error) throw error;
       return data;
     },
@@ -129,7 +137,7 @@ const StockOutHQ = () => {
       if (updateError) throw updateError;
 
       // If master agent is selected, create transaction and update MA inventory
-      if (selectedMasterAgent) {
+      if (selectedMasterAgent && selectedMasterAgent !== "none") {
         const unitPrice = product?.price_hq_to_ma || 0;
         const totalPrice = unitPrice * quantityToRemove;
 
@@ -254,7 +262,7 @@ const StockOutHQ = () => {
                     <SelectValue placeholder="Select Master Agent (leave empty for regular stock out)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (Regular Stock Out)</SelectItem>
+                    <SelectItem value="none">None (Regular Stock Out)</SelectItem>
                     {masterAgents?.map((ma) => (
                       <SelectItem key={ma.id} value={ma.id}>
                         {ma.id_staff} - {ma.full_name}
