@@ -25,6 +25,7 @@ const StockOutHQ = () => {
   const [quantity, setQuantity] = useState("");
   const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
+  const [selectedMasterAgent, setSelectedMasterAgent] = useState("");
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -33,6 +34,23 @@ const StockOutHQ = () => {
         .from("products")
         .select("*")
         .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: masterAgents } = useQuery({
+    queryKey: ["master-agents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          id,
+          full_name,
+          id_staff,
+          user_roles!user_roles_user_id_fkey!inner(role)
+        `)
+        .eq("user_roles.role", "master_agent");
       if (error) throw error;
       return data;
     },
@@ -81,6 +99,13 @@ const StockOutHQ = () => {
         throw new Error(`Insufficient inventory. Available: ${existing.quantity}, Requested: ${quantityToRemove}`);
       }
 
+      // Get product details for pricing
+      const { data: product } = await supabase
+        .from("products")
+        .select("price_hq_to_ma")
+        .eq("id", selectedProduct)
+        .single();
+
       // Insert stock out record
       const { error: stockOutError } = await supabase
         .from("stock_out_hq")
@@ -94,7 +119,7 @@ const StockOutHQ = () => {
 
       if (stockOutError) throw stockOutError;
 
-      // Update inventory (decrease)
+      // Update HQ inventory (decrease)
       const newQuantity = existing.quantity - quantityToRemove;
       const { error: updateError } = await supabase
         .from("inventory")
@@ -102,19 +127,77 @@ const StockOutHQ = () => {
         .eq("id", existing.id);
 
       if (updateError) throw updateError;
+
+      // If master agent is selected, create transaction and update MA inventory
+      if (selectedMasterAgent) {
+        const unitPrice = product?.price_hq_to_ma || 0;
+        const totalPrice = unitPrice * quantityToRemove;
+
+        // Create transaction record (manual purchase from HQ)
+        const { error: transactionError } = await supabase
+          .from("transactions")
+          .insert({
+            buyer_id: selectedMasterAgent,
+            seller_id: user?.id,
+            product_id: selectedProduct,
+            quantity: quantityToRemove,
+            unit_price: unitPrice,
+            total_price: totalPrice,
+            transaction_type: "purchase",
+          });
+
+        if (transactionError) throw transactionError;
+
+        // Check if MA already has inventory for this product
+        const { data: maInventory } = await supabase
+          .from("inventory")
+          .select("*")
+          .eq("user_id", selectedMasterAgent)
+          .eq("product_id", selectedProduct)
+          .single();
+
+        if (maInventory) {
+          // Update existing MA inventory (increase)
+          const { error: maUpdateError } = await supabase
+            .from("inventory")
+            .update({ quantity: maInventory.quantity + quantityToRemove })
+            .eq("id", maInventory.id);
+
+          if (maUpdateError) throw maUpdateError;
+        } else {
+          // Create new inventory record for MA
+          const { error: maInsertError } = await supabase
+            .from("inventory")
+            .insert({
+              user_id: selectedMasterAgent,
+              product_id: selectedProduct,
+              quantity: quantityToRemove,
+            });
+
+          if (maInsertError) throw maInsertError;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Stock removed successfully");
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+
+      const message = selectedMasterAgent
+        ? "Stock transferred to Master Agent successfully"
+        : "Stock out recorded successfully";
+      toast.success(message);
+
       setIsDialogOpen(false);
       setSelectedProduct("");
       setQuantity("");
       setStockDate(format(new Date(), "yyyy-MM-dd"));
       setDescription("");
+      setSelectedMasterAgent("");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to remove stock");
+      toast.error(error.message || "Failed to process stock out");
     },
   });
 
@@ -141,12 +224,12 @@ const StockOutHQ = () => {
           <DialogTrigger asChild>
             <Button variant="destructive">
               <Minus className="mr-2 h-4 w-4" />
-              Remove Stock
+              Stock Out
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Remove Stock from HQ</DialogTitle>
+              <DialogTitle>Stock Out from HQ</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -159,6 +242,22 @@ const StockOutHQ = () => {
                     {products?.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
                         {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Master Agent ID Staff (Optional)</Label>
+                <Select value={selectedMasterAgent} onValueChange={setSelectedMasterAgent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Master Agent (leave empty for regular stock out)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None (Regular Stock Out)</SelectItem>
+                    {masterAgents?.map((ma) => (
+                      <SelectItem key={ma.id} value={ma.id}>
+                        {ma.id_staff} - {ma.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -186,7 +285,7 @@ const StockOutHQ = () => {
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add notes about this stock removal..."
+                  placeholder="Add notes about this stock out..."
                 />
               </div>
               <Button
@@ -194,7 +293,7 @@ const StockOutHQ = () => {
                 className="w-full"
                 variant="destructive"
               >
-                Remove Stock
+                Stock Out
               </Button>
             </div>
           </DialogContent>
