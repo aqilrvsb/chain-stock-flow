@@ -304,6 +304,13 @@ const MyAnalytics = () => {
         color: "text-blue-600",
       },
       {
+        title: "Total Purchase (Success)",
+        value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
+        subtitle: "Completed orders",
+        icon: DollarSign,
+        color: "text-emerald-600",
+      },
+      {
         title: "Latest Balance Unit",
         value: stats?.currentStock || 0,
         subtitle: "Current inventory",
