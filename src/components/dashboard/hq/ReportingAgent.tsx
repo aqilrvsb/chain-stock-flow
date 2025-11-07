@@ -21,7 +21,6 @@ const ReportingAgent = () => {
           id,
           idstaff,
           full_name,
-          master_agent_id,
           user_roles!user_roles_user_id_fkey!inner(role)
         `)
         .eq("user_roles.role", "agent");
@@ -33,14 +32,26 @@ const ReportingAgent = () => {
       const month = now.getMonth() + 1;
       const year = now.getFullYear();
 
-      // Get master agent names
-      const masterAgentIds = [...new Set(agents.map(a => a.master_agent_id).filter(Boolean))];
-      const { data: masterAgents } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", masterAgentIds);
+      // Get master agent relationships for all agents
+      const agentIds = agents.map(a => a.id);
+      const { data: relationships } = await supabase
+        .from("master_agent_relationships")
+        .select(`
+          agent_id,
+          master_agent:profiles!master_agent_relationships_master_agent_id_fkey(
+            id,
+            full_name
+          )
+        `)
+        .in("agent_id", agentIds);
 
-      const masterAgentMap = new Map(masterAgents?.map(ma => [ma.id, ma.full_name]) || []);
+      // Create a map of agent_id -> master_agent name
+      const masterAgentMap = new Map(
+        relationships?.map(rel => [
+          rel.agent_id,
+          rel.master_agent?.full_name || "-"
+        ]) || []
+      );
 
       // Fetch data for each agent
       const enrichedData = await Promise.all(
@@ -101,7 +112,7 @@ const ReportingAgent = () => {
             stockIn,
             targetMonthly: monthlyReward?.min_quantity || 0,
             targetYearly: yearlyReward?.min_quantity || 0,
-            masterAgentName: masterAgentMap.get(agent.master_agent_id) || "-",
+            masterAgentName: masterAgentMap.get(agent.id) || "-",
           };
         })
       );

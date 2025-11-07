@@ -78,14 +78,14 @@ const TransactionAgent = () => {
 
       // If approved, update inventory
       if (status === "completed") {
-        // Get master agent ID from the purchase
-        const { data: masterAgentData } = await supabase
-          .from("profiles")
+        // Get master agent ID from the relationships table
+        const { data: relationship } = await supabase
+          .from("master_agent_relationships")
           .select("master_agent_id")
-          .eq("id", purchase.agent_id)
-          .single();
+          .eq("agent_id", purchase.agent_id)
+          .maybeSingle();
 
-        const masterAgentId = masterAgentData?.master_agent_id;
+        const masterAgentId = relationship?.master_agent_id;
 
         if (!masterAgentId) {
           throw new Error("Master agent not found for this agent");

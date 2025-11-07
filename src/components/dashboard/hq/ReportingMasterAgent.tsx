@@ -100,13 +100,13 @@ const ReportingMasterAgent = () => {
             .limit(1)
             .maybeSingle();
 
-          // Count agents under this master agent
-          const { data: agents } = await supabase
-            .from("profiles")
-            .select("id")
+          // Count agents under this master agent via relationships table
+          const { data: relationships } = await supabase
+            .from("master_agent_relationships")
+            .select("agent_id")
             .eq("master_agent_id", ma.id);
 
-          const agentCount = agents?.length || 0;
+          const agentCount = relationships?.length || 0;
 
           return {
             id: ma.id,
