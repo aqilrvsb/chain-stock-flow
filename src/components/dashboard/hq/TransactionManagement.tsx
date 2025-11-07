@@ -228,13 +228,13 @@ const TransactionManagement = () => {
       color: "text-yellow-600",
     },
     {
-      title: "Total Sales (Success)",
+      title: "Total Purchase (Success)",
       value: `RM ${totalPriceSuccess.toFixed(2)}`,
       icon: DollarSign,
       color: "text-emerald-600",
     },
     {
-      title: "Total Unit (Success)",
+      title: "Total Unit Purchase (Success)",
       value: totalUnitSuccess,
       icon: Package,
       color: "text-purple-600",
