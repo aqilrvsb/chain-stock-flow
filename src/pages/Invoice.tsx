@@ -25,33 +25,51 @@ const Invoice = () => {
           setLogoUrl(logoData.setting_value);
         }
 
-        // Fetch order details with all related data
-        const { data: orderDetails, error } = await supabase
+        // Fetch order details
+        const { data: order, error: orderError } = await supabase
           .from("pending_orders")
-          .select(`
-            *,
-            buyer:profiles!buyer_id(
-              full_name,
-              email,
-              phone_number,
-              whatsapp_number,
-              delivery_address,
-              idstaff
-            ),
-            product:products!product_id(
-              name,
-              sku,
-              description
-            ),
-            bundle:bundles!bundle_id(
-              name,
-              units
-            )
-          `)
+          .select("*")
           .eq("order_number", orderNumber)
           .single();
 
-        if (error) throw error;
+        if (orderError) throw orderError;
+        if (!order) {
+          setOrderData(null);
+          return;
+        }
+
+        // Fetch related data separately
+        const [
+          { data: buyer },
+          { data: product },
+          { data: bundle }
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("full_name, email, phone_number, whatsapp_number, delivery_address, idstaff")
+            .eq("id", order.buyer_id)
+            .single(),
+          supabase
+            .from("products")
+            .select("name, sku, description")
+            .eq("id", order.product_id)
+            .single(),
+          order.bundle_id
+            ? supabase
+                .from("bundles")
+                .select("name, units")
+                .eq("id", order.bundle_id)
+                .single()
+            : Promise.resolve({ data: null })
+        ]);
+
+        const orderDetails = {
+          ...order,
+          buyer,
+          product,
+          bundle
+        };
+
         setOrderData(orderDetails);
       } catch (error) {
         console.error("Error fetching invoice data:", error);
