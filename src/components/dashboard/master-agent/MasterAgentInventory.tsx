@@ -1,12 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, TrendingUp } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Package, TrendingUp, Minus } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 const MasterAgentInventory = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [description, setDescription] = useState("");
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["master-agent-inventory", user?.id],
@@ -26,6 +43,145 @@ const MasterAgentInventory = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch all active products for the dropdown
+  const { data: allProducts } = useQuery({
+    queryKey: ["all-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch agents under this master agent
+  const { data: agents } = useQuery({
+    queryKey: ["ma-agents", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("master_agent_relationships")
+        .select(`
+          agent_id,
+          agent:profiles!master_agent_relationships_agent_id_fkey(
+            id,
+            full_name,
+            id_staff
+          )
+        `)
+        .eq("master_agent_id", user?.id);
+      if (error) throw error;
+      return data?.map(rel => rel.agent) || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const stockOutToAgent = useMutation({
+    mutationFn: async () => {
+      if (!selectedAgent) {
+        throw new Error("Please select an agent");
+      }
+
+      // Check if sufficient inventory exists for MA
+      const { data: existing, error: fetchError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("product_id", selectedProduct)
+        .single();
+
+      if (fetchError || !existing) {
+        throw new Error("No inventory found for this product");
+      }
+
+      const quantityToTransfer = parseInt(quantity);
+      if (existing.quantity < quantityToTransfer) {
+        throw new Error(`Insufficient inventory. Available: ${existing.quantity}, Requested: ${quantityToTransfer}`);
+      }
+
+      // Get product details for pricing
+      const { data: product } = await supabase
+        .from("products")
+        .select("price_ma_to_agent")
+        .eq("id", selectedProduct)
+        .single();
+
+      const unitPrice = product?.price_ma_to_agent || 0;
+      const totalPrice = unitPrice * quantityToTransfer;
+
+      // Create transaction record (manual purchase from MA to Agent)
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .insert({
+          buyer_id: selectedAgent,
+          seller_id: user?.id,
+          product_id: selectedProduct,
+          quantity: quantityToTransfer,
+          unit_price: unitPrice,
+          total_price: totalPrice,
+          transaction_type: "purchase",
+        });
+
+      if (transactionError) throw transactionError;
+
+      // Update MA inventory (decrease)
+      const newQuantity = existing.quantity - quantityToTransfer;
+      const { error: updateError } = await supabase
+        .from("inventory")
+        .update({ quantity: newQuantity })
+        .eq("id", existing.id);
+
+      if (updateError) throw updateError;
+
+      // Check if Agent already has inventory for this product
+      const { data: agentInventory } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", selectedAgent)
+        .eq("product_id", selectedProduct)
+        .single();
+
+      if (agentInventory) {
+        // Update existing Agent inventory (increase)
+        const { error: agentUpdateError } = await supabase
+          .from("inventory")
+          .update({ quantity: agentInventory.quantity + quantityToTransfer })
+          .eq("id", agentInventory.id);
+
+        if (agentUpdateError) throw agentUpdateError;
+      } else {
+        // Create new inventory record for Agent
+        const { error: agentInsertError } = await supabase
+          .from("inventory")
+          .insert({
+            user_id: selectedAgent,
+            product_id: selectedProduct,
+            quantity: quantityToTransfer,
+          });
+
+        if (agentInsertError) throw agentInsertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master-agent-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+
+      toast.success("Stock transferred to Agent successfully");
+
+      setIsDialogOpen(false);
+      setSelectedProduct("");
+      setSelectedAgent("");
+      setQuantity("");
+      setStockDate(format(new Date(), "yyyy-MM-dd"));
+      setDescription("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to process stock out");
+    },
+  });
+
   // Calculate summary stats
   const totalProducts = products?.length || 0;
   const totalQuantity = products?.reduce((sum, p) =>
@@ -39,13 +195,93 @@ const MasterAgentInventory = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-          Inventory Management
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          View your inventory quantities and stock levels
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            Inventory Management
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            View your inventory quantities and stock levels
+          </p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="destructive">
+              <Minus className="mr-2 h-4 w-4" />
+              Stock Out
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Stock Out to Agent</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Product</Label>
+                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProducts?.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Agent ID Staff *</Label>
+                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Agent (Required)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agents?.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.id_staff} - {agent.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={stockDate}
+                  onChange={(e) => setStockDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Description (Optional)</Label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add notes about this stock out..."
+                />
+              </div>
+              <Button
+                onClick={() => stockOutToAgent.mutate()}
+                className="w-full"
+                variant="destructive"
+                disabled={!selectedAgent}
+              >
+                Stock Out
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
