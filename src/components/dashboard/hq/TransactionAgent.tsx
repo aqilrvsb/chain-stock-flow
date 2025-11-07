@@ -329,7 +329,7 @@ const TransactionAgent = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Total Sale</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Bank Holder</TableHead>
                   <TableHead>Bank</TableHead>
                   <TableHead>Receipt Date</TableHead>

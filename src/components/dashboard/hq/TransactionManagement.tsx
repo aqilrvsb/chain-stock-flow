@@ -400,7 +400,7 @@ const TransactionManagement = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Total Sale</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Remark</TableHead>
