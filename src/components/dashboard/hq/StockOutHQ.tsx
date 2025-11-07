@@ -137,7 +137,7 @@ const StockOutHQ = () => {
       if (updateError) throw updateError;
 
       // If master agent is selected, create transaction and update MA inventory
-      if (selectedMasterAgent && selectedMasterAgent !== "none") {
+      if (selectedMasterAgent && selectedMasterAgent.trim() !== "") {
         const unitPrice = product?.price_hq_to_ma || 0;
         const totalPrice = unitPrice * quantityToRemove;
 
@@ -192,7 +192,7 @@ const StockOutHQ = () => {
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
 
-      const message = selectedMasterAgent
+      const message = selectedMasterAgent && selectedMasterAgent.trim() !== ""
         ? "Stock transferred to Master Agent successfully"
         : "Stock out recorded successfully";
       toast.success(message);
@@ -259,13 +259,12 @@ const StockOutHQ = () => {
                 <Label>Master Agent ID Staff (Optional)</Label>
                 <Select value={selectedMasterAgent} onValueChange={setSelectedMasterAgent}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Master Agent (leave empty for regular stock out)" />
+                    <SelectValue placeholder="Not Selected (Regular Stock Out)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None (Regular Stock Out)</SelectItem>
                     {masterAgents?.map((ma) => (
                       <SelectItem key={ma.id} value={ma.id}>
-                        {ma.id_staff} - {ma.full_name}
+                        {ma.id_staff}
                       </SelectItem>
                     ))}
                   </SelectContent>
