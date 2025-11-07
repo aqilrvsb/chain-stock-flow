@@ -136,25 +136,31 @@ const StockOutHQ = () => {
 
       if (updateError) throw updateError;
 
-      // If master agent is selected, create transaction and update MA inventory
+      // If master agent is selected, create agent_purchase record and update MA inventory
       if (selectedMasterAgent && selectedMasterAgent.trim() !== "") {
         const unitPrice = product?.price_hq_to_ma || 0;
         const totalPrice = unitPrice * quantityToRemove;
 
-        // Create transaction record (manual purchase from HQ)
-        const { error: transactionError } = await supabase
-          .from("transactions")
+        // Create agent_purchases record with bill_id = 'HQ' for HQ manual transfers
+        const { error: purchaseError } = await supabase
+          .from("agent_purchases")
           .insert({
-            buyer_id: selectedMasterAgent,
-            seller_id: user?.id,
+            agent_id: selectedMasterAgent,
+            master_agent_id: null, // HQ transfer, no master agent involved
             product_id: selectedProduct,
             quantity: quantityToRemove,
             unit_price: unitPrice,
             total_price: totalPrice,
-            transaction_type: "purchase",
+            status: "completed",
+            notes: description || "Manual stock transfer from HQ",
+            bank_holder_name: "HQ",
+            bank_name: null,
+            receipt_date: null,
+            receipt_image_url: null,
+            remarks: `Bill ID: HQ - Date: ${stockDate}`,
           });
 
-        if (transactionError) throw transactionError;
+        if (purchaseError) throw purchaseError;
 
         // Check if MA already has inventory for this product
         const { data: maInventory } = await supabase
@@ -190,7 +196,7 @@ const StockOutHQ = () => {
       queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
 
       const message = selectedMasterAgent && selectedMasterAgent.trim() !== ""
         ? "Stock transferred to Master Agent successfully"
@@ -257,18 +263,29 @@ const StockOutHQ = () => {
               </div>
               <div className="space-y-2">
                 <Label>Master Agent ID Staff (Optional)</Label>
-                <Select value={selectedMasterAgent} onValueChange={setSelectedMasterAgent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Not Selected (Regular Stock Out)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {masterAgents?.map((ma) => (
-                      <SelectItem key={ma.id} value={ma.id}>
-                        {ma.idstaff}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={selectedMasterAgent} onValueChange={setSelectedMasterAgent}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Not Selected (Regular Stock Out)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {masterAgents?.map((ma) => (
+                        <SelectItem key={ma.id} value={ma.id}>
+                          {ma.idstaff}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedMasterAgent && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelectedMasterAgent("")}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Quantity</Label>

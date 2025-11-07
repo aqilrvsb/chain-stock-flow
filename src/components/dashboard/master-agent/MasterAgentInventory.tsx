@@ -110,20 +110,26 @@ const MasterAgentInventory = () => {
       const unitPrice = product?.price_ma_to_agent || 0;
       const totalPrice = unitPrice * quantityToTransfer;
 
-      // Create transaction record (manual purchase from MA to Agent)
-      const { error: transactionError } = await supabase
-        .from("transactions")
+      // Create agent_purchases record for MA to Agent transfer
+      const { error: purchaseError } = await supabase
+        .from("agent_purchases")
         .insert({
-          buyer_id: selectedAgent,
-          seller_id: user?.id,
+          agent_id: selectedAgent,
+          master_agent_id: user?.id,
           product_id: selectedProduct,
           quantity: quantityToTransfer,
           unit_price: unitPrice,
           total_price: totalPrice,
-          transaction_type: "purchase",
+          status: "completed",
+          notes: description || "Manual stock transfer from Master Agent",
+          bank_holder_name: "Master Agent",
+          bank_name: null,
+          receipt_date: null,
+          receipt_image_url: null,
+          remarks: `Date: ${stockDate}`,
         });
 
-      if (transactionError) throw transactionError;
+      if (purchaseError) throw purchaseError;
 
       // Update MA inventory (decrease)
       const newQuantity = existing.quantity - quantityToTransfer;
@@ -166,7 +172,7 @@ const MasterAgentInventory = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["master-agent-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
 
       toast.success("Stock transferred to Agent successfully");
 
