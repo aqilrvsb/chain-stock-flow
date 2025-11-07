@@ -77,6 +77,58 @@ const ReportingMasterAgent = () => {
           const { data: stockOutData } = await stockOutQuery;
           const stockOut = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
+          // Total Purchase (total_price from pending_orders)
+          let purchaseQuery = supabase
+            .from("pending_orders")
+            .select("total_price")
+            .eq("buyer_id", ma.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            purchaseQuery = purchaseQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            purchaseQuery = purchaseQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: purchaseData } = await purchaseQuery;
+          const totalPurchase = purchaseData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+
+          // Total Sales (total_price from agent_purchases)
+          let salesQuery = supabase
+            .from("agent_purchases")
+            .select("total_price, bundle_id")
+            .eq("master_agent_id", ma.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            salesQuery = salesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            salesQuery = salesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: salesData } = await salesQuery;
+          const totalSales = salesData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+
+          // Get bundles for profit calculation
+          const bundleIds = salesData?.map(s => s.bundle_id).filter(Boolean) || [];
+          const { data: bundles } = bundleIds.length > 0
+            ? await supabase
+                .from("bundles")
+                .select("id, master_agent_price")
+                .in("id", bundleIds)
+            : { data: [] };
+
+          const bundlesMap = new Map(bundles?.map(b => [b.id, b.master_agent_price]) || []);
+
+          // Calculate Profit (total_price - master_agent_price)
+          let profit = 0;
+          salesData?.forEach(sale => {
+            const maPrice = bundlesMap.get(sale.bundle_id) || 0;
+            profit += Number(sale.total_price) - Number(maPrice);
+          });
+
           // Target Monthly
           const { data: monthlyReward } = await supabase
             .from("rewards_config")
@@ -114,7 +166,10 @@ const ReportingMasterAgent = () => {
             full_name: ma.full_name,
             latestBalance,
             stockIn,
+            totalPurchase,
             stockOut,
+            totalSales,
+            profit,
             targetMonthly: monthlyReward?.min_quantity || 0,
             targetYearly: yearlyReward?.min_quantity || 0,
             agentCount,
@@ -233,7 +288,10 @@ const ReportingMasterAgent = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Stock Out</TableHead>
+                  <TableHead>Total Sales</TableHead>
+                  <TableHead>Profit</TableHead>
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
                   <TableHead>Agent</TableHead>
@@ -247,7 +305,10 @@ const ReportingMasterAgent = () => {
                     <TableCell>{item.full_name || "-"}</TableCell>
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
+                    <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
                     <TableCell>{item.stockOut}</TableCell>
+                    <TableCell>RM {item.totalSales.toFixed(2)}</TableCell>
+                    <TableCell>RM {item.profit.toFixed(2)}</TableCell>
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
                     <TableCell>{item.agentCount}</TableCell>

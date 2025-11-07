@@ -66,6 +66,23 @@ const ReportingAgent = () => {
           const { data: stockInData } = await stockInQuery;
           const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
+          // Total Purchase (total_price from agent_purchases)
+          let purchaseQuery = supabase
+            .from("agent_purchases")
+            .select("total_price")
+            .eq("agent_id", agent.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            purchaseQuery = purchaseQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            purchaseQuery = purchaseQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: purchaseData } = await purchaseQuery;
+          const totalPurchase = purchaseData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+
           // Target Monthly
           const { data: monthlyReward } = await supabase
             .from("rewards_config")
@@ -95,6 +112,7 @@ const ReportingAgent = () => {
             full_name: agent.full_name,
             latestBalance,
             stockIn,
+            totalPurchase,
             targetMonthly: monthlyReward?.min_quantity || 0,
             targetYearly: yearlyReward?.min_quantity || 0,
           };
@@ -206,6 +224,7 @@ const ReportingAgent = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
                 </TableRow>
@@ -218,6 +237,7 @@ const ReportingAgent = () => {
                     <TableCell>{item.full_name || "-"}</TableCell>
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
+                    <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
                   </TableRow>
