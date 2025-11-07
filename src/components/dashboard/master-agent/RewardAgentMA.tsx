@@ -33,19 +33,21 @@ const RewardAgentMA = () => {
         .eq("is_active", true)
         .order("month", { ascending: false });
 
-      // Get only THIS master agent's agents
-      const { data: agents } = await supabase
-        .from("profiles")
+      // Get only THIS master agent's agents via relationships table
+      const { data: relationships } = await supabase
+        .from("master_agent_relationships")
         .select(`
-          id,
-          full_name,
-          email,
-          idstaff,
-          master_agent_id,
-          user_roles!user_roles_user_id_fkey!inner(role)
+          agent_id,
+          agent:profiles!master_agent_relationships_agent_id_fkey(
+            id,
+            full_name,
+            email,
+            idstaff
+          )
         `)
-        .eq("user_roles.role", "agent")
         .eq("master_agent_id", user?.id);
+
+      const agents = relationships?.map(rel => rel.agent).filter(Boolean) || [];
 
       if (!agents) return { agents: [], rewards: rewards || [] };
 
