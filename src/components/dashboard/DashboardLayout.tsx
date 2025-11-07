@@ -20,7 +20,7 @@ const DashboardLayout = ({ children, activeView, onViewChange }: DashboardLayout
           <header className="h-14 border-b bg-card flex items-center px-4">
             <SidebarTrigger />
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
             {children}
           </main>
         </div>

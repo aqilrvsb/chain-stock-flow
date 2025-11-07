@@ -224,10 +224,10 @@ const StockOutHQ = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
             Stock Out HQ
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -324,7 +324,7 @@ const StockOutHQ = () => {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
@@ -343,7 +343,7 @@ const StockOutHQ = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filter by Date</CardTitle>
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -368,6 +368,7 @@ const StockOutHQ = () => {
           {isLoading ? (
             <p>Loading stock records...</p>
           ) : (
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -390,6 +391,7 @@ const StockOutHQ = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

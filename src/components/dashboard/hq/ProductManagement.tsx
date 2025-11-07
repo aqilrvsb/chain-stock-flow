@@ -287,9 +287,9 @@ const ProductManagement = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
           Inventory Management
         </h1>
         <p className="text-muted-foreground mt-2">
@@ -297,10 +297,10 @@ const ProductManagement = () => {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         {summaryStats.map((stat) => (
           <Card key={stat.title}>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{stat.title}</p>
@@ -323,12 +323,12 @@ const ProductManagement = () => {
               Add Product
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-sm md:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Product</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
                   <Input
@@ -348,7 +348,7 @@ const ProductManagement = () => {
                   />
                 </div>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="baseCost">Base Cost</Label>
                   <Input
@@ -381,12 +381,12 @@ const ProductManagement = () => {
 
         {/* Edit Dialog */}
         <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-sm md:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleEdit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Product Name</Label>
                   <Input
@@ -446,7 +446,8 @@ const ProductManagement = () => {
         {isLoading ? (
           <p>Loading products...</p>
         ) : (
-          <Table>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>SKU</TableHead>
@@ -503,6 +504,7 @@ const ProductManagement = () => {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -123,10 +123,10 @@ const StockInHQ = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
             Stock In HQ
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -140,7 +140,7 @@ const StockInHQ = () => {
               Add Stock
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-sm md:max-w-md">
             <DialogHeader>
               <DialogTitle>Add Stock to HQ</DialogTitle>
             </DialogHeader>
@@ -193,10 +193,10 @@ const StockInHQ = () => {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{stat.title}</p>
@@ -212,7 +212,7 @@ const StockInHQ = () => {
       <Card>
         <CardHeader>
           <CardTitle>Filter by Date</CardTitle>
-          <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -237,7 +237,8 @@ const StockInHQ = () => {
           {isLoading ? (
             <p>Loading stock records...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
@@ -259,6 +260,7 @@ const StockInHQ = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
