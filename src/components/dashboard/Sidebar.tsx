@@ -15,6 +15,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppSidebarProps {
   userRole: string | null;
@@ -25,6 +27,22 @@ interface AppSidebarProps {
 export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarProps) {
   const { open } = useSidebar();
   const { signOut, user } = useAuth();
+
+  // Fetch user profile to get idstaff
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("idstaff")
+        .eq("id", user?.id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const getNavigationItems = () => {
     if (userRole === "hq") {
@@ -118,12 +136,12 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         <div className="flex items-center gap-3 mb-2">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-              {user?.email?.[0].toUpperCase() || "U"}
+              {profile?.idstaff?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
           {open && (
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate">{user?.email?.split("@")[0]}</p>
+              <p className="text-sm font-medium truncate">{profile?.idstaff || user?.email?.split("@")[0]}</p>
             </div>
           )}
         </div>

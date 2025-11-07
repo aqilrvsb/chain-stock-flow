@@ -20,7 +20,8 @@
       "Bash(npm run build:*)",
       "Bash(del nul 2)",
       "Bash(node -e:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx supabase functions deploy:*)"
     ],
     "deny": [],
     "ask": []

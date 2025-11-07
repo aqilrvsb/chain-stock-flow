@@ -661,67 +661,85 @@ async function recheckPayment(billId: string): Promise<Response> {
 
       const sellerId = hqUser?.user_id || null;
 
-      // Create transaction
-      const { error: txError } = await supabase
+      // Check if transaction already exists for this bill_id
+      const { data: existingTransaction } = await supabase
         .from('transactions')
-        .insert({
-          buyer_id: order.buyer_id,
-          seller_id: sellerId,
-          product_id: order.product_id,
-          quantity: order.quantity,
-          unit_price: order.unit_price,
-          total_price: order.total_price,
-          transaction_type: 'purchase',
-          billplz_bill_id: billId,
-        });
-
-      if (txError) {
-        console.error('❌ Transaction creation error:', txError);
-        throw new Error('Failed to create transaction');
-      }
-
-      // Update buyer's inventory (increase)
-      const { data: existingInventory } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('user_id', order.buyer_id)
-        .eq('product_id', order.product_id)
+        .select('id')
+        .eq('billplz_bill_id', billId)
         .maybeSingle();
 
-      if (existingInventory) {
-        await supabase
-          .from('inventory')
-          .update({ quantity: existingInventory.quantity + order.quantity })
-          .eq('id', existingInventory.id);
-      } else {
-        await supabase
-          .from('inventory')
+      // Create transaction only if it doesn't exist
+      if (!existingTransaction) {
+        const { error: txError } = await supabase
+          .from('transactions')
           .insert({
-            user_id: order.buyer_id,
+            buyer_id: order.buyer_id,
+            seller_id: sellerId,
             product_id: order.product_id,
             quantity: order.quantity,
+            unit_price: order.unit_price,
+            total_price: order.total_price,
+            transaction_type: 'purchase',
+            billplz_bill_id: billId,
           });
+
+        if (txError) {
+          console.error('❌ Transaction creation error:', txError);
+          throw new Error(`Failed to create transaction: ${txError.message}`);
+        }
+      } else {
+        console.log('ℹ️ Transaction already exists for this bill, skipping creation');
       }
 
-      // Update HQ's inventory (decrease)
-      if (sellerId) {
-        const { data: hqInventory } = await supabase
+      // Only update inventory if transaction was just created (not already existing)
+      if (!existingTransaction) {
+        // Update buyer's inventory (increase)
+        const { data: existingInventory } = await supabase
           .from('inventory')
           .select('*')
-          .eq('user_id', sellerId)
+          .eq('user_id', order.buyer_id)
           .eq('product_id', order.product_id)
           .maybeSingle();
 
-        if (hqInventory && hqInventory.quantity >= order.quantity) {
+        if (existingInventory) {
           await supabase
             .from('inventory')
-            .update({ quantity: hqInventory.quantity - order.quantity })
-            .eq('id', hqInventory.id);
-
-          console.log(`📦 HQ inventory decreased by ${order.quantity} units`);
+            .update({ quantity: existingInventory.quantity + order.quantity })
+            .eq('id', existingInventory.id);
         } else {
-          console.warn(`⚠️ HQ inventory insufficient. Current: ${hqInventory?.quantity || 0}, Required: ${order.quantity}`);
+          await supabase
+            .from('inventory')
+            .insert({
+              user_id: order.buyer_id,
+              product_id: order.product_id,
+              quantity: order.quantity,
+            });
         }
+
+        // Update HQ's inventory (decrease)
+        if (sellerId) {
+          const { data: hqInventory } = await supabase
+            .from('inventory')
+            .select('*')
+            .eq('user_id', sellerId)
+            .eq('product_id', order.product_id)
+            .maybeSingle();
+
+          if (hqInventory && hqInventory.quantity >= order.quantity) {
+            await supabase
+              .from('inventory')
+              .update({ quantity: hqInventory.quantity - order.quantity })
+              .eq('id', hqInventory.id);
+
+            console.log(`📦 HQ inventory decreased by ${order.quantity} units`);
+          } else {
+            console.warn(`⚠️ HQ inventory insufficient. Current: ${hqInventory?.quantity || 0}, Required: ${order.quantity}`);
+          }
+        }
+
+        console.log('✅ Recheck: Order processed successfully, buyer and HQ inventory updated');
+      } else {
+        console.log('ℹ️ Inventory already updated for this transaction, skipping inventory update');
       }
 
       // Update order status to completed
@@ -731,7 +749,6 @@ async function recheckPayment(billId: string): Promise<Response> {
         .eq('id', order.id);
 
       status = 'completed';
-      console.log('✅ Recheck: Order processed successfully, buyer and HQ inventory updated');
     } else if (!isPaid) {
       // Still not paid - keep as failed
       status = 'failed';
