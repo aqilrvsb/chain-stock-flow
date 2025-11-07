@@ -299,25 +299,6 @@ async function handleWebhook(req: Request): Promise<Response> {
 
       const sellerId = hqUser?.user_id || null;
 
-      // Create completed transaction with bill ID and seller_id
-      const { error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          buyer_id: payment.buyer_id,
-          seller_id: sellerId,
-          product_id: payment.product_id,
-          quantity: payment.quantity,
-          unit_price: payment.unit_price,
-          total_price: payment.total_price,
-          transaction_type: 'purchase',
-          billplz_bill_id: billplz_id,
-        });
-
-      if (txError) {
-        console.error('❌ Transaction creation error:', txError);
-        return new Response('Error creating transaction', { status: 500 });
-      }
-
       // Update buyer's inventory (increase)
       const { data: existingInventory } = await supabase
         .from('inventory')
@@ -491,7 +472,7 @@ async function checkBillStatus(req: Request): Promise<Response> {
           .update({ status })
           .eq('order_number', orderNumber);
 
-        // If payment is completed, create transaction and update inventory
+        // If payment is completed, update inventory
         if (status === 'completed' && order.status !== 'completed') {
           const { data: hqUser } = await supabase
             .from('user_roles')
@@ -501,19 +482,6 @@ async function checkBillStatus(req: Request): Promise<Response> {
             .single();
 
           if (hqUser) {
-            await supabase
-              .from('transactions')
-              .insert({
-                buyer_id: order.buyer_id,
-                seller_id: hqUser.user_id,
-                product_id: order.product_id,
-                quantity: order.quantity,
-                unit_price: order.unit_price,
-                total_price: order.total_price,
-                transaction_type: 'purchase',
-                billplz_bill_id: actualBillId,
-              });
-
             // Update buyer's inventory (increase)
             const { data: existingInventory } = await supabase
               .from('inventory')
