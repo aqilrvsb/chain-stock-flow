@@ -24,13 +24,13 @@ const Auth = () => {
         .from("system_settings")
         .select("setting_value")
         .eq("setting_key", "logo_url")
-        .single();
-      
+        .maybeSingle();
+
       if (data?.setting_value) {
         setLogoUrl(data.setting_value);
       }
     };
-    
+
     fetchLogo();
   }, []);
 
