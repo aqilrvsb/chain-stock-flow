@@ -67,7 +67,7 @@ const MasterAgentInventory = () => {
           agent:profiles!master_agent_relationships_agent_id_fkey(
             id,
             full_name,
-            id_staff
+            idstaff
           )
         `)
         .eq("master_agent_id", user?.id);
@@ -240,7 +240,7 @@ const MasterAgentInventory = () => {
                   <SelectContent>
                     {agents?.map((agent) => (
                       <SelectItem key={agent.id} value={agent.id}>
-                        {agent.id_staff} - {agent.full_name}
+                        {agent.idstaff}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -56,7 +56,7 @@ const StockOutHQ = () => {
       // Then get profiles for those user_ids
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, id_staff")
+        .select("id, full_name, idstaff")
         .in("id", masterAgentIds);
 
       if (error) throw error;
@@ -264,7 +264,7 @@ const StockOutHQ = () => {
                   <SelectContent>
                     {masterAgents?.map((ma) => (
                       <SelectItem key={ma.id} value={ma.id}>
-                        {ma.id_staff}
+                        {ma.idstaff}
                       </SelectItem>
                     ))}
                   </SelectContent>
