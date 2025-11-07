@@ -136,31 +136,31 @@ const StockOutHQ = () => {
 
       if (updateError) throw updateError;
 
-      // If master agent is selected, create agent_purchase record and update MA inventory
+      // If master agent is selected, create pending_order record and update MA inventory
       if (selectedMasterAgent && selectedMasterAgent.trim() !== "") {
         const unitPrice = product?.price_hq_to_ma || 0;
         const totalPrice = unitPrice * quantityToRemove;
 
-        // Create agent_purchases record with bill_id = 'HQ' for HQ manual transfers
-        const { error: purchaseError } = await supabase
-          .from("agent_purchases")
+        // Generate order number
+        const orderNumber = `HQ-${Date.now()}`;
+
+        // Create pending_orders record with billplz_bill_id = 'HQ' for HQ manual transfers
+        const { error: orderError } = await supabase
+          .from("pending_orders")
           .insert({
-            agent_id: selectedMasterAgent,
-            master_agent_id: null, // HQ transfer, no master agent involved
+            order_number: orderNumber,
+            buyer_id: selectedMasterAgent,
             product_id: selectedProduct,
             quantity: quantityToRemove,
             unit_price: unitPrice,
             total_price: totalPrice,
             status: "completed",
-            notes: description || "Manual stock transfer from HQ",
-            bank_holder_name: "HQ",
-            bank_name: null,
-            receipt_date: null,
-            receipt_image_url: null,
-            remarks: `Bill ID: HQ - Date: ${stockDate}`,
+            transaction_id: "HQ_MANUAL_TRANSFER",
+            billplz_bill_id: "HQ",
+            remarks: description || `Manual stock transfer from HQ - Date: ${stockDate}`,
           });
 
-        if (purchaseError) throw purchaseError;
+        if (orderError) throw orderError;
 
         // Check if MA already has inventory for this product
         const { data: maInventory } = await supabase
@@ -196,7 +196,7 @@ const StockOutHQ = () => {
       queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["pending-orders"] });
 
       const message = selectedMasterAgent && selectedMasterAgent.trim() !== ""
         ? "Stock transferred to Master Agent successfully"
