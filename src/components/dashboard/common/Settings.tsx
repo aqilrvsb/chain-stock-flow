@@ -115,10 +115,14 @@ const Settings = () => {
   const handleProfileUpdate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
+    // Remove + symbol and keep only digits
+    const phoneNumber = (formData.get("phone_number") as string || "").replace(/\+/g, "").replace(/\D/g, "");
+    const whatsappNumber = (formData.get("whatsapp_number") as string || "").replace(/\+/g, "").replace(/\D/g, "");
+
     updateProfile.mutate({
-      phone_number: formData.get("phone_number"),
-      whatsapp_number: formData.get("whatsapp_number"),
+      phone_number: phoneNumber || null,
+      whatsapp_number: whatsappNumber || null,
       delivery_address: formData.get("delivery_address"),
     });
   };
@@ -451,7 +455,7 @@ const Settings = () => {
                 name="phone_number"
                 type="tel"
                 defaultValue={profile?.phone_number || ""}
-                placeholder="e.g., +60123456789"
+                placeholder="e.g., 60123456789"
               />
             </div>
 
@@ -462,7 +466,7 @@ const Settings = () => {
                 name="whatsapp_number"
                 type="tel"
                 defaultValue={profile?.whatsapp_number || ""}
-                placeholder="e.g., +60123456789"
+                placeholder="e.g., 60123456789"
               />
             </div>
 

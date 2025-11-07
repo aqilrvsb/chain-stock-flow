@@ -121,25 +121,35 @@ const TransactionHistory = () => {
 
   const handleRecheck = async (billId: string, orderNumber: string) => {
     setRecheckingBills(prev => new Set(prev).add(billId));
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('billplz-payment', {
-        body: { 
+        body: {
           action: 'recheck',
-          bill_id: billId 
+          bill_id: billId
         }
       });
 
-      if (error) throw error;
+      // Check for function error
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to invoke payment check function');
+      }
 
-      if (data.status === 'failed') {
+      // Check if data contains an error
+      if (data && data.error) {
+        console.error('Payment check error:', data.error);
+        throw new Error(data.error);
+      }
+
+      if (data && data.status === 'failed') {
         await Swal.fire({
           icon: 'error',
           title: 'Payment Failed',
           text: 'The payment is still failed. Please make another purchase.',
           confirmButtonText: 'OK'
         });
-      } else if (data.status === 'completed') {
+      } else if (data && data.status === 'completed') {
         await Swal.fire({
           icon: 'success',
           title: 'Payment Successful!',
@@ -159,8 +169,8 @@ const TransactionHistory = () => {
       console.error('Recheck error:', error);
       await Swal.fire({
         icon: 'error',
-        title: 'Error',
-        text: error.message || 'Failed to check payment status',
+        title: 'Recheck Failed',
+        text: error.message || 'Failed to check payment status. Please try again later.',
         confirmButtonText: 'OK'
       });
     } finally {
