@@ -106,13 +106,13 @@ const TransactionHistory = () => {
       color: "text-yellow-600",
     },
     {
-      title: "Total Unit (Success)",
+      title: "Total Unit Purchase (Success)",
       value: totalUnitSuccess,
       icon: Package,
       color: "text-emerald-600",
     },
     {
-      title: "Total Sales (Success)",
+      title: "Total Purchase (Success)",
       value: `RM ${totalPriceSuccess.toFixed(2)}`,
       icon: DollarSign,
       color: "text-purple-600",
@@ -276,7 +276,7 @@ const TransactionHistory = () => {
                   <TableHead>Bundle</TableHead>
                   <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Total Sale</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Action</TableHead>
                   <TableHead>Remarks</TableHead>
