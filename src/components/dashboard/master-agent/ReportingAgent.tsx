@@ -16,17 +16,20 @@ const ReportingAgent = () => {
   const { data: reportData, isLoading } = useQuery({
     queryKey: ["reporting-agent-ma", user?.id, startDate, endDate],
     queryFn: async () => {
-      // Get agents under this master agent
-      const { data: agents } = await supabase
-        .from("profiles")
+      // Get agents under this master agent via relationships table
+      const { data: relationships } = await supabase
+        .from("master_agent_relationships")
         .select(`
-          id,
-          idstaff,
-          full_name,
-          user_roles!user_roles_user_id_fkey!inner(role)
+          agent_id,
+          agent:profiles!master_agent_relationships_agent_id_fkey(
+            id,
+            idstaff,
+            full_name
+          )
         `)
-        .eq("user_roles.role", "agent")
         .eq("master_agent_id", user?.id);
+
+      const agents = relationships?.map(rel => rel.agent).filter(Boolean) || [];
 
       if (!agents) return [];
 
