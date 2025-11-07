@@ -243,14 +243,21 @@ const MyAnalytics = () => {
     if (userRole === "master_agent") {
       return [
         {
-          title: "Total Unit In",
+          title: "Total Unit Purchase",
           value: stats?.totalUnitIn || 0,
           subtitle: "Transactions success",
           icon: Package,
           color: "text-blue-600",
         },
         {
-          title: "Total Unit Out",
+          title: "Total Purchase",
+          value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
+          subtitle: "Pending order sum total price where success",
+          icon: DollarSign,
+          color: "text-cyan-600",
+        },
+        {
+          title: "Total Unit Sales",
           value: stats?.totalUnitOut || 0,
           subtitle: "Agent purchases success",
           icon: Package,
@@ -290,7 +297,7 @@ const MyAnalytics = () => {
     // Agent cards
     return [
       {
-        title: "Total Unit In",
+        title: "Total Unit Purchase",
         value: stats?.totalUnitIn || 0,
         subtitle: "Agent purchases success",
         icon: Package,
@@ -303,7 +310,6 @@ const MyAnalytics = () => {
         icon: Package,
         color: "text-violet-600",
       },
-      ...baseCards,
     ];
   };
 

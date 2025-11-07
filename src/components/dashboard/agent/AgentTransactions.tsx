@@ -129,7 +129,7 @@ const AgentTransactions = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Unit (Success)</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Unit Purchase (Success)</p>
                 <h3 className="text-3xl font-bold mt-2">{totalUnitSuccess}</h3>
               </div>
               <Package className="h-8 w-8 text-green-600" />
@@ -141,7 +141,7 @@ const AgentTransactions = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Sales (Success)</p>
+                <p className="text-sm font-medium text-muted-foreground">Total Purchase (Success)</p>
                 <h3 className="text-3xl font-bold mt-2">RM {totalPriceSuccess.toFixed(2)}</h3>
               </div>
               <DollarSign className="h-8 w-8 text-emerald-500" />
@@ -213,7 +213,7 @@ const AgentTransactions = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Total Sale</TableHead>
+                  <TableHead>Total Purchase</TableHead>
                   <TableHead>Bank Holder</TableHead>
                   <TableHead>Bank</TableHead>
                   <TableHead>Receipt Date</TableHead>
