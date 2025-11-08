@@ -360,12 +360,13 @@ async function handleWebhook(req: Request): Promise<Response> {
 
       console.log('✅ Payment processed successfully, buyer and seller inventory updated');
     } else {
-      console.log(`❌ Payment NOT successful (paid: ${billData.paid}, state: ${billData.state})`);
-      
-      // Mark order as failed
+      console.log(`⏳ Payment NOT yet paid (paid: ${billData.paid}, state: ${billData.state}) - keeping as PENDING`);
+
+      // Keep order as pending (user might still pay later)
+      // Webhook is called when user returns, but they might not have paid yet
       await supabase
         .from('pending_orders')
-        .update({ status: 'failed' })
+        .update({ status: 'pending' })
         .eq('id', payment.id);
     }
 
@@ -687,14 +688,14 @@ async function recheckPayment(billId: string): Promise<Response> {
       status = 'completed';
       console.log('✅ Recheck: Order processed successfully, buyer and HQ inventory updated');
     } else if (!isPaid) {
-      // Still not paid - update to failed
+      // User manually rechecking but payment still not paid - mark as FAILED immediately
       await supabase
         .from('pending_orders')
         .update({ status: 'failed' })
         .eq('id', order.id);
 
       status = 'failed';
-      console.log('❌ Recheck: Payment still failed, database updated');
+      console.log('❌ Recheck: Payment not paid, marked as FAILED');
     }
 
     return new Response(
