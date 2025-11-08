@@ -16,6 +16,7 @@ const PaymentSummary = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const shouldPollRef = useRef(true);
+  const pageLoadTimeRef = useRef(Date.now());
 
   // Get status from URL params
   const status = searchParams.get("status") || "pending";
@@ -60,13 +61,20 @@ const PaymentSummary = () => {
           if (!statusError && statusData) {
             // Auto-update status based on Billplz response
             let newStatus = pendingOrder.status;
+            const timeOnPage = Date.now() - pageLoadTimeRef.current;
 
-            if (statusData.paid === true) {
+            if (statusData.paid === true && statusData.state === 'paid') {
+              // Payment successful
               newStatus = 'completed';
-            } else if (statusData.paid === false && statusData.state !== 'pending') {
-              // If not paid and state is not pending (e.g., "due", "overdue"), mark as failed
+            } else if (statusData.state === 'deleted' || statusData.state === 'expired' || statusData.state === 'cancelled') {
+              // Payment explicitly deleted, expired, or cancelled by Billplz
+              newStatus = 'failed';
+            } else if (statusData.state === 'due' && statusData.paid === false && timeOnPage > 30000) {
+              // If user has been on payment summary page for more than 30 seconds
+              // and payment is still unpaid, mark as failed (user likely cancelled/closed payment window)
               newStatus = 'failed';
             }
+            // else: keep as pending if state is 'due' (user can still pay)
 
             // Update local state if status changed
             if (newStatus !== pendingOrder.status) {
@@ -178,10 +186,10 @@ const PaymentSummary = () => {
           // Auto-update status based on Billplz response
           let newStatus = pendingOrder.status;
 
-          if (statusData.paid === true) {
+          if (statusData.paid === true && statusData.state === 'paid') {
             newStatus = 'completed';
             toast.success("Payment successful!");
-          } else if (statusData.paid === false && statusData.state !== 'pending') {
+          } else if (statusData.state === 'deleted' || statusData.state === 'expired' || statusData.state === 'cancelled') {
             newStatus = 'failed';
             toast.error("Payment failed or cancelled");
           } else if (pendingOrder.status === 'pending') {

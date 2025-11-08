@@ -242,7 +242,17 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
 
   const purchaseProduct = useMutation({
     mutationFn: async (purchase: any) => {
-      // Call Billplz payment edge function
+      // Refresh session to get a fresh token (prevents "Unauthorized" after token expires)
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+
+      if (sessionError || !session) {
+        console.error('Session refresh error:', sessionError);
+        throw new Error('Session expired. Please login again.');
+      }
+
+      console.log('Using fresh access token for payment');
+
+      // Call Billplz payment edge function with fresh token
       const { data, error } = await supabase.functions.invoke('billplz-payment', {
         body: {
           bundleId: purchase.bundleId,
@@ -252,10 +262,13 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
           units: purchase.units,
           profile: profile,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) throw error;
-      
+
       // Redirect to Billplz payment page
       if (data?.paymentUrl) {
         window.location.href = data.paymentUrl;

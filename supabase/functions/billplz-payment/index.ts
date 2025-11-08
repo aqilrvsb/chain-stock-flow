@@ -18,19 +18,24 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const contentType = req.headers.get('content-type') || '';
-    
-    // Check if it's a webhook from Billplz
+
+    // Check if it's a webhook from Billplz (no auth required - comes from Billplz servers)
     if (req.method === 'POST' && contentType.includes('application/x-www-form-urlencoded')) {
       return await handleWebhook(req);
     }
 
-    // Handle GET request to check bill status
+    // Handle GET request to check bill status (no auth required)
     if (req.method === 'GET') {
       return await checkBillStatus(req);
     }
 
-    // Regular API call from frontend
-    const authHeader = req.headers.get('Authorization')!;
+    // Regular API calls from frontend (requires authentication)
+    const authHeader = req.headers.get('Authorization');
+
+    if (!authHeader) {
+      throw new Error('Unauthorized');
+    }
+
     const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(token);
 

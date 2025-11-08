@@ -123,11 +123,21 @@ const TransactionHistory = () => {
     setRecheckingBills(prev => new Set(prev).add(billId));
 
     try {
+      // Refresh session to get a fresh token
+      const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+
+      if (sessionError || !session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
       const { data, error } = await supabase.functions.invoke('billplz-payment', {
         body: {
           action: 'recheck',
           bill_id: billId
-        }
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       // Check for function error
@@ -149,6 +159,8 @@ const TransactionHistory = () => {
           text: 'The payment is still failed. Please make another purchase.',
           confirmButtonText: 'OK'
         });
+        // Refresh the transaction list to show updated status
+        queryClient.invalidateQueries({ queryKey: ["pending_orders"] });
       } else if (data && data.status === 'completed') {
         await Swal.fire({
           icon: 'success',
