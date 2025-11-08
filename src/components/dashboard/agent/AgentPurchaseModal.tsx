@@ -6,8 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const MALAYSIAN_BANKS = [
   "Affin Bank", "Alliance Bank", "AmBank", "CIMB Bank", "Hong Leong Bank",
@@ -41,6 +44,7 @@ const AgentPurchaseModal = ({
   const queryClient = useQueryClient();
   const [bankHolderName, setBankHolderName] = useState("");
   const [bankName, setBankName] = useState("");
+  const [bankOpen, setBankOpen] = useState(false);
   const [receiptDate, setReceiptDate] = useState("");
   const [receiptImage, setReceiptImage] = useState<File | null>(null);
 
@@ -126,18 +130,47 @@ const AgentPurchaseModal = ({
           </div>
           <div>
             <Label htmlFor="bank">Bank Name</Label>
-            <Select value={bankName} onValueChange={setBankName}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select bank" />
-              </SelectTrigger>
-              <SelectContent>
-                {MALAYSIAN_BANKS.map((bank) => (
-                  <SelectItem key={bank} value={bank}>
-                    {bank}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={bankOpen} onOpenChange={setBankOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={bankOpen}
+                  className="w-full justify-between"
+                >
+                  {bankName || "Select bank"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="Search bank..." />
+                  <CommandList>
+                    <CommandEmpty>No bank found.</CommandEmpty>
+                    <CommandGroup>
+                      {MALAYSIAN_BANKS.map((bank) => (
+                        <CommandItem
+                          key={bank}
+                          value={bank}
+                          onSelect={(currentValue) => {
+                            setBankName(currentValue === bankName ? "" : bank);
+                            setBankOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              bankName === bank ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {bank}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <Label htmlFor="receiptDate">Receipt Date</Label>
