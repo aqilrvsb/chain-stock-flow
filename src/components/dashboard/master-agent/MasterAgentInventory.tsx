@@ -25,8 +25,12 @@ const MasterAgentInventory = () => {
   const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
 
+  // Date filters for Stock In/Out
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const { data: products, isLoading } = useQuery({
-    queryKey: ["master-agent-inventory", user?.id],
+    queryKey: ["master-agent-inventory", user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
@@ -38,7 +42,55 @@ const MasterAgentInventory = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+
+      // Calculate Stock In and Stock Out for each product
+      const productsWithStock = await Promise.all(
+        data.map(async (product) => {
+          // Stock In from pending_orders (Master Agent purchases from HQ)
+          let stockInQuery = supabase
+            .from("pending_orders")
+            .select("quantity")
+            .eq("buyer_id", user?.id)
+            .eq("product_id", product.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: stockInData } = await stockInQuery;
+          const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Stock Out from agent_purchases (Agent purchases from Master Agent)
+          let stockOutQuery = supabase
+            .from("agent_purchases")
+            .select("quantity")
+            .eq("master_agent_id", user?.id)
+            .eq("product_id", product.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: stockOutData } = await stockOutQuery;
+          const stockOut = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          return {
+            ...product,
+            stockIn,
+            stockOut,
+          };
+        })
+      );
+
+      return productsWithStock;
     },
     enabled: !!user?.id,
   });
@@ -193,10 +245,14 @@ const MasterAgentInventory = () => {
   const totalQuantity = products?.reduce((sum, p) =>
     sum + (p.inventory?.reduce((invSum: number, inv: any) => invSum + inv.quantity, 0) || 0), 0
   ) || 0;
+  const totalStockIn = products?.reduce((sum, p) => sum + ((p as any).stockIn || 0), 0) || 0;
+  const totalStockOut = products?.reduce((sum, p) => sum + ((p as any).stockOut || 0), 0) || 0;
 
   const summaryStats = [
     { title: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600" },
     { title: "Total Quantity", value: totalQuantity, icon: TrendingUp, color: "text-purple-600" },
+    { title: "Stock In", value: totalStockIn, icon: TrendingUp, color: "text-green-600" },
+    { title: "Stock Out", value: totalStockOut, icon: Minus, color: "text-red-600" },
   ];
 
   return (
@@ -290,7 +346,7 @@ const MasterAgentInventory = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {summaryStats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-4 sm:p-6">
@@ -306,6 +362,33 @@ const MasterAgentInventory = () => {
         ))}
       </div>
 
+      {/* Date Filters */}
+      <Card className="border-dashed">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Date Filters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Start Date</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium mb-2 block">End Date</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Inventory Management</CardTitle>
@@ -320,17 +403,23 @@ const MasterAgentInventory = () => {
                 <TableRow>
                   <TableHead>SKU</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Stock In</TableHead>
+                  <TableHead>Stock Out</TableHead>
                   <TableHead>Quantity</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products?.map((product) => {
                   const totalQuantity = product.inventory?.reduce((sum: number, inv: any) => sum + inv.quantity, 0) || 0;
+                  const stockIn = (product as any).stockIn || 0;
+                  const stockOut = (product as any).stockOut || 0;
 
                   return (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.sku}</TableCell>
                       <TableCell>{product.name}</TableCell>
+                      <TableCell className="font-medium text-green-600">{stockIn}</TableCell>
+                      <TableCell className="font-medium text-red-600">{stockOut}</TableCell>
                       <TableCell className="font-medium">{totalQuantity}</TableCell>
                     </TableRow>
                   );
