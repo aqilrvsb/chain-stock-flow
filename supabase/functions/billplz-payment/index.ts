@@ -687,9 +687,14 @@ async function recheckPayment(billId: string): Promise<Response> {
       status = 'completed';
       console.log('✅ Recheck: Order processed successfully, buyer and HQ inventory updated');
     } else if (!isPaid) {
-      // Still not paid - keep as failed
+      // Still not paid - update to failed
+      await supabase
+        .from('pending_orders')
+        .update({ status: 'failed' })
+        .eq('id', order.id);
+
       status = 'failed';
-      console.log('❌ Recheck: Payment still failed');
+      console.log('❌ Recheck: Payment still failed, database updated');
     }
 
     return new Response(
