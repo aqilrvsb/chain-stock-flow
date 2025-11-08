@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Package, CheckCircle, XCircle, TrendingUp } from "lucide-react";
+import { Plus, Edit, Trash2, Package, CheckCircle, XCircle, TrendingUp, TrendingDown } from "lucide-react";
 
 const ProductManagement = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -25,12 +25,14 @@ const ProductManagement = () => {
   const [quantity, setQuantity] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
@@ -39,9 +41,73 @@ const ProductManagement = () => {
           inventory(quantity)
         `)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
-      return data;
+
+      // Get stock movements for each product
+      const productsWithStock = await Promise.all(
+        data.map(async (product) => {
+          // Stock In from stock_in_hq table
+          let stockInQuery = supabase
+            .from("stock_in_hq")
+            .select("quantity")
+            .eq("product_id", product.id);
+
+          if (startDate) {
+            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: stockInData } = await stockInQuery;
+          const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Stock Out from stock_out_hq table
+          let stockOutHQQuery = supabase
+            .from("stock_out_hq")
+            .select("quantity")
+            .eq("product_id", product.id);
+
+          if (startDate) {
+            stockOutHQQuery = stockOutHQQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            stockOutHQQuery = stockOutHQQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: stockOutHQData } = await stockOutHQQuery;
+          const stockOutHQ = stockOutHQData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Pending orders (success) quantity
+          let pendingOrdersQuery = supabase
+            .from("pending_orders")
+            .select("quantity")
+            .eq("product_id", product.id)
+            .eq("status", "completed");
+
+          if (startDate) {
+            pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: pendingOrdersData } = await pendingOrdersQuery;
+          const pendingOrdersQty = pendingOrdersData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Total Stock Out = Stock Out HQ + Pending Orders (success)
+          const totalStockOut = stockOutHQ + pendingOrdersQty;
+
+          return {
+            ...product,
+            stockIn,
+            stockOut: totalStockOut,
+          };
+        })
+      );
+
+      return productsWithStock;
     },
   });
 
@@ -273,17 +339,21 @@ const ProductManagement = () => {
 
   // Calculate summary stats
   const totalProducts = products?.length || 0;
-  const totalQuantity = products?.reduce((sum, p) => 
+  const totalQuantity = products?.reduce((sum, p) =>
     sum + (p.inventory?.reduce((invSum: number, inv: any) => invSum + inv.quantity, 0) || 0), 0
   ) || 0;
   const totalActive = products?.filter(p => p.is_active).length || 0;
   const totalInactive = totalProducts - totalActive;
+  const totalStockIn = products?.reduce((sum, p) => sum + (p.stockIn || 0), 0) || 0;
+  const totalStockOut = products?.reduce((sum, p) => sum + (p.stockOut || 0), 0) || 0;
 
   const summaryStats = [
     { title: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600" },
     { title: "Total Quantity", value: totalQuantity, icon: TrendingUp, color: "text-purple-600" },
     { title: "Active Products", value: totalActive, icon: CheckCircle, color: "text-green-600" },
     { title: "Inactive Products", value: totalInactive, icon: XCircle, color: "text-orange-600" },
+    { title: "Stock In", value: totalStockIn, icon: TrendingUp, color: "text-emerald-600" },
+    { title: "Stock Out", value: totalStockOut, icon: TrendingDown, color: "text-red-600" },
   ];
 
   return (
@@ -297,7 +367,7 @@ const ProductManagement = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-4">
         {summaryStats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-4 sm:p-6">
@@ -312,6 +382,35 @@ const ProductManagement = () => {
           </Card>
         ))}
       </div>
+
+      {/* Date Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Date Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="start-date">Start Date</Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="end-date">End Date</Label>
+              <Input
+                id="end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -453,6 +552,8 @@ const ProductManagement = () => {
                 <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Base Cost</TableHead>
+              <TableHead>Stock In</TableHead>
+              <TableHead>Stock Out</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -461,12 +562,14 @@ const ProductManagement = () => {
             <TableBody>
               {products?.map((product) => {
                 const totalQuantity = product.inventory?.reduce((sum: number, inv: any) => sum + inv.quantity, 0) || 0;
-                
+
                 return (
                   <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>RM {product.base_cost}</TableCell>
+                  <TableCell>{product.stockIn || 0}</TableCell>
+                  <TableCell>{product.stockOut || 0}</TableCell>
                   <TableCell className="font-medium">{totalQuantity}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
