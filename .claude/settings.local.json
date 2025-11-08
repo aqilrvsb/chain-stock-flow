@@ -22,7 +22,8 @@
       "Bash(node -e:*)",
       "Bash(find:*)",
       "Bash(npx supabase functions deploy:*)",
-      "Bash(del \"supabase\\migrations\\20251107000000_add_billplz_bill_id_to_transactions.sql\")"
+      "Bash(del \"supabase\\migrations\\20251107000000_add_billplz_bill_id_to_transactions.sql\")",
+      "Bash(del publicfavicon.ico)"
     ],
     "deny": [],
     "ask": []

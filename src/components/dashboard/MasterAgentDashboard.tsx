@@ -12,8 +12,8 @@ import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
 
 const MasterAgentDashboard = () => {
-  const { user } = useAuth();
-  const userName = user?.email?.split("@")[0] || "User";
+  const { userProfile } = useAuth();
+  const userName = userProfile?.idstaff || "User";
   const [activeView, setActiveView] = useState("dashboard");
 
   const renderView = () => {

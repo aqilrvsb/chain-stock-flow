@@ -3,10 +3,18 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  idstaff: string | null;
+  is_active: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: string | null;
+  userProfile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
@@ -20,6 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -37,6 +46,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }, 0);
         } else {
           setUserRole(null);
+          setUserProfile(null);
         }
       }
     );
@@ -65,6 +75,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!error && data) {
         setUserRole(data.role);
+      }
+
+      // Also fetch user profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("id, full_name, idstaff, is_active")
+        .eq("id", userId)
+        .single();
+
+      if (profileData) {
+        setUserProfile(profileData);
       }
     } catch (error) {
       console.error("Error fetching user role:", error);
@@ -157,6 +178,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
+    setUserProfile(null);
     navigate("/auth");
   };
 
@@ -166,6 +188,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         session,
         userRole,
+        userProfile,
         loading,
         signIn,
         signUp,
