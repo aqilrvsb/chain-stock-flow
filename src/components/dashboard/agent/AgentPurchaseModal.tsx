@@ -10,9 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 const MALAYSIAN_BANKS = [
-  "Maybank", "CIMB Bank", "Public Bank", "RHB Bank", "Hong Leong Bank",
-  "AmBank", "Bank Rakyat", "Bank Islam", "OCBC Bank", "HSBC Bank",
-  "Standard Chartered", "UOB Bank", "Affin Bank", "Alliance Bank", "BSN"
+  "Affin Bank", "Alliance Bank", "AmBank", "CIMB Bank", "Hong Leong Bank",
+  "Maybank", "Public Bank", "RHB Bank"
 ];
 
 interface AgentPurchaseModalProps {
