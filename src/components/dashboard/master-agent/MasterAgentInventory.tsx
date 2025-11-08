@@ -257,93 +257,13 @@ const MasterAgentInventory = () => {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-            Inventory Management
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            View your inventory quantities and stock levels
-          </p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="destructive">
-              <Minus className="mr-2 h-4 w-4" />
-              Stock Out
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-sm md:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Stock Out to Agent</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Product</Label>
-                <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allProducts?.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Agent ID Staff *</Label>
-                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Agent (Required)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents?.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.idstaff}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={stockDate}
-                  onChange={(e) => setStockDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Description (Optional)</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add notes about this stock out..."
-                />
-              </div>
-              <Button
-                onClick={() => stockOutToAgent.mutate()}
-                className="w-full"
-                variant="destructive"
-                disabled={!selectedAgent}
-              >
-                Stock Out
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+      <div>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+          Inventory Management
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          View your inventory quantities and stock levels
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
