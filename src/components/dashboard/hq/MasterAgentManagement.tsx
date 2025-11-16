@@ -109,6 +109,28 @@ const MasterAgentManagement = () => {
     },
   });
 
+  const updatePaymentMethod = useMutation({
+    mutationFn: async ({ id, paymentMethod }: { id: string; paymentMethod: string }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ payment_method: paymentMethod })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["master_agents"] });
+      toast({ title: "Payment method updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating payment method",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createUser.mutate({ email, password, fullName, idstaff, state });
@@ -116,6 +138,11 @@ const MasterAgentManagement = () => {
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
     updateUser.mutate({ id: userId, isActive: !currentStatus });
+  };
+
+  const handleTogglePaymentMethod = (userId: string, currentMethod: string) => {
+    const newMethod = currentMethod === 'fpx_only' ? 'fpx_manual' : 'fpx_only';
+    updatePaymentMethod.mutate({ id: userId, paymentMethod: newMethod });
   };
 
   const updateProfile = useMutation({
@@ -435,6 +462,7 @@ const MasterAgentManagement = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>State</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Payment Method</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Active</TableHead>
                   <TableHead>Actions</TableHead>
@@ -451,6 +479,17 @@ const MasterAgentManagement = () => {
                       <Badge variant={user.is_active ? "default" : "secondary"}>
                         {user.is_active ? "Active" : "Inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={user.payment_method === 'fpx_manual'}
+                          onCheckedChange={() => handleTogglePaymentMethod(user.id, user.payment_method || 'fpx_only')}
+                        />
+                        <span className="text-sm">
+                          {user.payment_method === 'fpx_manual' ? 'FPX + Manual' : 'FPX Only'}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {format(new Date(user.created_at), "dd-MM-yyyy")}
