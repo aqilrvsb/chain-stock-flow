@@ -481,14 +481,14 @@ const MasterAgentManagement = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <Switch
                           checked={user.payment_method === 'fpx_manual'}
                           onCheckedChange={() => handleTogglePaymentMethod(user.id, user.payment_method || 'fpx_only')}
                         />
-                        <span className="text-sm">
+                        <Badge variant={user.payment_method === 'fpx_manual' ? 'default' : 'secondary'}>
                           {user.payment_method === 'fpx_manual' ? 'FPX + Manual' : 'FPX Only'}
-                        </span>
+                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
