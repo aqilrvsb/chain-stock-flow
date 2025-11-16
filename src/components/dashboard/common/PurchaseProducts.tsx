@@ -296,12 +296,10 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
   };
 
   const handleSelectManual = () => {
-    console.log('Transfer selected - opening manual payment modal');
     setPaymentMethodModal(false);
     // Add a small delay to ensure the first modal is fully closed before opening the second
     setTimeout(() => {
       setManualPaymentModal(true);
-      console.log('Manual payment modal state set to true');
     }, 100);
   };
 
@@ -578,15 +576,12 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
 
       {/* Manual Payment Modal (Master Agent only) */}
       {userType === "master_agent" && (
-        <>
-          {console.log('Rendering ManualPaymentModal, open:', manualPaymentModal)}
-          <ManualPaymentModal
-            open={manualPaymentModal}
-            onOpenChange={setManualPaymentModal}
-            onSubmit={handleManualPaymentSubmit}
-            isLoading={manualPaymentMutation.isPending}
-          />
-        </>
+        <ManualPaymentModal
+          open={manualPaymentModal}
+          onOpenChange={setManualPaymentModal}
+          onSubmit={handleManualPaymentSubmit}
+          isLoading={manualPaymentMutation.isPending}
+        />
       )}
     </div>
   );
