@@ -316,6 +316,15 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
 
   const manualPaymentMutation = useMutation({
     mutationFn: async (data: any) => {
+      // Get bundle details to fetch product_id
+      const { data: bundleData, error: bundleError } = await supabase
+        .from('bundles')
+        .select('product_id')
+        .eq('id', data.bundleId)
+        .single();
+
+      if (bundleError || !bundleData) throw bundleError || new Error('Bundle not found');
+
       // Upload receipt image to Supabase storage
       const fileExt = data.receiptFile.name.split('.').pop();
       const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
@@ -336,12 +345,12 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
       const { error: orderError } = await supabase
         .from('pending_orders')
         .insert({
-          user_id: user?.id,
+          buyer_id: user?.id,
           bundle_id: data.bundleId,
+          product_id: bundleData.product_id,
           quantity: 1,
           unit_price: data.price,
           total_price: data.price,
-          units: data.units,
           status: 'pending',
           payment_method: 'manual',
           payment_type: data.paymentType,
