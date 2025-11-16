@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt, Package, DollarSign } from "lucide-react";
 import Swal from "sweetalert2";
+import PaymentDetailsModal from "./PaymentDetailsModal";
 
 const TransactionHistory = () => {
   const { user } = useAuth();
@@ -19,6 +20,19 @@ const TransactionHistory = () => {
   const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
+  const [paymentDetailsModal, setPaymentDetailsModal] = useState<{
+    open: boolean;
+    paymentType: string;
+    paymentDate: string | null;
+    bankName: string | null;
+    receiptImageUrl: string | null;
+  }>({
+    open: false,
+    paymentType: "",
+    paymentDate: null,
+    bankName: null,
+    receiptImageUrl: null,
+  });
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["pending_orders", user?.id, startDate, endDate, statusFilter],
@@ -286,6 +300,7 @@ const TransactionHistory = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Bundle</TableHead>
+                  <TableHead>Payment Method</TableHead>
                   <TableHead>Bill ID</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Total Purchase</TableHead>
@@ -303,6 +318,26 @@ const TransactionHistory = () => {
                     </TableCell>
                     <TableCell>{order.product?.name || "-"}</TableCell>
                     <TableCell>{order.bundle?.name || "-"}</TableCell>
+                    <TableCell>
+                      {(order as any).billplz_bill_id ? (
+                        <span className="text-sm">FPX</span>
+                      ) : (order as any).payment_type ? (
+                        <button
+                          onClick={() => setPaymentDetailsModal({
+                            open: true,
+                            paymentType: (order as any).payment_type,
+                            paymentDate: (order as any).payment_date,
+                            bankName: (order as any).bank_name,
+                            receiptImageUrl: (order as any).receipt_image_url,
+                          })}
+                          className="text-sm text-primary hover:underline cursor-pointer"
+                        >
+                          {(order as any).payment_type}
+                        </button>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <span className="text-xs font-mono text-muted-foreground">
                         {(order as any).billplz_bill_id || "-"}
@@ -353,6 +388,16 @@ const TransactionHistory = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        open={paymentDetailsModal.open}
+        onOpenChange={(open) => setPaymentDetailsModal({ ...paymentDetailsModal, open })}
+        paymentType={paymentDetailsModal.paymentType}
+        paymentDate={paymentDetailsModal.paymentDate}
+        bankName={paymentDetailsModal.bankName}
+        receiptImageUrl={paymentDetailsModal.receiptImageUrl}
+      />
     </div>
   );
 };

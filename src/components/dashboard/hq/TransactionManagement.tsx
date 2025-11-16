@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, ExternalLink, RefreshCw, Receipt, MessageSquare, Check, X, Package } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
+import PaymentDetailsModal from "../common/PaymentDetailsModal";
 
 const TransactionManagement = () => {
   const [startDate, setStartDate] = useState("");
@@ -21,6 +22,19 @@ const TransactionManagement = () => {
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
   const [remarkText, setRemarkText] = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [paymentDetailsModal, setPaymentDetailsModal] = useState<{
+    open: boolean;
+    paymentType: string;
+    paymentDate: string | null;
+    bankName: string | null;
+    receiptImageUrl: string | null;
+  }>({
+    open: false,
+    paymentType: "",
+    paymentDate: null,
+    bankName: null,
+    receiptImageUrl: null,
+  });
   const queryClient = useQueryClient();
 
   const { data: orders, isLoading } = useQuery({
@@ -392,6 +406,7 @@ const TransactionManagement = () => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Payment Method</TableHead>
                   <TableHead>Bill ID</TableHead>
                   <TableHead>IDSTAFF</TableHead>
                   <TableHead>Name</TableHead>
@@ -413,6 +428,26 @@ const TransactionManagement = () => {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       {format(new Date(order.created_at), "dd-MM-yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      {(order as any).billplz_bill_id ? (
+                        <span className="text-sm">FPX</span>
+                      ) : (order as any).payment_type ? (
+                        <button
+                          onClick={() => setPaymentDetailsModal({
+                            open: true,
+                            paymentType: (order as any).payment_type,
+                            paymentDate: (order as any).payment_date,
+                            bankName: (order as any).bank_name,
+                            receiptImageUrl: (order as any).receipt_image_url,
+                          })}
+                          className="text-sm text-primary hover:underline cursor-pointer"
+                        >
+                          {(order as any).payment_type}
+                        </button>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <span className="text-xs font-mono text-muted-foreground">
@@ -546,6 +581,16 @@ const TransactionManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        open={paymentDetailsModal.open}
+        onOpenChange={(open) => setPaymentDetailsModal({ ...paymentDetailsModal, open })}
+        paymentType={paymentDetailsModal.paymentType}
+        paymentDate={paymentDetailsModal.paymentDate}
+        bankName={paymentDetailsModal.bankName}
+        receiptImageUrl={paymentDetailsModal.receiptImageUrl}
+      />
     </div>
   );
 };
