@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import Swal from "sweetalert2";
 import AgentPurchaseModal from "../agent/AgentPurchaseModal";
+import PaymentMethodModal from "./PaymentMethodModal";
+import ManualPaymentModal, { ManualPaymentData } from "./ManualPaymentModal";
 
 interface PurchaseProductsProps {
   userType: "master_agent" | "agent";
@@ -41,6 +43,14 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
     price: 0,
     masterAgentId: "",
   });
+  const [paymentMethodModal, setPaymentMethodModal] = useState(false);
+  const [manualPaymentModal, setManualPaymentModal] = useState(false);
+  const [pendingPurchase, setPendingPurchase] = useState<{
+    bundleId: string;
+    bundleName: string;
+    price: number;
+    units: number;
+  } | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -210,7 +220,16 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
       return;
     }
 
-    // Master Agent purchases from HQ (FPX payment)
+    // Master Agent purchases from HQ
+    // Check if Master Agent has fpx_manual payment method enabled
+    if (userType === "master_agent" && profile?.payment_method === "fpx_manual") {
+      // Show payment method selection modal
+      setPendingPurchase({ bundleId, bundleName, price, units });
+      setPaymentMethodModal(true);
+      return;
+    }
+
+    // Default FPX only payment flow
     const result = await Swal.fire({
       icon: "info",
       title: "Confirm Purchase",
@@ -239,6 +258,119 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
       });
     }
   };
+
+  const handleSelectFPX = async () => {
+    if (!pendingPurchase) return;
+
+    setPaymentMethodModal(false);
+
+    const result = await Swal.fire({
+      icon: "info",
+      title: "Confirm Purchase",
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Order Summary:</strong></p>
+          <p>Bundle: ${pendingPurchase.bundleName}</p>
+          <p>Total Units: ${pendingPurchase.units}</p>
+          <p><strong>Total: RM ${pendingPurchase.price.toFixed(2)}</strong></p>
+          <br>
+          <p>You will be redirected to Billplz FPX payment gateway.</p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Proceed to Payment",
+      cancelButtonText: "Cancel"
+    });
+
+    if (result.isConfirmed) {
+      purchaseProduct.mutate({
+        bundleId: pendingPurchase.bundleId,
+        quantity: 1,
+        unitPrice: pendingPurchase.price,
+        totalPrice: pendingPurchase.price,
+        units: pendingPurchase.units
+      });
+    }
+
+    setPendingPurchase(null);
+  };
+
+  const handleSelectManual = () => {
+    setPaymentMethodModal(false);
+    setManualPaymentModal(true);
+  };
+
+  const handleManualPaymentSubmit = async (data: ManualPaymentData) => {
+    if (!pendingPurchase) return;
+
+    manualPaymentMutation.mutate({
+      ...pendingPurchase,
+      ...data,
+    });
+  };
+
+  const manualPaymentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      // Upload receipt image to Supabase storage
+      const fileExt = data.receiptFile.name.split('.').pop();
+      const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, data.receiptFile);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL for the uploaded receipt
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+
+      // Create pending order with manual payment details
+      const { error: orderError } = await supabase
+        .from('pending_orders')
+        .insert({
+          user_id: user?.id,
+          bundle_id: data.bundleId,
+          quantity: 1,
+          unit_price: data.price,
+          total_price: data.price,
+          units: data.units,
+          status: 'pending',
+          payment_method: 'manual',
+          payment_type: data.paymentType,
+          payment_date: data.paymentDate.toISOString().split('T')[0],
+          bank_name: data.bankName,
+          receipt_image_url: publicUrl,
+        });
+
+      if (orderError) throw orderError;
+    },
+    onSuccess: () => {
+      setManualPaymentModal(false);
+      setPendingPurchase(null);
+
+      Swal.fire({
+        icon: "success",
+        title: "Payment Submitted",
+        html: `
+          <p>Your manual payment has been submitted for verification.</p>
+          <p>You will receive an update once it's approved.</p>
+        `,
+        confirmButtonText: "OK"
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["bundles-for-purchase"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Submission failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const purchaseProduct = useMutation({
     mutationFn: async (purchase: any) => {
@@ -413,6 +545,26 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
               onNavigateToTransactions();
             }
           }}
+        />
+      )}
+
+      {/* Payment Method Selection Modal (Master Agent only) */}
+      {userType === "master_agent" && (
+        <PaymentMethodModal
+          open={paymentMethodModal}
+          onOpenChange={setPaymentMethodModal}
+          onSelectFPX={handleSelectFPX}
+          onSelectManual={handleSelectManual}
+        />
+      )}
+
+      {/* Manual Payment Modal (Master Agent only) */}
+      {userType === "master_agent" && (
+        <ManualPaymentModal
+          open={manualPaymentModal}
+          onOpenChange={setManualPaymentModal}
+          onSubmit={handleManualPaymentSubmit}
+          isLoading={manualPaymentMutation.isPending}
         />
       )}
     </div>
