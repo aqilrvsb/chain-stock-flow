@@ -341,10 +341,14 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
         .from('payment-receipts')
         .getPublicUrl(filePath);
 
+      // Generate unique order number
+      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+
       // Create pending order with manual payment details
       const { error: orderError } = await supabase
         .from('pending_orders')
         .insert({
+          order_number: orderNumber,
           buyer_id: user?.id,
           bundle_id: data.bundleId,
           product_id: bundleData.product_id,
