@@ -298,8 +298,11 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
   const handleSelectManual = () => {
     console.log('Transfer selected - opening manual payment modal');
     setPaymentMethodModal(false);
-    setManualPaymentModal(true);
-    console.log('Manual payment modal state set to true');
+    // Add a small delay to ensure the first modal is fully closed before opening the second
+    setTimeout(() => {
+      setManualPaymentModal(true);
+      console.log('Manual payment modal state set to true');
+    }, 100);
   };
 
   const handleManualPaymentSubmit = async (data: ManualPaymentData) => {
