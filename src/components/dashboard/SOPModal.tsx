@@ -24,7 +24,7 @@ const SOPModal = ({ isOpen, onClose, userRole }: SOPModalProps) => {
     if (userRole === "hq") {
       return {
         title: "HQ Dashboard - Standard Operating Procedure",
-        overview: "As HQ, you are the central administrator of the system. You manage all products, master agents, agents, and monitor the entire distribution chain.",
+        overview: "As HQ, you are the central administrator of the system. You manage all products, master agents, agents, monitor inventory, process transactions, and oversee the entire distribution chain.",
         sections: [
           {
             id: "dashboard",
@@ -35,115 +35,218 @@ const SOPModal = ({ isOpen, onClose, userRole }: SOPModalProps) => {
               "View total master agents, agents, and customers across the system",
               "Monitor overall stock levels and distribution",
               "Check system-wide sales performance",
-              "Review key metrics and analytics at a glance"
+              "Review key metrics and analytics at a glance",
+              "Track overall business health and trends"
             ]
           },
           {
-            id: "products",
+            id: "inventory",
             icon: Package,
-            title: "Products",
-            description: "Manage product catalog",
+            title: "Inventory",
+            description: "Manage HQ stock and inventory",
+            steps: [
+              "View all products in HQ warehouse",
+              "Monitor current stock levels for each product",
+              "Track inventory movements (in/out)",
+              "Check low stock alerts and restock needs",
+              "View inventory value and stock history",
+              "Manage product availability for master agents"
+            ]
+          },
+          {
+            id: "product",
+            icon: DollarSign,
+            title: "Product",
+            description: "Manage products and pricing tiers",
             steps: [
               "Add new products to the system",
-              "Set pricing for different user levels (HQ Price, Master Agent Price, Agent Price, Customer Price)",
-              "Update product information and availability",
+              "Set HQ Price (base price for HQ)",
+              "Set Master Agent Price (price for master agents to purchase)",
+              "Set Agent Price (suggested price for agents)",
+              "Set Customer Price (suggested retail price)",
+              "Update product information (name, description, images)",
               "Manage product bundles and packages",
-              "View product inventory status"
+              "Enable or disable products",
+              "View product performance metrics"
             ]
           },
           {
-            id: "master-agents",
+            id: "users",
             icon: Users,
-            title: "Master Agents",
-            description: "Manage master agent accounts",
+            title: "Master Agents & Agents",
+            description: "Manage all user accounts",
             steps: [
-              "Create new master agent accounts",
-              "View all master agents in the system",
-              "Monitor master agent performance and sales",
-              "Manage master agent permissions and access",
-              "Review master agent transaction history"
+              "Create new master agent accounts with credentials",
+              "Create new agent accounts and assign to master agents",
+              "View all master agents and their agents",
+              "Update user profiles and contact information",
+              "Manage user roles and permissions",
+              "Deactivate or reactivate user accounts",
+              "View user activity and performance",
+              "Assign agents to master agents"
             ]
           },
           {
-            id: "transactions",
+            id: "stock-in-hq",
+            icon: Package,
+            title: "Stock In HQ",
+            description: "Record incoming inventory to HQ",
+            steps: [
+              "Record new stock arrivals at HQ warehouse",
+              "Enter product details and quantities received",
+              "Update inventory levels after stock arrival",
+              "Track stock in history and dates",
+              "View total stock received over time",
+              "Generate stock in reports for accounting"
+            ]
+          },
+          {
+            id: "stock-out-hq",
+            icon: Package,
+            title: "Stock Out HQ",
+            description: "Track outgoing inventory from HQ",
+            steps: [
+              "View all completed orders to master agents",
+              "Monitor stock that has left HQ warehouse",
+              "Track which master agents received stock",
+              "Review stock out quantities by product",
+              "Filter by date range to see historical data",
+              "Generate stock out reports for analysis"
+            ]
+          },
+          {
+            id: "transaction-master-agent",
             icon: BarChart3,
-            title: "Transactions",
-            description: "Process and review all transactions",
+            title: "Transaction Master Agent",
+            description: "Process master agent purchase orders",
             steps: [
               "View all pending orders from master agents",
-              "Approve or reject purchase requests",
-              "Monitor payment status and confirmations",
-              "Review transaction history across all users",
-              "Generate transaction reports"
+              "Review order details (products, quantities, prices)",
+              "Check payment proof uploaded by master agents",
+              "Verify payment method (Online Transfer, Cash, COD)",
+              "Approve orders to fulfill them",
+              "Reject orders if payment or details are incorrect",
+              "Monitor order status (Pending, Completed, Rejected)",
+              "Track payment confirmations",
+              "View transaction history by master agent"
+            ]
+          },
+          {
+            id: "transaction-agent",
+            icon: DollarSign,
+            title: "Transaction Agent",
+            description: "Monitor agent purchases from master agents",
+            steps: [
+              "View all agent purchase transactions system-wide",
+              "Monitor agent ordering patterns",
+              "Track which agents are actively purchasing",
+              "Review agent payment methods",
+              "Analyze agent purchase volumes",
+              "Identify top purchasing agents",
+              "Generate agent transaction reports"
             ]
           },
           {
             id: "rewards",
             icon: Gift,
-            title: "Rewards Config",
-            description: "Set up reward programs",
+            title: "Rewards",
+            description: "Configure reward programs and targets",
             steps: [
-              "Create monthly reward targets for master agents",
-              "Set yearly reward milestones",
-              "Define reward criteria and minimum quantities",
-              "Configure reward benefits and incentives",
-              "Monitor reward achievement progress"
+              "Create monthly reward targets for master agents and agents",
+              "Set yearly reward milestones and goals",
+              "Define minimum quantity requirements for rewards",
+              "Configure reward types (monthly, yearly)",
+              "Set reward benefits and incentives",
+              "Activate or deactivate reward programs",
+              "Update existing reward configurations",
+              "Monitor reward criteria effectiveness"
             ]
           },
           {
-            id: "reward-achievement",
+            id: "reward-ma",
             icon: Award,
-            title: "Reward Achievement",
-            description: "Track reward completions",
+            title: "Reward Master Agent",
+            description: "Track master agent reward achievements",
             steps: [
-              "View all achieved rewards by master agents",
-              "Monitor reward progress across the system",
-              "Verify reward eligibility",
-              "Track reward distribution",
-              "Generate reward reports"
+              "View all master agents who achieved rewards",
+              "Monitor monthly reward achievements",
+              "Track yearly reward completions",
+              "Verify reward eligibility and criteria met",
+              "Review achievement dates and milestones",
+              "Filter by reward type or time period",
+              "Generate reward achievement reports",
+              "Identify top performing master agents"
+            ]
+          },
+          {
+            id: "reward-agent",
+            icon: Award,
+            title: "Reward Agent",
+            description: "Track agent reward achievements",
+            steps: [
+              "View all agents who achieved rewards",
+              "Monitor monthly agent rewards",
+              "Track yearly agent reward completions",
+              "Verify agent reward eligibility",
+              "Review which master agent the rewarded agent belongs to",
+              "Filter rewards by date or achievement type",
+              "Generate agent reward reports",
+              "Analyze reward program effectiveness"
             ]
           },
           {
             id: "reporting-master",
             icon: FileText,
             title: "Reporting Master Agent",
-            description: "Comprehensive master agent reports",
+            description: "Comprehensive master agent performance reports",
             steps: [
-              "View detailed performance metrics for each master agent",
-              "Monitor stock in/out movements",
-              "Review agent and customer sales separately",
-              "Analyze profit margins for agent and customer sales",
+              "View detailed metrics for each master agent (ID Staff, Name)",
+              "Monitor Latest Balance (current inventory)",
+              "Track Stock In (purchases from HQ)",
+              "Monitor Total Purchase amount from HQ",
+              "View Agent Stock Out (sales to agents)",
+              "View Customer Stock Out (sales to customers)",
+              "Analyze Agent Total Sales and Agent Profit",
+              "Analyze Customer Total Sales and Customer Profit",
+              "Check Target Monthly and Target Yearly progress",
+              "See total Agent count under each master agent",
+              "See total Customer count per master agent",
               "Filter reports by date range",
-              "Track target achievement progress",
-              "View agent count and customer count per master agent"
+              "Export data for further analysis"
             ]
           },
           {
             id: "reporting-agent",
             icon: FileText,
             title: "Reporting Agent",
-            description: "System-wide agent reports",
+            description: "System-wide agent performance reports",
             steps: [
               "View all agents across all master agents",
-              "Monitor agent purchase patterns",
-              "Track agent inventory levels",
-              "Review customer sales performance by agent",
-              "Analyze agent profitability",
+              "Monitor Latest Balance (agent inventory)",
+              "Track Stock In (agent purchases from master agents)",
+              "Review Total Purchase amount by agent",
+              "Monitor Customer Stock Out (agent sales to customers)",
+              "Track Customer Total Sales per agent",
+              "View Target Monthly and Target Yearly by agent",
+              "See which Master Agent each agent belongs to",
+              "View Total Customer count per agent",
               "Filter by date range for specific periods",
-              "Identify top performing agents"
+              "Identify top and bottom performing agents",
+              "Compare agent performance across master agents"
             ]
           },
           {
             id: "settings",
             icon: Settings,
             title: "Settings",
-            description: "System configuration",
+            description: "System and profile configuration",
             steps: [
               "Update HQ profile information",
+              "Change account password",
+              "Update contact details and email",
               "Configure system-wide settings",
-              "Manage payment methods",
-              "Set up notification preferences",
-              "Configure security settings"
+              "Manage notification preferences",
+              "Set up security and privacy settings"
             ]
           }
         ]
