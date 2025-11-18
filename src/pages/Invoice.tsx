@@ -184,12 +184,32 @@ const Invoice = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Payment Method</span>
-                  <span className="text-sm font-semibold text-gray-900">Billplz</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {orderData.payment_method === 'manual'
+                      ? orderData.payment_type || 'Manual Payment'
+                      : 'Billplz FPX'}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Bill ID</span>
-                  <span className="text-xs font-mono text-gray-700">{orderData.billplz_bill_id || "-"}</span>
-                </div>
+                {orderData.billplz_bill_id && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Bill ID</span>
+                    <span className="text-xs font-mono text-gray-700">{orderData.billplz_bill_id}</span>
+                  </div>
+                )}
+                {orderData.payment_method === 'manual' && orderData.bank_name && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Bank Name</span>
+                    <span className="text-sm text-gray-700">{orderData.bank_name}</span>
+                  </div>
+                )}
+                {orderData.payment_method === 'manual' && orderData.payment_date && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Payment Date</span>
+                    <span className="text-sm text-gray-700">
+                      {format(new Date(orderData.payment_date), "dd/MM/yyyy")}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Status</span>
                   <span className={`text-sm font-bold uppercase ${statusColor}`}>{orderData.status}</span>
