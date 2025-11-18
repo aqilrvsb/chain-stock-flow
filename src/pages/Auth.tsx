@@ -12,7 +12,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loginIdstaff, setLoginIdstaff] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [logoUrl, setLogoUrl] = useState("/logo.png");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoLoaded, setLogoLoaded] = useState(false);
 
   const { signIn } = useAuth();
   const { toast } = useToast();
@@ -30,7 +31,11 @@ const Auth = () => {
         // Add cache busting parameter using updated_at timestamp
         const timestamp = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
         setLogoUrl(`${data.setting_value}?v=${timestamp}`);
+      } else {
+        // Fallback to default logo if no custom logo is set
+        setLogoUrl("/logo.png");
       }
+      setLogoLoaded(true);
     };
 
     fetchLogo();
@@ -131,11 +136,13 @@ const Auth = () => {
             <div className="flex justify-center">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
-                <img
-                  src={logoUrl}
-                  alt="OliveJardin Hub Logo"
-                  className="relative h-20 w-auto object-contain drop-shadow-2xl"
-                />
+                {logoLoaded && logoUrl && (
+                  <img
+                    src={logoUrl}
+                    alt="OliveJardin Hub Logo"
+                    className="relative h-60 w-auto object-contain drop-shadow-2xl"
+                  />
+                )}
               </div>
             </div>
             <div className="text-center space-y-2">
