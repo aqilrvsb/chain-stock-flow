@@ -251,7 +251,7 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
     if (result.isConfirmed) {
       purchaseProduct.mutate({
         bundleId,
-        quantity: 1,
+        quantity: units,
         unitPrice: price,
         totalPrice: price,
         units
@@ -285,7 +285,7 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
     if (result.isConfirmed) {
       purchaseProduct.mutate({
         bundleId: pendingPurchase.bundleId,
-        quantity: 1,
+        quantity: pendingPurchase.units,
         unitPrice: pendingPurchase.price,
         totalPrice: pendingPurchase.price,
         units: pendingPurchase.units
@@ -350,7 +350,7 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
           buyer_id: user?.id,
           bundle_id: data.bundleId,
           product_id: bundleData.product_id,
-          quantity: 1,
+          quantity: data.units,
           unit_price: data.price,
           total_price: data.price,
           status: 'pending',
