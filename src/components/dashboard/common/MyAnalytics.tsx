@@ -103,10 +103,10 @@ const MyAnalytics = () => {
         // Calculate Total Unit Out (agent purchases where success)
         const totalUnitOut = agentUnitsSold;
 
-        // Get customer purchases data
+        // Get customer purchases data with unit price
         let customerPurchasesQuery = supabase
           .from("customer_purchases")
-          .select("quantity, total_price, customer_id")
+          .select("quantity, total_price, unit_price, customer_id, product_id")
           .eq("seller_id", user?.id);
 
         if (startDate) {
@@ -121,6 +121,19 @@ const MyAnalytics = () => {
         const customerUnitsSold = customerPurchases?.reduce((sum, p) => sum + p.quantity, 0) || 0;
         const customerSalesTotal = customerPurchases?.reduce((sum, p) => sum + Number(p.total_price), 0) || 0;
         const uniqueCustomers = new Set(customerPurchases?.map(p => p.customer_id)).size;
+
+        // Calculate customer profit (revenue - cost)
+        // For Master Agent: cost is HQ price from pending_orders
+        let customerCost = 0;
+        for (const purchase of customerPurchases || []) {
+          // Find the cost per unit from the master agent's purchase from HQ
+          const costOrder = completedPurchases.find(order => order.product_id === purchase.product_id);
+          if (costOrder) {
+            const costPerUnit = Number(costOrder.total_price) / costOrder.quantity;
+            customerCost += costPerUnit * purchase.quantity;
+          }
+        }
+        const customerProfit = customerSalesTotal - customerCost;
 
         // Get rewards for master agent
         const month = now.getMonth() + 1;
@@ -157,6 +170,7 @@ const MyAnalytics = () => {
           totalUnitOut,
           customerUnitsSold,
           customerSalesTotal,
+          customerProfit,
           uniqueCustomers,
           monthlyRewards,
           yearlyRewards,
@@ -188,10 +202,10 @@ const MyAnalytics = () => {
         // Calculate Total Unit In (agent purchases where success)
         const totalUnitIn = totalQuantity;
 
-        // Get customer purchases data
+        // Get customer purchases data with unit price
         let customerPurchasesQuery = supabase
           .from("customer_purchases")
-          .select("quantity, total_price, customer_id")
+          .select("quantity, total_price, unit_price, customer_id, product_id")
           .eq("seller_id", user?.id);
 
         if (startDate) {
@@ -206,6 +220,19 @@ const MyAnalytics = () => {
         const customerUnitsSold = customerPurchases?.reduce((sum, p) => sum + p.quantity, 0) || 0;
         const customerSalesTotal = customerPurchases?.reduce((sum, p) => sum + Number(p.total_price), 0) || 0;
         const uniqueCustomers = new Set(customerPurchases?.map(p => p.customer_id)).size;
+
+        // Calculate customer profit (revenue - cost)
+        // For Agent: cost is Master Agent price from agent_purchases
+        let customerCost = 0;
+        for (const purchase of customerPurchases || []) {
+          // Find the cost per unit from the agent's purchase from Master Agent
+          const costOrder = completedPurchases.find(order => order.product_id === purchase.product_id);
+          if (costOrder) {
+            const costPerUnit = Number(costOrder.total_price) / costOrder.quantity;
+            customerCost += costPerUnit * purchase.quantity;
+          }
+        }
+        const customerProfit = customerSalesTotal - customerCost;
 
         // Get rewards for agent
         const month = now.getMonth() + 1;
@@ -237,6 +264,7 @@ const MyAnalytics = () => {
           totalUnitIn,
           customerUnitsSold,
           customerSalesTotal,
+          customerProfit,
           uniqueCustomers,
           monthlyRewards,
           yearlyRewards,
@@ -308,10 +336,10 @@ const MyAnalytics = () => {
         color: "text-green-600",
       },
       {
-        title: "Customer Total Purchase",
-        value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
-        subtitle: "Total customer spending",
-        icon: ShoppingCart,
+        title: "Customer Total Profit",
+        value: `RM ${(stats?.customerProfit || 0).toFixed(2)}`,
+        subtitle: "Profit from customer sales",
+        icon: TrendingUp,
         color: "text-amber-600",
       },
       {
