@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, ArrowUpCircle, Target } from "lucide-react";
+import { Users, ArrowUpCircle, ArrowDownCircle, Target } from "lucide-react";
 
 const ReportingAgent = () => {
   const [startDate, setStartDate] = useState("");
@@ -98,6 +98,41 @@ const ReportingAgent = () => {
           const { data: purchaseData } = await purchaseQuery;
           const totalPurchase = purchaseData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
 
+          // Customer Stock Out (customer purchases)
+          let customerStockOutQuery = supabase
+            .from("customer_purchases")
+            .select("quantity")
+            .eq("seller_id", agent.id);
+
+          if (startDate) {
+            customerStockOutQuery = customerStockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            customerStockOutQuery = customerStockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: customerStockOutData } = await customerStockOutQuery;
+          const customerStockOut = customerStockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Customer Total Sales (total_price from customer_purchases)
+          let customerSalesQuery = supabase
+            .from("customer_purchases")
+            .select("total_price, customer_id")
+            .eq("seller_id", agent.id);
+
+          if (startDate) {
+            customerSalesQuery = customerSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            customerSalesQuery = customerSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: customerSalesData } = await customerSalesQuery;
+          const customerTotalSales = customerSalesData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+
+          // Count unique customers
+          const totalCustomers = new Set(customerSalesData?.map(s => s.customer_id)).size;
+
           // Target Monthly
           const { data: monthlyReward } = await supabase
             .from("rewards_config")
@@ -128,9 +163,12 @@ const ReportingAgent = () => {
             latestBalance,
             stockIn,
             totalPurchase,
+            customerStockOut,
+            customerTotalSales,
             targetMonthly: monthlyReward?.min_quantity || 0,
             targetYearly: yearlyReward?.min_quantity || 0,
             masterAgentName: masterAgentMap.get(agent.id) || "-",
+            totalCustomers,
           };
         })
       );
@@ -142,6 +180,7 @@ const ReportingAgent = () => {
   // Calculate summary stats
   const totalAgents = reportData?.length || 0;
   const totalStockIn = reportData?.reduce((sum, item) => sum + item.stockIn, 0) || 0;
+  const totalStockOut = reportData?.reduce((sum, item) => sum + item.customerStockOut, 0) || 0;
   const totalTargetMonthly = reportData?.reduce((sum, item) => sum + item.targetMonthly, 0) || 0;
 
   const summaryStats = [
@@ -156,6 +195,12 @@ const ReportingAgent = () => {
       value: totalStockIn,
       icon: ArrowUpCircle,
       color: "text-green-600",
+    },
+    {
+      title: "Total Stock Out",
+      value: totalStockOut,
+      icon: ArrowDownCircle,
+      color: "text-orange-600",
     },
     {
       title: "Total Target Monthly",
@@ -206,7 +251,7 @@ const ReportingAgent = () => {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {summaryStats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
@@ -240,9 +285,12 @@ const ReportingAgent = () => {
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
+                  <TableHead>Customer Stock Out</TableHead>
+                  <TableHead>Customer Total Sales</TableHead>
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
                   <TableHead>Master Agent</TableHead>
+                  <TableHead>Total Customer</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -254,9 +302,12 @@ const ReportingAgent = () => {
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
+                    <TableCell>{item.customerStockOut}</TableCell>
+                    <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
                     <TableCell>{item.masterAgentName}</TableCell>
+                    <TableCell>{item.totalCustomers}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
