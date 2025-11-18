@@ -10,6 +10,7 @@ import RewardAgentMA from "./master-agent/RewardAgentMA";
 import ReportingAgent from "./master-agent/ReportingAgent";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
+import Customers from "./common/Customers";
 
 const MasterAgentDashboard = () => {
   const { userProfile } = useAuth();
@@ -24,6 +25,8 @@ const MasterAgentDashboard = () => {
         return <MasterAgentInventory />;
       case "agents":
         return <MyAgents />;
+      case "customers":
+        return <Customers userType="master_agent" />;
       case "transactions":
         return <TransactionHistory />;
       case "transaction-agent":

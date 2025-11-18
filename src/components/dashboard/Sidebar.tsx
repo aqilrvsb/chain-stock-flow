@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -67,6 +67,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
         { title: "My Agents", icon: Users, value: "agents" },
+        { title: "Customers", icon: UserCheck, value: "customers" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
         { title: "Reward Agent", icon: Award, value: "reward-agent" },
@@ -77,6 +78,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Dashboard", icon: Home, value: "dashboard" },
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
+        { title: "Customers", icon: UserCheck, value: "customers" },
         { title: "Transactions", icon: BarChart3, value: "transactions" },
       ];
     }

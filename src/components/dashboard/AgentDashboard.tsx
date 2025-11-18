@@ -6,6 +6,7 @@ import AgentInventory from "./agent/AgentInventory";
 import AgentTransactions from "./agent/AgentTransactions";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
+import Customers from "./common/Customers";
 
 const AgentDashboard = () => {
   const { userProfile } = useAuth();
@@ -18,6 +19,8 @@ const AgentDashboard = () => {
         return <PurchaseProducts userType="agent" onNavigateToSettings={() => setActiveView("settings")} onNavigateToTransactions={() => setActiveView("transactions")} />;
       case "inventory":
         return <AgentInventory />;
+      case "customers":
+        return <Customers userType="agent" />;
       case "transactions":
         return <AgentTransactions />;
       case "analytics":
