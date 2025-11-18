@@ -60,22 +60,38 @@ const ReportingMasterAgent = () => {
           const { data: stockInData } = await stockInQuery;
           const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Stock Out (agent purchases where success)
-          let stockOutQuery = supabase
+          // Agent Stock Out (agent purchases where success)
+          let agentStockOutQuery = supabase
             .from("agent_purchases")
             .select("quantity")
             .eq("master_agent_id", ma.id)
             .eq("status", "completed");
 
           if (startDate) {
-            stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            agentStockOutQuery = agentStockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
           }
           if (endDate) {
-            stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            agentStockOutQuery = agentStockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
           }
 
-          const { data: stockOutData } = await stockOutQuery;
-          const stockOut = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+          const { data: agentStockOutData } = await agentStockOutQuery;
+          const agentStockOut = agentStockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // Customer Stock Out (customer purchases)
+          let customerStockOutQuery = supabase
+            .from("customer_purchases")
+            .select("quantity")
+            .eq("seller_id", ma.id);
+
+          if (startDate) {
+            customerStockOutQuery = customerStockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            customerStockOutQuery = customerStockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: customerStockOutData } = await customerStockOutQuery;
+          const customerStockOut = customerStockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
           // Total Purchase (total_price from pending_orders)
           let purchaseQuery = supabase
@@ -94,40 +110,74 @@ const ReportingMasterAgent = () => {
           const { data: purchaseData } = await purchaseQuery;
           const totalPurchase = purchaseData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
 
-          // Total Sales (total_price from agent_purchases)
-          let salesQuery = supabase
+          // Agent Total Sales (total_price from agent_purchases)
+          let agentSalesQuery = supabase
             .from("agent_purchases")
             .select("total_price, bundle_id")
             .eq("master_agent_id", ma.id)
             .eq("status", "completed");
 
           if (startDate) {
-            salesQuery = salesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
           }
           if (endDate) {
-            salesQuery = salesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
           }
 
-          const { data: salesData } = await salesQuery;
-          const totalSales = salesData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+          const { data: agentSalesData } = await agentSalesQuery;
+          const agentTotalSales = agentSalesData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
 
-          // Get bundles for profit calculation
-          const bundleIds = salesData?.map(s => s.bundle_id).filter(Boolean) || [];
-          const { data: bundles } = bundleIds.length > 0
+          // Get bundles for agent profit calculation
+          const agentBundleIds = agentSalesData?.map(s => s.bundle_id).filter(Boolean) || [];
+          const { data: agentBundles } = agentBundleIds.length > 0
             ? await supabase
                 .from("bundles")
                 .select("id, master_agent_price")
-                .in("id", bundleIds)
+                .in("id", agentBundleIds)
             : { data: [] };
 
-          const bundlesMap = new Map(bundles?.map(b => [b.id, b.master_agent_price]) || []);
+          const agentBundlesMap = new Map(agentBundles?.map(b => [b.id, b.master_agent_price]) || []);
 
-          // Calculate Profit (total_price - master_agent_price)
-          let profit = 0;
-          salesData?.forEach(sale => {
-            const maPrice = bundlesMap.get(sale.bundle_id) || 0;
-            profit += Number(sale.total_price) - Number(maPrice);
+          // Calculate Agent Profit (total_price - master_agent_price)
+          let agentProfit = 0;
+          agentSalesData?.forEach(sale => {
+            const maPrice = agentBundlesMap.get(sale.bundle_id) || 0;
+            agentProfit += Number(sale.total_price) - Number(maPrice);
           });
+
+          // Customer Total Sales (total_price from customer_purchases)
+          let customerSalesQuery = supabase
+            .from("customer_purchases")
+            .select("total_price, unit_price, quantity, product_id, customer_id")
+            .eq("seller_id", ma.id);
+
+          if (startDate) {
+            customerSalesQuery = customerSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          }
+          if (endDate) {
+            customerSalesQuery = customerSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          }
+
+          const { data: customerSalesData } = await customerSalesQuery;
+          const customerTotalSales = customerSalesData?.reduce((sum, item) => sum + Number(item.total_price), 0) || 0;
+
+          // Calculate Customer Profit (revenue - cost from HQ)
+          let customerProfit = 0;
+          for (const sale of customerSalesData || []) {
+            // Find cost per unit from master agent's purchase from HQ
+            const costOrder = purchaseData?.find(order => order.product_id === sale.product_id);
+            if (costOrder) {
+              const costPerUnit = Number(costOrder.total_price) / costOrder.quantity;
+              const cost = costPerUnit * sale.quantity;
+              customerProfit += Number(sale.total_price) - cost;
+            } else {
+              // If no matching purchase, use full sale price as profit
+              customerProfit += Number(sale.total_price);
+            }
+          }
+
+          // Count unique customers
+          const totalCustomers = new Set(customerSalesData?.map(s => s.customer_id)).size;
 
           // Target Monthly
           const { data: monthlyReward } = await supabase
@@ -167,12 +217,16 @@ const ReportingMasterAgent = () => {
             latestBalance,
             stockIn,
             totalPurchase,
-            stockOut,
-            totalSales,
-            profit,
+            agentStockOut,
+            customerStockOut,
+            agentTotalSales,
+            customerTotalSales,
+            agentProfit,
+            customerProfit,
             targetMonthly: monthlyReward?.min_quantity || 0,
             targetYearly: yearlyReward?.min_quantity || 0,
             agentCount,
+            totalCustomers,
           };
         })
       );
@@ -289,12 +343,16 @@ const ReportingMasterAgent = () => {
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
-                  <TableHead>Stock Out</TableHead>
-                  <TableHead>Total Sales</TableHead>
-                  <TableHead>Profit</TableHead>
+                  <TableHead>Agent Stock Out</TableHead>
+                  <TableHead>Customer Stock Out</TableHead>
+                  <TableHead>Agent Total Sales</TableHead>
+                  <TableHead>Customer Total Sales</TableHead>
+                  <TableHead>Agent Profit</TableHead>
+                  <TableHead>Customer Profit</TableHead>
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
                   <TableHead>Agent</TableHead>
+                  <TableHead>Total Customer</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -306,12 +364,16 @@ const ReportingMasterAgent = () => {
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
-                    <TableCell>{item.stockOut}</TableCell>
-                    <TableCell>RM {item.totalSales.toFixed(2)}</TableCell>
-                    <TableCell>RM {item.profit.toFixed(2)}</TableCell>
+                    <TableCell>{item.agentStockOut}</TableCell>
+                    <TableCell>{item.customerStockOut}</TableCell>
+                    <TableCell>RM {item.agentTotalSales.toFixed(2)}</TableCell>
+                    <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>
+                    <TableCell>RM {item.agentProfit.toFixed(2)}</TableCell>
+                    <TableCell>RM {item.customerProfit.toFixed(2)}</TableCell>
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
                     <TableCell>{item.agentCount}</TableCell>
+                    <TableCell>{item.totalCustomers}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
