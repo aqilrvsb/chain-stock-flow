@@ -29,23 +29,31 @@ const MasterAgentInventory = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const { data: products, isLoading } = useQuery({
+  const { data: products, isLoading} = useQuery({
     queryKey: ["master-agent-inventory", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all products
+      const { data: allProductsData, error: productsError } = await supabase
         .from("products")
-        .select(`
-          *,
-          inventory!inner(quantity)
-        `)
-        .eq("inventory.user_id", user?.id)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (productsError) throw productsError;
+
+      // Get inventory for this user
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", user?.id);
+
+      if (inventoryError) throw inventoryError;
+
+      // Create a map of product_id -> inventory quantity
+      const inventoryMap = new Map(inventoryData?.map(inv => [inv.product_id, inv.quantity]) || []);
 
       // Calculate Stock In and Stock Out for each product
       const productsWithStock = await Promise.all(
-        data.map(async (product) => {
+        allProductsData.map(async (product) => {
           // Stock In from pending_orders (Master Agent purchases from HQ)
           let stockInQuery = supabase
             .from("pending_orders")
@@ -86,11 +94,13 @@ const MasterAgentInventory = () => {
             ...product,
             stockIn,
             stockOut,
+            currentQuantity: inventoryMap.get(product.id) || 0,
           };
         })
       );
 
-      return productsWithStock;
+      // Only return products that have stock in, stock out, or current inventory
+      return productsWithStock.filter(p => p.stockIn > 0 || p.stockOut > 0 || p.currentQuantity > 0);
     },
     enabled: !!user?.id,
   });
@@ -242,9 +252,7 @@ const MasterAgentInventory = () => {
 
   // Calculate summary stats
   const totalProducts = products?.length || 0;
-  const totalQuantity = products?.reduce((sum, p) =>
-    sum + (p.inventory?.reduce((invSum: number, inv: any) => invSum + inv.quantity, 0) || 0), 0
-  ) || 0;
+  const totalQuantity = products?.reduce((sum, p) => sum + ((p as any).currentQuantity || 0), 0) || 0;
   const totalStockIn = products?.reduce((sum, p) => sum + ((p as any).stockIn || 0), 0) || 0;
   const totalStockOut = products?.reduce((sum, p) => sum + ((p as any).stockOut || 0), 0) || 0;
 
@@ -330,7 +338,7 @@ const MasterAgentInventory = () => {
               </TableHeader>
               <TableBody>
                 {products?.map((product) => {
-                  const totalQuantity = product.inventory?.reduce((sum: number, inv: any) => sum + inv.quantity, 0) || 0;
+                  const currentQuantity = (product as any).currentQuantity || 0;
                   const stockIn = (product as any).stockIn || 0;
                   const stockOut = (product as any).stockOut || 0;
 
@@ -340,7 +348,7 @@ const MasterAgentInventory = () => {
                       <TableCell>{product.name}</TableCell>
                       <TableCell className="font-medium text-green-600">{stockIn}</TableCell>
                       <TableCell className="font-medium text-red-600">{stockOut}</TableCell>
-                      <TableCell className="font-medium">{totalQuantity}</TableCell>
+                      <TableCell className="font-medium">{currentQuantity}</TableCell>
                     </TableRow>
                   );
                 })}
