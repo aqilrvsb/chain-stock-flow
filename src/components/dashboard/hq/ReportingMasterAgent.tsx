@@ -238,7 +238,7 @@ const ReportingMasterAgent = () => {
   // Calculate summary stats
   const totalMasterAgents = reportData?.length || 0;
   const totalStockIn = reportData?.reduce((sum, item) => sum + item.stockIn, 0) || 0;
-  const totalStockOut = reportData?.reduce((sum, item) => sum + item.stockOut, 0) || 0;
+  const totalStockOut = reportData?.reduce((sum, item) => sum + item.agentStockOut + item.customerStockOut, 0) || 0;
   const totalTargetMonthly = reportData?.reduce((sum, item) => sum + item.targetMonthly, 0) || 0;
 
   const summaryStats = [
