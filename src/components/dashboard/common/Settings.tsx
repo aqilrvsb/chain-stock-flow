@@ -38,9 +38,9 @@ const Settings = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch Billplz configuration (HQ only)
-  const { data: billplzConfig } = useQuery({
-    queryKey: ["billplz-config"],
+  // Fetch system settings (HQ only)
+  const { data: systemSettings } = useQuery({
+    queryKey: ["system-settings"],
     queryFn: async () => {
       const { data: apiKey } = await (supabase as any)
         .from("system_settings")
@@ -54,13 +54,30 @@ const Settings = () => {
         .eq("setting_key", "billplz_collection_id")
         .maybeSingle();
 
+      const { data: logoUrl } = await (supabase as any)
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "logo_url")
+        .maybeSingle();
+
+      const { data: faviconUrl } = await (supabase as any)
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "favicon_url")
+        .maybeSingle();
+
       return {
         apiKey: apiKey?.setting_value || "",
         collectionId: collectionId?.setting_value || "",
+        logoUrl: logoUrl?.setting_value || "",
+        faviconUrl: faviconUrl?.setting_value || "",
       };
     },
     enabled: userRole === 'hq',
   });
+
+  // Keep billplzConfig for backward compatibility
+  const billplzConfig = systemSettings;
 
   const updateProfile = useMutation({
     mutationFn: async (updates: any) => {
@@ -196,7 +213,10 @@ const Settings = () => {
       if (updateError) throw updateError;
 
       toast({ title: "Logo uploaded successfully" });
-      
+
+      // Invalidate system settings to refetch logo URL
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -267,6 +287,9 @@ const Settings = () => {
         description: "Please refresh the page to see the new favicon"
       });
 
+      // Invalidate system settings to refetch favicon URL
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+
       // Reset file input
       if (faviconInputRef.current) {
         faviconInputRef.current.value = '';
@@ -311,7 +334,7 @@ const Settings = () => {
         p_value: billplzCollectionId
       });
 
-      queryClient.invalidateQueries({ queryKey: ["billplz-config"] });
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
       toast({ title: "Billplz configuration updated successfully" });
       setBillplzApiKey("");
       setBillplzCollectionId("");
@@ -345,8 +368,20 @@ const Settings = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {systemSettings?.logoUrl && (
+                  <div className="space-y-2">
+                    <Label>Current Logo</Label>
+                    <div className="p-4 border rounded-lg bg-muted/50">
+                      <img
+                        src={systemSettings.logoUrl}
+                        alt="Current logo"
+                        className="max-h-32 object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label htmlFor="logo">Logo Image</Label>
+                  <Label htmlFor="logo">Upload New Logo</Label>
                   <Input
                     ref={fileInputRef}
                     id="logo"
@@ -373,8 +408,21 @@ const Settings = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {systemSettings?.faviconUrl && (
+                  <div className="space-y-2">
+                    <Label>Current Favicon</Label>
+                    <div className="p-4 border rounded-lg bg-muted/50 flex items-center gap-3">
+                      <img
+                        src={systemSettings.faviconUrl}
+                        alt="Current favicon"
+                        className="w-8 h-8"
+                      />
+                      <span className="text-sm text-muted-foreground">Favicon is active</span>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label htmlFor="favicon">Favicon Image</Label>
+                  <Label htmlFor="favicon">Upload New Favicon</Label>
                   <Input
                     ref={faviconInputRef}
                     id="favicon"
