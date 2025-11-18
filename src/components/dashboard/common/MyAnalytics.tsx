@@ -257,13 +257,6 @@ const MyAnalytics = () => {
           color: "text-blue-600",
         },
         {
-          title: "Agent Total Purchase",
-          value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-          subtitle: "Pending order sum total price where success",
-          icon: DollarSign,
-          color: "text-cyan-600",
-        },
-        {
           title: "Agent Total Unit Sales",
           value: stats?.totalUnitOut || 0,
           subtitle: "Agent purchases success",
@@ -301,13 +294,6 @@ const MyAnalytics = () => {
         subtitle: "Agent purchases success",
         icon: Package,
         color: "text-blue-600",
-      },
-      {
-        title: "Agent Total Purchase",
-        value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-        subtitle: "Completed orders",
-        icon: DollarSign,
-        color: "text-emerald-600",
       },
     ];
   };
@@ -353,6 +339,13 @@ const MyAnalytics = () => {
         subtitle: "Current inventory",
         icon: Package,
         color: "text-violet-600",
+      },
+      {
+        title: "Agent Total Purchase",
+        value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
+        subtitle: userRole === "master_agent" ? "Purchase From HQ" : "Purchase From Master Agent",
+        icon: DollarSign,
+        color: "text-cyan-600",
       },
     ];
   };
