@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import SOPModal from "./SOPModal";
 
 interface AppSidebarProps {
   userRole: string | null;
@@ -27,6 +29,7 @@ interface AppSidebarProps {
 export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarProps) {
   const { open } = useSidebar();
   const { signOut, user } = useAuth();
+  const [isSOPOpen, setIsSOPOpen] = useState(false);
 
   // Fetch user profile to get idstaff
   const { data: profile } = useQuery({
@@ -120,13 +123,22 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   onClick={() => onViewChange("settings")}
                   isActive={activeView === "settings"}
                   className="cursor-pointer"
                 >
                   <Settings className="h-4 w-4" />
                   {open && <span>Settings</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setIsSOPOpen(true)}
+                  className="cursor-pointer"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  {open && <span>SOP</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -159,6 +171,12 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
           </Button>
         )}
       </SidebarFooter>
+
+      <SOPModal
+        isOpen={isSOPOpen}
+        onClose={() => setIsSOPOpen(false)}
+        userRole={userRole || ""}
+      />
     </Sidebar>
   );
 }
