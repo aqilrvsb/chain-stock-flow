@@ -24,7 +24,9 @@
       "Bash(npx supabase functions deploy:*)",
       "Bash(del \"supabase\\migrations\\20251107000000_add_billplz_bill_id_to_transactions.sql\")",
       "Bash(del publicfavicon.ico)",
-      "Bash(npx supabase db push:*)"
+      "Bash(npx supabase db push:*)",
+      "Bash(NUL)",
+      "Bash(if exist nul del /f nul)"
     ],
     "deny": [],
     "ask": []

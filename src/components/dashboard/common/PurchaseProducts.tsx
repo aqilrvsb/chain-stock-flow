@@ -375,6 +375,11 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
           <p>You will receive an update once it's approved.</p>
         `,
         confirmButtonText: "OK"
+      }).then(() => {
+        // Redirect to transactions page after user clicks OK
+        if (onNavigateToTransactions) {
+          onNavigateToTransactions();
+        }
       });
 
       queryClient.invalidateQueries({ queryKey: ["bundles-for-purchase"] });
