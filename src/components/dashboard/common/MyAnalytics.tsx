@@ -246,45 +246,7 @@ const MyAnalytics = () => {
     enabled: !!user?.id,
   });
 
-  const getStatCards = () => {
-    const baseCards = [
-      {
-        title: "Total Purchases",
-        value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-        subtitle: "Completed orders",
-        icon: DollarSign,
-        color: "text-emerald-600",
-      },
-      {
-        title: "Products Purchased",
-        value: stats?.totalQuantity || 0,
-        subtitle: "Total units",
-        icon: ShoppingCart,
-        color: "text-blue-600",
-      },
-      {
-        title: "Current Stock",
-        value: stats?.currentStock || 0,
-        subtitle: "Available inventory",
-        icon: Package,
-        color: "text-purple-600",
-      },
-      {
-        title: "Completed Orders",
-        value: stats?.completedCount || 0,
-        subtitle: "Successful transactions",
-        icon: CheckCircle2,
-        color: "text-green-600",
-      },
-      {
-        title: "Pending Amount",
-        value: `RM ${(stats?.pendingAmount || 0).toFixed(2)}`,
-        subtitle: `${stats?.pendingCount || 0} pending transactions`,
-        icon: TrendingUp,
-        color: "text-orange-600",
-      },
-    ];
-
+  const getAgentStats = () => {
     if (userRole === "master_agent") {
       return [
         {
@@ -329,45 +291,9 @@ const MyAnalytics = () => {
           icon: Users,
           color: "text-pink-600",
         },
-        {
-          title: "Customer Total Unit Sales",
-          value: stats?.customerUnitsSold || 0,
-          subtitle: "Units sold to customers",
-          icon: Package,
-          color: "text-indigo-600",
-        },
-        {
-          title: "Customer Total Sales",
-          value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
-          subtitle: "Revenue from customers",
-          icon: DollarSign,
-          color: "text-green-600",
-        },
-        {
-          title: "Customer Total Purchase",
-          value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
-          subtitle: "Total customer spending",
-          icon: ShoppingCart,
-          color: "text-amber-600",
-        },
-        {
-          title: "Total Customer",
-          value: stats?.uniqueCustomers || 0,
-          subtitle: "Unique customers",
-          icon: UserCheck,
-          color: "text-rose-600",
-        },
-        {
-          title: "Latest Balance Unit",
-          value: stats?.currentStock || 0,
-          subtitle: "Current inventory",
-          icon: Package,
-          color: "text-violet-600",
-        },
       ];
     }
-
-    // Agent cards
+    // Agent role
     return [
       {
         title: "Agent Total Unit Purchase",
@@ -383,6 +309,11 @@ const MyAnalytics = () => {
         icon: DollarSign,
         color: "text-emerald-600",
       },
+    ];
+  };
+
+  const getCustomerStats = () => {
+    return [
       {
         title: "Customer Total Unit Sales",
         value: stats?.customerUnitsSold || 0,
@@ -411,6 +342,11 @@ const MyAnalytics = () => {
         icon: UserCheck,
         color: "text-rose-600",
       },
+    ];
+  };
+
+  const getInventoryStats = () => {
+    return [
       {
         title: "Latest Balance Unit",
         value: stats?.currentStock || 0,
@@ -421,7 +357,9 @@ const MyAnalytics = () => {
     ];
   };
 
-  const statCards = getStatCards();
+  const agentStats = getAgentStats();
+  const customerStats = getCustomerStats();
+  const inventoryStats = getInventoryStats();
 
   return (
     <div className="space-y-6">
@@ -458,24 +396,85 @@ const MyAnalytics = () => {
       {isLoading ? (
         <div className="text-center py-8">Loading analytics...</div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {statCards.map((stat, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                  </div>
-                  <div className="p-2 rounded-full bg-muted">
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          {/* Agent Statistics Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Agent Statistics</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {agentStats.map((stat, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                        <p className="text-2xl font-bold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                      </div>
+                      <div className="p-2 rounded-full bg-muted">
+                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer Statistics Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Customer Statistics</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {customerStats.map((stat, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                        <p className="text-2xl font-bold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                      </div>
+                      <div className="p-2 rounded-full bg-muted">
+                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Inventory Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Inventory</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {inventoryStats.map((stat, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                        <p className="text-2xl font-bold">{stat.value}</p>
+                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                      </div>
+                      <div className="p-2 rounded-full bg-muted">
+                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       <Card>
