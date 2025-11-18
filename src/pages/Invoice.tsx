@@ -124,10 +124,10 @@ const Invoice = () => {
                    'bg-yellow-50';
 
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white p-4 sm:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8 pb-8 border-b-2 border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8 pb-8 border-b-2 border-gray-200">
           <div>
             {logoUrl ? (
               <img src={logoUrl} alt="Company Logo" className="h-16 w-auto mb-4" />
@@ -136,10 +136,10 @@ const Invoice = () => {
                 <span className="text-white font-bold text-xl">OliveJardin Hub</span>
               </div>
             )}
-            <h1 className="text-3xl font-bold text-gray-900">INVOICE</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">INVOICE</h1>
             <p className="text-gray-600 mt-1">Order #{orderData.order_number}</p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <div className={`inline-block px-4 py-2 rounded-lg ${statusBg} mb-4`}>
               <span className={`font-bold text-lg uppercase ${statusColor}`}>
                 {orderData.status}
@@ -157,7 +157,7 @@ const Invoice = () => {
         </div>
 
         {/* Billing Information */}
-        <div className="grid grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 mb-8">
           <div>
             <h2 className="text-sm font-semibold text-gray-600 uppercase mb-3">Bill To</h2>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -230,8 +230,8 @@ const Invoice = () => {
         {/* Order Items */}
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-gray-600 uppercase mb-3">Order Details</h2>
-          <div className="overflow-hidden border border-gray-200 rounded-lg">
-            <table className="w-full">
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="w-full min-w-[600px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Product</th>
@@ -277,7 +277,7 @@ const Invoice = () => {
 
         {/* Total Summary */}
         <div className="flex justify-end mb-8">
-          <div className="w-80">
+          <div className="w-full sm:w-80">
             <div className="bg-gray-50 rounded-lg p-6 space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
@@ -313,7 +313,7 @@ const Invoice = () => {
         </div>
 
         {/* Print Button - Hidden when printing */}
-        <div className="mt-8 text-center print:hidden">
+        <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center print:hidden">
           <button
             onClick={() => window.print()}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition-colors"
@@ -322,7 +322,7 @@ const Invoice = () => {
           </button>
           <button
             onClick={() => window.close()}
-            className="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-8 py-3 rounded-lg transition-colors"
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-8 py-3 rounded-lg transition-colors"
           >
             Close
           </button>

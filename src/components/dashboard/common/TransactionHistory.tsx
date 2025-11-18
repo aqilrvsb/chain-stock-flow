@@ -293,98 +293,100 @@ const TransactionHistory = () => {
           {isLoading ? (
             <p>Loading transactions...</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>No</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Bundle</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Bill ID</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Total Purchase</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders?.map((order, index) => (
-                  <TableRow key={order.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      {format(new Date(order.created_at), "dd-MM-yyyy")}
-                    </TableCell>
-                    <TableCell>{order.product?.name || "-"}</TableCell>
-                    <TableCell>{order.bundle?.name || "-"}</TableCell>
-                    <TableCell>
-                      {(order as any).billplz_bill_id ? (
-                        <span className="text-sm">FPX</span>
-                      ) : (order as any).payment_type ? (
-                        <button
-                          onClick={() => setPaymentDetailsModal({
-                            open: true,
-                            paymentType: (order as any).payment_type,
-                            paymentDate: (order as any).payment_date,
-                            bankName: (order as any).bank_name,
-                            receiptImageUrl: (order as any).receipt_image_url,
-                          })}
-                          className="text-sm text-primary hover:underline cursor-pointer"
-                        >
-                          {(order as any).payment_type}
-                        </button>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {(order as any).billplz_bill_id || "-"}
-                      </span>
-                    </TableCell>
-                    <TableCell>{order.quantity}</TableCell>
-                    <TableCell>RM {Number(order.total_price || 0).toFixed(2)}</TableCell>
-                    <TableCell>
-                      {getStatusBadge(order.status)}
-                    </TableCell>
-                    <TableCell>
-                      {order.status === 'pending' && (order as any).billplz_bill_id ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
-                          disabled={recheckingBills.has((order as any).billplz_bill_id)}
-                          className="gap-2"
-                          title="Recheck Payment Status"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
-                          Recheck
-                        </Button>
-                      ) : order.status === 'completed' ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
-                          className="gap-2"
-                          title="View Invoice"
-                        >
-                          <Receipt className="h-4 w-4" />
-                          Invoice
-                        </Button>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {(order as any).remarks || "-"}
-                      </span>
-                    </TableCell>
+            <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">No</TableHead>
+                    <TableHead className="whitespace-nowrap">Date</TableHead>
+                    <TableHead className="whitespace-nowrap">Product</TableHead>
+                    <TableHead className="whitespace-nowrap">Bundle</TableHead>
+                    <TableHead className="whitespace-nowrap">Payment Method</TableHead>
+                    <TableHead className="whitespace-nowrap">Bill ID</TableHead>
+                    <TableHead className="whitespace-nowrap">Unit</TableHead>
+                    <TableHead className="whitespace-nowrap">Total Purchase</TableHead>
+                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableHead className="whitespace-nowrap">Action</TableHead>
+                    <TableHead className="whitespace-nowrap">Remarks</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {orders?.map((order, index) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="whitespace-nowrap">{index + 1}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(order.created_at), "dd-MM-yyyy")}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{order.product?.name || "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap">{order.bundle?.name || "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {(order as any).billplz_bill_id ? (
+                          <span className="text-sm">FPX</span>
+                        ) : (order as any).payment_type ? (
+                          <button
+                            onClick={() => setPaymentDetailsModal({
+                              open: true,
+                              paymentType: (order as any).payment_type,
+                              paymentDate: (order as any).payment_date,
+                              bankName: (order as any).bank_name,
+                              receiptImageUrl: (order as any).receipt_image_url,
+                            })}
+                            className="text-sm text-primary hover:underline cursor-pointer"
+                          >
+                            {(order as any).payment_type}
+                          </button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {(order as any).billplz_bill_id || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{order.quantity}</TableCell>
+                      <TableCell className="whitespace-nowrap">RM {Number(order.total_price || 0).toFixed(2)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {getStatusBadge(order.status)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {order.status === 'pending' && (order as any).billplz_bill_id ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRecheck((order as any).billplz_bill_id, order.order_number)}
+                            disabled={recheckingBills.has((order as any).billplz_bill_id)}
+                            className="gap-2"
+                            title="Recheck Payment Status"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${recheckingBills.has((order as any).billplz_bill_id) ? 'animate-spin' : ''}`} />
+                            Recheck
+                          </Button>
+                        ) : order.status === 'completed' ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => window.open(`/invoice?order=${order.order_number}`, '_blank')}
+                            className="gap-2"
+                            title="View Invoice"
+                          >
+                            <Receipt className="h-4 w-4" />
+                            Invoice
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span className="text-sm text-muted-foreground">
+                          {(order as any).remarks || "-"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
