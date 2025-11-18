@@ -250,13 +250,6 @@ const MyAnalytics = () => {
     if (userRole === "master_agent") {
       return [
         {
-          title: "Agent Total Unit Purchase",
-          value: stats?.totalUnitIn || 0,
-          subtitle: "Transactions success",
-          icon: Package,
-          color: "text-blue-600",
-        },
-        {
           title: "Agent Total Unit Sales",
           value: stats?.totalUnitOut || 0,
           subtitle: "Agent purchases success",
@@ -332,7 +325,7 @@ const MyAnalytics = () => {
   };
 
   const getInventoryStats = () => {
-    return [
+    const baseStats = [
       {
         title: "Latest Balance Unit",
         value: stats?.currentStock || 0,
@@ -340,10 +333,35 @@ const MyAnalytics = () => {
         icon: Package,
         color: "text-violet-600",
       },
+    ];
+
+    if (userRole === "master_agent") {
+      return [
+        ...baseStats,
+        {
+          title: "Agent Total Unit Purchase",
+          value: stats?.totalUnitIn || 0,
+          subtitle: "Transactions success",
+          icon: Package,
+          color: "text-blue-600",
+        },
+        {
+          title: "Agent Total Purchase",
+          value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
+          subtitle: "Purchase From HQ",
+          icon: DollarSign,
+          color: "text-cyan-600",
+        },
+      ];
+    }
+
+    // Agent role
+    return [
+      ...baseStats,
       {
         title: "Agent Total Purchase",
         value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-        subtitle: userRole === "master_agent" ? "Purchase From HQ" : "Purchase From Master Agent",
+        subtitle: "Purchase From Master Agent",
         icon: DollarSign,
         color: "text-cyan-600",
       },
