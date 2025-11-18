@@ -15,7 +15,8 @@ import {
   Target,
   CheckCircle2,
   TrendingDown,
-  UserCheck
+  UserCheck,
+  BarChart3
 } from "lucide-react";
 
 const MyAnalytics = () => {
@@ -307,16 +308,8 @@ const MyAnalytics = () => {
         },
       ];
     }
-    // Agent role
-    return [
-      {
-        title: "Agent Total Unit Purchase",
-        value: stats?.totalUnitIn || 0,
-        subtitle: "Agent purchases success",
-        icon: Package,
-        color: "text-blue-600",
-      },
-    ];
+    // Agent role - no agent statistics needed
+    return [];
   };
 
   const getCustomerStats = () => {
@@ -352,8 +345,65 @@ const MyAnalytics = () => {
     ];
   };
 
-  const getInventoryStats = () => {
-    const baseStats = [
+  const getSummaryStats = () => {
+    if (userRole === "master_agent") {
+      // Calculate combined totals
+      const totalSales = (stats?.agentSalesTotal || 0) + (stats?.customerSalesTotal || 0);
+      const totalProfit = (stats?.agentProfit || 0) + (stats?.customerProfit || 0);
+      const totalUnitOut = (stats?.totalUnitOut || 0) + (stats?.customerUnitsSold || 0);
+
+      return [
+        {
+          title: "Latest Balance Unit",
+          value: stats?.currentStock || 0,
+          subtitle: "Current inventory",
+          icon: Package,
+          color: "text-violet-600",
+        },
+        {
+          title: "Total Unit Purchase From HQ",
+          value: stats?.totalUnitIn || 0,
+          subtitle: "Units purchased from HQ",
+          icon: Package,
+          color: "text-blue-600",
+        },
+        {
+          title: "Total Purchase From HQ",
+          value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
+          subtitle: "Total spent at HQ",
+          icon: DollarSign,
+          color: "text-cyan-600",
+        },
+        {
+          title: "Total Sales",
+          value: `RM ${totalSales.toFixed(2)}`,
+          subtitle: "Combined agent + customer sales",
+          icon: DollarSign,
+          color: "text-emerald-600",
+        },
+        {
+          title: "Total Profit",
+          value: `RM ${totalProfit.toFixed(2)}`,
+          subtitle: "Combined agent + customer profit",
+          icon: TrendingUp,
+          color: "text-green-600",
+        },
+        {
+          title: "Total Unit Out",
+          value: totalUnitOut,
+          subtitle: "Combined agent + customer units sold",
+          icon: Package,
+          color: "text-orange-600",
+        },
+      ];
+    }
+
+    // Agent role
+    const totalSales = stats?.customerSalesTotal || 0;
+    const totalProfit = stats?.customerProfit || 0;
+    const totalUnitOut = stats?.customerUnitsSold || 0;
+
+    return [
       {
         title: "Latest Balance Unit",
         value: stats?.currentStock || 0,
@@ -361,44 +411,47 @@ const MyAnalytics = () => {
         icon: Package,
         color: "text-violet-600",
       },
-    ];
-
-    if (userRole === "master_agent") {
-      return [
-        ...baseStats,
-        {
-          title: "Agent Total Unit Purchase",
-          value: stats?.totalUnitIn || 0,
-          subtitle: "Transactions success",
-          icon: Package,
-          color: "text-blue-600",
-        },
-        {
-          title: "Agent Total Purchase",
-          value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-          subtitle: "Purchase From HQ",
-          icon: DollarSign,
-          color: "text-cyan-600",
-        },
-      ];
-    }
-
-    // Agent role
-    return [
-      ...baseStats,
       {
-        title: "Agent Total Purchase",
+        title: "Total Unit Purchase From Master Agent",
+        value: stats?.totalUnitIn || 0,
+        subtitle: "Units purchased from Master Agent",
+        icon: Package,
+        color: "text-blue-600",
+      },
+      {
+        title: "Total Purchase From Master Agent",
         value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
-        subtitle: "Purchase From Master Agent",
+        subtitle: "Total spent at Master Agent",
         icon: DollarSign,
         color: "text-cyan-600",
+      },
+      {
+        title: "Total Sales",
+        value: `RM ${totalSales.toFixed(2)}`,
+        subtitle: "Customer sales",
+        icon: DollarSign,
+        color: "text-emerald-600",
+      },
+      {
+        title: "Total Profit",
+        value: `RM ${totalProfit.toFixed(2)}`,
+        subtitle: "Customer profit",
+        icon: TrendingUp,
+        color: "text-green-600",
+      },
+      {
+        title: "Total Unit Out",
+        value: totalUnitOut,
+        subtitle: "Customer units sold",
+        icon: Package,
+        color: "text-orange-600",
       },
     ];
   };
 
   const agentStats = getAgentStats();
   const customerStats = getCustomerStats();
-  const inventoryStats = getInventoryStats();
+  const summaryStats = getSummaryStats();
 
   return (
     <div className="space-y-6">
@@ -436,31 +489,33 @@ const MyAnalytics = () => {
         <div className="text-center py-8">Loading analytics...</div>
       ) : (
         <>
-          {/* Agent Statistics Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">Agent Statistics</h2>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {agentStats.map((stat, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
-                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                        <p className="text-2xl font-bold">{stat.value}</p>
-                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+          {/* Agent Statistics Section - Only for Master Agent */}
+          {agentStats.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold">Agent Statistics</h2>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {agentStats.map((stat, index) => (
+                  <Card key={index} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                          <p className="text-2xl font-bold">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                        </div>
+                        <div className="p-2 rounded-full bg-muted">
+                          <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                        </div>
                       </div>
-                      <div className="p-2 rounded-full bg-muted">
-                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Customer Statistics Section */}
           <div className="space-y-4">
@@ -488,14 +543,14 @@ const MyAnalytics = () => {
             </div>
           </div>
 
-          {/* Inventory Section */}
+          {/* Summary Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">Inventory</h2>
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold">Summary</h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {inventoryStats.map((stat, index) => (
+              {summaryStats.map((stat, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
