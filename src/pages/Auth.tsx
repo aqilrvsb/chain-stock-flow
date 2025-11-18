@@ -18,16 +18,18 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Fetch logo from system settings (types will be regenerated)
+    // Fetch logo from system settings with cache busting
     const fetchLogo = async () => {
       const { data } = await (supabase as any)
         .from("system_settings")
-        .select("setting_value")
+        .select("setting_value, updated_at")
         .eq("setting_key", "logo_url")
         .maybeSingle();
 
       if (data?.setting_value) {
-        setLogoUrl(data.setting_value);
+        // Add cache busting parameter using updated_at timestamp
+        const timestamp = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
+        setLogoUrl(`${data.setting_value}?v=${timestamp}`);
       }
     };
 

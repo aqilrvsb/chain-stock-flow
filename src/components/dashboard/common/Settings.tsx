@@ -373,7 +373,7 @@ const Settings = () => {
                     <Label>Current Logo</Label>
                     <div className="p-4 border rounded-lg bg-muted/50">
                       <img
-                        src={systemSettings.logoUrl}
+                        src={`${systemSettings.logoUrl}?v=${Date.now()}`}
                         alt="Current logo"
                         className="max-h-32 object-contain"
                       />
@@ -413,7 +413,7 @@ const Settings = () => {
                     <Label>Current Favicon</Label>
                     <div className="p-4 border rounded-lg bg-muted/50 flex items-center gap-3">
                       <img
-                        src={systemSettings.faviconUrl}
+                        src={`${systemSettings.faviconUrl}?v=${Date.now()}`}
                         alt="Current favicon"
                         className="w-8 h-8"
                       />
