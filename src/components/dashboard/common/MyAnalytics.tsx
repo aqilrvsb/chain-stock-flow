@@ -14,7 +14,8 @@ import {
   Users,
   Target,
   CheckCircle2,
-  TrendingDown
+  TrendingDown,
+  UserCheck
 } from "lucide-react";
 
 const MyAnalytics = () => {
@@ -102,6 +103,25 @@ const MyAnalytics = () => {
         // Calculate Total Unit Out (agent purchases where success)
         const totalUnitOut = agentUnitsSold;
 
+        // Get customer purchases data
+        let customerPurchasesQuery = supabase
+          .from("customer_purchases")
+          .select("quantity, total_price, customer_id")
+          .eq("seller_id", user?.id);
+
+        if (startDate) {
+          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        }
+        if (endDate) {
+          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        }
+
+        const { data: customerPurchases } = await customerPurchasesQuery;
+
+        const customerUnitsSold = customerPurchases?.reduce((sum, p) => sum + p.quantity, 0) || 0;
+        const customerSalesTotal = customerPurchases?.reduce((sum, p) => sum + Number(p.total_price), 0) || 0;
+        const uniqueCustomers = new Set(customerPurchases?.map(p => p.customer_id)).size;
+
         // Get rewards for master agent
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
@@ -135,6 +155,9 @@ const MyAnalytics = () => {
           uniqueAgents,
           totalUnitIn,
           totalUnitOut,
+          customerUnitsSold,
+          customerSalesTotal,
+          uniqueCustomers,
           monthlyRewards,
           yearlyRewards,
         };
@@ -165,6 +188,25 @@ const MyAnalytics = () => {
         // Calculate Total Unit In (agent purchases where success)
         const totalUnitIn = totalQuantity;
 
+        // Get customer purchases data
+        let customerPurchasesQuery = supabase
+          .from("customer_purchases")
+          .select("quantity, total_price, customer_id")
+          .eq("seller_id", user?.id);
+
+        if (startDate) {
+          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        }
+        if (endDate) {
+          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        }
+
+        const { data: customerPurchases } = await customerPurchasesQuery;
+
+        const customerUnitsSold = customerPurchases?.reduce((sum, p) => sum + p.quantity, 0) || 0;
+        const customerSalesTotal = customerPurchases?.reduce((sum, p) => sum + Number(p.total_price), 0) || 0;
+        const uniqueCustomers = new Set(customerPurchases?.map(p => p.customer_id)).size;
+
         // Get rewards for agent
         const month = now.getMonth() + 1;
         const year = now.getFullYear();
@@ -193,6 +235,9 @@ const MyAnalytics = () => {
           pendingCount: pendingPurchases.length,
           rejectedCount: rejectedPurchases.length,
           totalUnitIn,
+          customerUnitsSold,
+          customerSalesTotal,
+          uniqueCustomers,
           monthlyRewards,
           yearlyRewards,
         };
@@ -243,35 +288,35 @@ const MyAnalytics = () => {
     if (userRole === "master_agent") {
       return [
         {
-          title: "Total Unit Purchase",
+          title: "Agent Total Unit Purchase",
           value: stats?.totalUnitIn || 0,
           subtitle: "Transactions success",
           icon: Package,
           color: "text-blue-600",
         },
         {
-          title: "Total Purchase",
+          title: "Agent Total Purchase",
           value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
           subtitle: "Pending order sum total price where success",
           icon: DollarSign,
           color: "text-cyan-600",
         },
         {
-          title: "Total Unit Sales",
+          title: "Agent Total Unit Sales",
           value: stats?.totalUnitOut || 0,
           subtitle: "Agent purchases success",
           icon: Package,
           color: "text-orange-600",
         },
         {
-          title: "Total Sales",
+          title: "Agent Total Sales",
           value: `RM ${(stats?.agentSalesTotal || 0).toFixed(2)}`,
           subtitle: "Revenue from agents",
           icon: DollarSign,
           color: "text-emerald-600",
         },
         {
-          title: "Total Profit",
+          title: "Agent Total Profit",
           value: `RM ${(stats?.agentProfit || 0).toFixed(2)}`,
           subtitle: "Profit from agent sales",
           icon: TrendingUp,
@@ -283,6 +328,34 @@ const MyAnalytics = () => {
           subtitle: "Active agents",
           icon: Users,
           color: "text-pink-600",
+        },
+        {
+          title: "Customer Total Unit Sales",
+          value: stats?.customerUnitsSold || 0,
+          subtitle: "Units sold to customers",
+          icon: Package,
+          color: "text-indigo-600",
+        },
+        {
+          title: "Customer Total Sales",
+          value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
+          subtitle: "Revenue from customers",
+          icon: DollarSign,
+          color: "text-green-600",
+        },
+        {
+          title: "Customer Total Purchase",
+          value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
+          subtitle: "Total customer spending",
+          icon: ShoppingCart,
+          color: "text-amber-600",
+        },
+        {
+          title: "Total Customer",
+          value: stats?.uniqueCustomers || 0,
+          subtitle: "Unique customers",
+          icon: UserCheck,
+          color: "text-rose-600",
         },
         {
           title: "Latest Balance Unit",
@@ -297,18 +370,46 @@ const MyAnalytics = () => {
     // Agent cards
     return [
       {
-        title: "Total Unit Purchase",
+        title: "Agent Total Unit Purchase",
         value: stats?.totalUnitIn || 0,
         subtitle: "Agent purchases success",
         icon: Package,
         color: "text-blue-600",
       },
       {
-        title: "Total Purchase (Success)",
+        title: "Agent Total Purchase",
         value: `RM ${(stats?.totalSpent || 0).toFixed(2)}`,
         subtitle: "Completed orders",
         icon: DollarSign,
         color: "text-emerald-600",
+      },
+      {
+        title: "Customer Total Unit Sales",
+        value: stats?.customerUnitsSold || 0,
+        subtitle: "Units sold to customers",
+        icon: Package,
+        color: "text-indigo-600",
+      },
+      {
+        title: "Customer Total Sales",
+        value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
+        subtitle: "Revenue from customers",
+        icon: DollarSign,
+        color: "text-green-600",
+      },
+      {
+        title: "Customer Total Purchase",
+        value: `RM ${(stats?.customerSalesTotal || 0).toFixed(2)}`,
+        subtitle: "Total customer spending",
+        icon: ShoppingCart,
+        color: "text-amber-600",
+      },
+      {
+        title: "Total Customer",
+        value: stats?.uniqueCustomers || 0,
+        subtitle: "Unique customers",
+        icon: UserCheck,
+        color: "text-rose-600",
       },
       {
         title: "Latest Balance Unit",
