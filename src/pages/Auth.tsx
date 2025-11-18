@@ -31,9 +31,6 @@ const Auth = () => {
         // Add cache busting parameter using updated_at timestamp
         const timestamp = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
         setLogoUrl(`${data.setting_value}?v=${timestamp}`);
-      } else {
-        // Fallback to default logo if no custom logo is set
-        setLogoUrl("/logo.png");
       }
       setLogoLoaded(true);
     };
