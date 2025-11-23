@@ -20,7 +20,7 @@ const RewardsManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedReward, setSelectedReward] = useState<any>(null);
-  const [role, setRole] = useState<"master_agent" | "agent">("master_agent");
+  const [roleSubrole, setRoleSubrole] = useState<"dealer_1" | "dealer_2" | "platinum" | "gold">("dealer_1");
   const [minQuantity, setMinQuantity] = useState("");
   const [description, setDescription] = useState("");
   const [periodType, setPeriodType] = useState<"monthly" | "yearly">("monthly");
@@ -153,7 +153,7 @@ const RewardsManagement = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createReward.mutate({
-      role,
+      role_subrole: roleSubrole,
       min_quantity: parseInt(minQuantity),
       reward_description: description,
       month: periodType === "yearly" ? 0 : parseInt(month),
@@ -164,7 +164,7 @@ const RewardsManagement = () => {
   const handleEdit = (e: React.FormEvent) => {
     e.preventDefault();
     updateReward.mutate({
-      role,
+      role_subrole: roleSubrole,
       min_quantity: parseInt(minQuantity),
       reward_description: description,
       month: periodType === "yearly" ? 0 : parseInt(month),
@@ -180,7 +180,7 @@ const RewardsManagement = () => {
 
   const openEditDialog = (reward: any) => {
     setSelectedReward(reward);
-    setRole(reward.role);
+    setRoleSubrole(reward.role_subrole || "dealer_1");
     setMinQuantity(reward.min_quantity.toString());
     setDescription(reward.reward_description);
     setPeriodType(reward.month === 0 ? "yearly" : "monthly");
@@ -195,7 +195,7 @@ const RewardsManagement = () => {
   };
 
   const resetForm = () => {
-    setRole("master_agent");
+    setRoleSubrole("dealer_1");
     setMinQuantity("");
     setDescription("");
     setPeriodType("monthly");
@@ -255,14 +255,16 @@ const RewardsManagement = () => {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="role">Target Role</Label>
-                    <Select value={role} onValueChange={(value: any) => setRole(value)}>
+                    <Label htmlFor="roleSubrole">Target Role Tier</Label>
+                    <Select value={roleSubrole} onValueChange={(value: any) => setRoleSubrole(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="master_agent">Master Agent</SelectItem>
-                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="dealer_1">Dealer 1 (Master Agent)</SelectItem>
+                        <SelectItem value="dealer_2">Dealer 2 (Master Agent)</SelectItem>
+                        <SelectItem value="platinum">Platinum (Agent)</SelectItem>
+                        <SelectItem value="gold">Gold (Agent)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -345,14 +347,16 @@ const RewardsManagement = () => {
                 </DialogHeader>
                 <form onSubmit={handleEdit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-role">Target Role</Label>
-                    <Select value={role} onValueChange={(value: any) => setRole(value)}>
+                    <Label htmlFor="edit-roleSubrole">Target Role Tier</Label>
+                    <Select value={roleSubrole} onValueChange={(value: any) => setRoleSubrole(value)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="master_agent">Master Agent</SelectItem>
-                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="dealer_1">Dealer 1 (Master Agent)</SelectItem>
+                        <SelectItem value="dealer_2">Dealer 2 (Master Agent)</SelectItem>
+                        <SelectItem value="platinum">Platinum (Agent)</SelectItem>
+                        <SelectItem value="gold">Gold (Agent)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -453,7 +457,7 @@ const RewardsManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Target Role</TableHead>
+                  <TableHead>Target Role Tier</TableHead>
                   <TableHead>Target Quantity</TableHead>
                   <TableHead>Reward Description</TableHead>
                   <TableHead>Month</TableHead>
@@ -467,7 +471,11 @@ const RewardsManagement = () => {
                   <TableRow key={reward.id}>
                     <TableCell>
                       <Badge variant="outline">
-                        {reward.role.replace("_", " ")}
+                        {reward.role_subrole === "dealer_1" ? "Dealer 1 (MA)" :
+                         reward.role_subrole === "dealer_2" ? "Dealer 2 (MA)" :
+                         reward.role_subrole === "platinum" ? "Platinum (Agent)" :
+                         reward.role_subrole === "gold" ? "Gold (Agent)" :
+                         reward.role_subrole || "N/A"}
                       </Badge>
                     </TableCell>
                     <TableCell>{reward.min_quantity}</TableCell>
