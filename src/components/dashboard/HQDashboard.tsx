@@ -8,6 +8,7 @@ import UserManagement from "./hq/UserManagement";
 import RewardsManagement from "./hq/RewardsManagement";
 import StockOutHQ from "./hq/StockOutHQ";
 import StockInHQ from "./hq/StockInHQ";
+import RawMaterialStock from "./hq/RawMaterialStock";
 import RewardMasterAgent from "./hq/RewardMasterAgent";
 import RewardAgent from "./hq/RewardAgent";
 import RewardMasterAgentDealer1 from "./hq/RewardMasterAgentDealer1";
@@ -31,6 +32,8 @@ const HQDashboard = () => {
         return <ProductManagement />;
       case "pricing":
         return <BundleManagement />;
+      case "raw-material":
+        return <RawMaterialStock />;
       case "users":
         return <UserManagement />;
       case "stock-out-hq":
