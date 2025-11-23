@@ -43,8 +43,10 @@ const BundleManagement = () => {
   const [bundleName, setBundleName] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const [units, setUnits] = useState("1");
-  const [masterAgentPrice, setMasterAgentPrice] = useState("");
-  const [agentPrice, setAgentPrice] = useState("");
+  const [dealer1Price, setDealer1Price] = useState("");
+  const [dealer2Price, setDealer2Price] = useState("");
+  const [platinumPrice, setPlatinumPrice] = useState("");
+  const [goldPrice, setGoldPrice] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [editingBundle, setEditingBundle] = useState<any>(null);
@@ -112,8 +114,10 @@ const BundleManagement = () => {
         name: bundleName,
         product_id: selectedProductId,
         units: parseInt(units),
-        master_agent_price: parseFloat(masterAgentPrice),
-        agent_price: parseFloat(agentPrice),
+        dealer_1_price: parseFloat(dealer1Price),
+        dealer_2_price: parseFloat(dealer2Price),
+        platinum_price: parseFloat(platinumPrice),
+        gold_price: parseFloat(goldPrice),
         image_url: imageUrl,
       });
       if (error) throw error;
@@ -131,7 +135,7 @@ const BundleManagement = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bundleName || !selectedProductId || !units || !masterAgentPrice || !agentPrice) {
+    if (!bundleName || !selectedProductId || !units || !dealer1Price || !dealer2Price || !platinumPrice || !goldPrice) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -154,8 +158,10 @@ const BundleManagement = () => {
     setBundleName("");
     setSelectedProductId("");
     setUnits("1");
-    setMasterAgentPrice("");
-    setAgentPrice("");
+    setDealer1Price("");
+    setDealer2Price("");
+    setPlatinumPrice("");
+    setGoldPrice("");
     setImageFile(null);
     setImagePreview("");
     setEditingBundle(null);
@@ -188,8 +194,10 @@ const BundleManagement = () => {
         name: bundleName,
         product_id: selectedProductId,
         units: parseInt(units),
-        master_agent_price: parseFloat(masterAgentPrice),
-        agent_price: parseFloat(agentPrice),
+        dealer_1_price: parseFloat(dealer1Price),
+        dealer_2_price: parseFloat(dealer2Price),
+        platinum_price: parseFloat(platinumPrice),
+        gold_price: parseFloat(goldPrice),
         image_url: imageUrl,
       }).eq("id", editingBundle.id);
 
@@ -211,15 +219,17 @@ const BundleManagement = () => {
     setBundleName(bundle.name);
     setSelectedProductId(bundle.product_id);
     setUnits(bundle.units.toString());
-    setMasterAgentPrice(bundle.master_agent_price.toString());
-    setAgentPrice(bundle.agent_price.toString());
+    setDealer1Price(bundle.dealer_1_price?.toString() || "0");
+    setDealer2Price(bundle.dealer_2_price?.toString() || "0");
+    setPlatinumPrice(bundle.platinum_price?.toString() || "0");
+    setGoldPrice(bundle.gold_price?.toString() || "0");
     setImagePreview(bundle.image_url || "");
     setIsEditDialogOpen(true);
   };
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bundleName || !selectedProductId || !units || !masterAgentPrice || !agentPrice) {
+    if (!bundleName || !selectedProductId || !units || !dealer1Price || !dealer2Price || !platinumPrice || !goldPrice) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -305,26 +315,50 @@ const BundleManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="masterAgentPrice">Master Agent Price</Label>
+                  <Label htmlFor="dealer1Price">Dealer 1 Price (Master Agent)</Label>
                   <Input
-                    id="masterAgentPrice"
+                    id="dealer1Price"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    value={masterAgentPrice}
-                    onChange={(e) => setMasterAgentPrice(e.target.value)}
+                    value={dealer1Price}
+                    onChange={(e) => setDealer1Price(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="agentPrice">Agent Price</Label>
+                  <Label htmlFor="dealer2Price">Dealer 2 Price (Master Agent)</Label>
                   <Input
-                    id="agentPrice"
+                    id="dealer2Price"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    value={agentPrice}
-                    onChange={(e) => setAgentPrice(e.target.value)}
+                    value={dealer2Price}
+                    onChange={(e) => setDealer2Price(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="platinumPrice">Platinum Price (Agent)</Label>
+                  <Input
+                    id="platinumPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={platinumPrice}
+                    onChange={(e) => setPlatinumPrice(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="goldPrice">Gold Price (Agent)</Label>
+                  <Input
+                    id="goldPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={goldPrice}
+                    onChange={(e) => setGoldPrice(e.target.value)}
                   />
                 </div>
 
@@ -402,26 +436,50 @@ const BundleManagement = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="editMasterAgentPrice">Master Agent Price</Label>
+                  <Label htmlFor="editDealer1Price">Dealer 1 Price (Master Agent)</Label>
                   <Input
-                    id="editMasterAgentPrice"
+                    id="editDealer1Price"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    value={masterAgentPrice}
-                    onChange={(e) => setMasterAgentPrice(e.target.value)}
+                    value={dealer1Price}
+                    onChange={(e) => setDealer1Price(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="editAgentPrice">Agent Price</Label>
+                  <Label htmlFor="editDealer2Price">Dealer 2 Price (Master Agent)</Label>
                   <Input
-                    id="editAgentPrice"
+                    id="editDealer2Price"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    value={agentPrice}
-                    onChange={(e) => setAgentPrice(e.target.value)}
+                    value={dealer2Price}
+                    onChange={(e) => setDealer2Price(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editPlatinumPrice">Platinum Price (Agent)</Label>
+                  <Input
+                    id="editPlatinumPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={platinumPrice}
+                    onChange={(e) => setPlatinumPrice(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editGoldPrice">Gold Price (Agent)</Label>
+                  <Input
+                    id="editGoldPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={goldPrice}
+                    onChange={(e) => setGoldPrice(e.target.value)}
                   />
                 </div>
 
@@ -444,8 +502,10 @@ const BundleManagement = () => {
                 <TableHead>Bundle Name</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Units</TableHead>
-                <TableHead>Master Agent Price</TableHead>
-                <TableHead>Agent Price</TableHead>
+                <TableHead>Dealer 1</TableHead>
+                <TableHead>Dealer 2</TableHead>
+                <TableHead>Platinum</TableHead>
+                <TableHead>Gold</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -470,8 +530,10 @@ const BundleManagement = () => {
                     {bundle.products?.name} ({bundle.products?.sku})
                   </TableCell>
                   <TableCell>{bundle.units}</TableCell>
-                  <TableCell>RM {parseFloat(bundle.master_agent_price.toString()).toFixed(2)}</TableCell>
-                  <TableCell>RM {parseFloat(bundle.agent_price.toString()).toFixed(2)}</TableCell>
+                  <TableCell>RM {parseFloat(bundle.dealer_1_price?.toString() || "0").toFixed(2)}</TableCell>
+                  <TableCell>RM {parseFloat(bundle.dealer_2_price?.toString() || "0").toFixed(2)}</TableCell>
+                  <TableCell>RM {parseFloat(bundle.platinum_price?.toString() || "0").toFixed(2)}</TableCell>
+                  <TableCell>RM {parseFloat(bundle.gold_price?.toString() || "0").toFixed(2)}</TableCell>
                   <TableCell>
                     <Button variant="outline" size="sm" onClick={() => handleEdit(bundle)}>
                       Edit
