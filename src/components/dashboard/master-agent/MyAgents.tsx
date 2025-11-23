@@ -29,6 +29,7 @@ const MyAgents = () => {
   const [fullName, setFullName] = useState("");
   const [idstaff, setIdstaff] = useState("");
   const [state, setState] = useState("");
+  const [subRole, setSubRole] = useState<string>("platinum");
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -69,6 +70,7 @@ const MyAgents = () => {
           masterAgentId: user?.id,
           idstaff: agentData.idstaff,
           state: agentData.state,
+          subRole: agentData.subRole,
         },
       });
 
@@ -184,7 +186,7 @@ const MyAgents = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createAgent.mutate({ email, password, fullName, idstaff, state });
+    createAgent.mutate({ email, password, fullName, idstaff, state, subRole });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -229,6 +231,7 @@ const MyAgents = () => {
     setFullName("");
     setIdstaff("");
     setState("");
+    setSubRole("platinum");
     setEditingUser(null);
   };
 
@@ -331,6 +334,18 @@ const MyAgents = () => {
                           {stateName}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subRole">Role Tier</Label>
+                  <Select value={subRole} onValueChange={setSubRole} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platinum">Platinum</SelectItem>
+                      <SelectItem value="gold">Gold</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
