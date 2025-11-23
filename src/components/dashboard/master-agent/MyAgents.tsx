@@ -30,6 +30,7 @@ const MyAgents = () => {
   const [idstaff, setIdstaff] = useState("");
   const [state, setState] = useState("");
   const [subRole, setSubRole] = useState<string>("platinum");
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -53,10 +54,17 @@ const MyAgents = () => {
     },
   });
 
+  // Filter agents by role
+  const filteredAgents = roleFilter
+    ? agents?.filter(agent => agent.sub_role === roleFilter)
+    : agents;
+
   const stats = {
-    total: agents?.length || 0,
-    active: agents?.filter(u => u.is_active)?.length || 0,
-    inactive: agents?.filter(u => !u.is_active)?.length || 0,
+    total: filteredAgents?.length || 0,
+    active: filteredAgents?.filter(u => u.is_active)?.length || 0,
+    inactive: filteredAgents?.filter(u => !u.is_active)?.length || 0,
+    platinum: agents?.filter(u => u.sub_role === 'platinum')?.length || 0,
+    gold: agents?.filter(u => u.sub_role === 'gold')?.length || 0,
   };
 
   const createAgent = useMutation({
@@ -237,7 +245,7 @@ const MyAgents = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
@@ -263,6 +271,30 @@ const MyAgents = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.inactive}</div>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all ${roleFilter === 'platinum' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => setRoleFilter(roleFilter === 'platinum' ? null : 'platinum')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Platinum</CardTitle>
+            <Users className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.platinum}</div>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all ${roleFilter === 'gold' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => setRoleFilter(roleFilter === 'gold' ? null : 'gold')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gold</CardTitle>
+            <Users className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.gold}</div>
           </CardContent>
         </Card>
       </div>
@@ -449,6 +481,7 @@ const MyAgents = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>State</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Active</TableHead>
@@ -456,12 +489,15 @@ const MyAgents = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {agents?.map((agent) => (
+                {filteredAgents?.map((agent) => (
                   <TableRow key={agent.id}>
                     <TableCell className="font-medium">{agent.idstaff || "N/A"}</TableCell>
                     <TableCell>{agent.full_name || "N/A"}</TableCell>
                     <TableCell>{agent.email}</TableCell>
                     <TableCell>{agent.state || "-"}</TableCell>
+                    <TableCell>
+                      {agent.sub_role === 'platinum' ? 'Platinum' : agent.sub_role === 'gold' ? 'Gold' : '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={agent.is_active ? "default" : "secondary"}>
                         {agent.is_active ? "Active" : "Inactive"}

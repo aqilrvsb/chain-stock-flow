@@ -100,6 +100,21 @@ const MyAnalytics = () => {
         // Get unique agents count
         const uniqueAgents = new Set(agentSales?.map(s => s.agent_id)).size;
 
+        // Get agent tier breakdown
+        const { data: myAgents } = await supabase
+          .from("master_agent_relationships")
+          .select(`
+            agent_id,
+            agent:profiles!master_agent_relationships_agent_id_fkey(
+              id,
+              sub_role
+            )
+          `)
+          .eq("master_agent_id", user?.id);
+
+        const platinumAgents = myAgents?.filter(rel => rel.agent?.sub_role === 'platinum').length || 0;
+        const goldAgents = myAgents?.filter(rel => rel.agent?.sub_role === 'gold').length || 0;
+
         // Calculate Total Unit In (transactions where success)
         const totalUnitIn = completedPurchases.reduce((sum, tx) => sum + tx.quantity, 0);
 
@@ -169,6 +184,8 @@ const MyAnalytics = () => {
           agentUnitsSold,
           agentProfit,
           uniqueAgents,
+          platinumAgents,
+          goldAgents,
           totalUnitIn,
           totalUnitOut,
           customerUnitsSold,
@@ -307,6 +324,20 @@ const MyAnalytics = () => {
           subtitle: "Active agents",
           icon: Users,
           color: "text-pink-600",
+        },
+        {
+          title: "Platinum",
+          value: stats?.platinumAgents || 0,
+          subtitle: "Platinum tier agents",
+          icon: Users,
+          color: "text-blue-600",
+        },
+        {
+          title: "Gold",
+          value: stats?.goldAgents || 0,
+          subtitle: "Gold tier agents",
+          icon: Users,
+          color: "text-yellow-600",
         },
       ];
     }

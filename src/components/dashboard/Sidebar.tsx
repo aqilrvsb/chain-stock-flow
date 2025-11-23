@@ -84,7 +84,8 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
       items.push(
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
-        { title: "Reward Agent", icon: Award, value: "reward-agent" },
+        { title: "Reward Agent Platinum", icon: Award, value: "reward-agent-platinum" },
+        { title: "Reward Agent Gold", icon: Award, value: "reward-agent-gold" },
         { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
       );
 
