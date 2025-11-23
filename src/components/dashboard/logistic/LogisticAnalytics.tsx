@@ -8,8 +8,9 @@ import { Package, CheckCircle, XCircle, AlertTriangle, Loader } from "lucide-rea
 import { format } from "date-fns";
 
 const LogisticAnalytics = () => {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   // Fetch raw material stock
   const { data: rawMaterials } = useQuery({
