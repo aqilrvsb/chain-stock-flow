@@ -17,8 +17,9 @@ import { toast } from "sonner";
 const ProcessedStock = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [selectedProduct, setSelectedProduct] = useState("");
