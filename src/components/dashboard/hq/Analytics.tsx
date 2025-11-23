@@ -137,11 +137,14 @@ const Analytics = () => {
         .from("profiles")
         .select(`
           id,
+          sub_role,
           user_roles!user_roles_user_id_fkey!inner(role)
         `)
         .eq("user_roles.role", "master_agent");
 
       const totalMAActive = masterAgents?.length || 0;
+      const totalMADealer1 = masterAgents?.filter(ma => ma.sub_role === 'dealer_1').length || 0;
+      const totalMADealer2 = masterAgents?.filter(ma => ma.sub_role === 'dealer_2').length || 0;
 
       // Get HQ user ID for latest balance
       const { data: hqUser } = await supabase
@@ -166,11 +169,14 @@ const Analytics = () => {
         .from("profiles")
         .select(`
           id,
+          sub_role,
           user_roles!user_roles_user_id_fkey!inner(role)
         `)
         .eq("user_roles.role", "agent");
 
       const totalAgentActive = agents?.length || 0;
+      const totalAgentPlatinum = agents?.filter(a => a.sub_role === 'platinum').length || 0;
+      const totalAgentGold = agents?.filter(a => a.sub_role === 'gold').length || 0;
 
       // 7. Total Reward Monthly Master Agent Achieve
       const month = currentMonthStart.getMonth() + 1;
@@ -245,7 +251,11 @@ const Analytics = () => {
         totalSalesMA,
         profitMA,
         totalMAActive,
+        totalMADealer1,
+        totalMADealer2,
         totalAgentActive,
+        totalAgentPlatinum,
+        totalAgentGold,
         maRewardAchieveCount,
         agentRewardAchieveCount,
         latestBalanceHQ,
@@ -318,11 +328,39 @@ const Analytics = () => {
       color: "text-pink-600",
     },
     {
+      title: "Dealer 1",
+      value: analyticsData?.totalMADealer1 || 0,
+      icon: Users,
+      subtitle: "Dealer 1 master agents",
+      color: "text-blue-600",
+    },
+    {
+      title: "Dealer 2",
+      value: analyticsData?.totalMADealer2 || 0,
+      icon: Users,
+      subtitle: "Dealer 2 master agents",
+      color: "text-purple-600",
+    },
+    {
       title: "Total Agent Active",
       value: analyticsData?.totalAgentActive || 0,
       icon: UserCheck,
       subtitle: "Active agents",
       color: "text-rose-600",
+    },
+    {
+      title: "Platinum",
+      value: analyticsData?.totalAgentPlatinum || 0,
+      icon: UserCheck,
+      subtitle: "Platinum agents",
+      color: "text-cyan-600",
+    },
+    {
+      title: "Gold",
+      value: analyticsData?.totalAgentGold || 0,
+      icon: UserCheck,
+      subtitle: "Gold agents",
+      color: "text-yellow-600",
     },
     {
       title: "Latest Balance Unit",
