@@ -15,6 +15,7 @@ const CreateUserSchema = z.object({
   masterAgentId: z.string().uuid().optional(),
   idstaff: z.string().trim().min(1).max(50).optional(),
   state: z.string().trim().max(100).optional(),
+  subRole: z.enum(['dealer_1', 'dealer_2', 'platinum', 'gold']).optional(),
 });
 
 Deno.serve(async (req) => {
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
       throw new Error(`Validation failed: ${errors}`)
     }
 
-    const { email, password, fullName, role, masterAgentId, idstaff, state } = validationResult.data
+    const { email, password, fullName, role, masterAgentId, idstaff, state, subRole } = validationResult.data
 
     // Additional authorization: Master Agents can only create agents
     if (userRole === 'master_agent' && role !== 'agent') {
@@ -112,11 +113,12 @@ Deno.serve(async (req) => {
       throw createError
     }
 
-    // Update profile with idstaff and state
-    if (idstaff || state) {
+    // Update profile with idstaff, state, and subRole
+    if (idstaff || state || subRole) {
       const updateData: any = {}
       if (idstaff) updateData.idstaff = idstaff
       if (state) updateData.state = state
+      if (subRole) updateData.sub_role = subRole
 
       const { error: profileUpdateError } = await supabaseAdmin
         .from('profiles')
