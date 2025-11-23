@@ -70,7 +70,7 @@ const TransactionManagement = () => {
       const [{ data: productsData }, { data: bundlesData }, { data: buyersData }] = await Promise.all([
         supabase.from("products").select("id, name, sku").in("id", productIds),
         supabase.from("bundles").select("id, name").in("id", bundleIds),
-        supabase.from("profiles").select("id, idstaff, full_name, email, whatsapp_number, delivery_address").in("id", buyerIds)
+        supabase.from("profiles").select("id, idstaff, full_name, email, whatsapp_number, delivery_address, sub_role").in("id", buyerIds)
       ]);
 
       const productsMap = new Map(productsData?.map(p => [p.id, p]));
@@ -410,6 +410,7 @@ const TransactionManagement = () => {
                   <TableHead>Bill ID</TableHead>
                   <TableHead>IDSTAFF</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>No Whatsapp</TableHead>
                   <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
@@ -456,6 +457,12 @@ const TransactionManagement = () => {
                     </TableCell>
                     <TableCell>{order.buyer?.idstaff || "-"}</TableCell>
                     <TableCell>{order.buyer?.full_name || "-"}</TableCell>
+                    <TableCell>
+                      {order.buyer?.sub_role === 'dealer_1' ? 'Dealer 1' :
+                       order.buyer?.sub_role === 'dealer_2' ? 'Dealer 2' :
+                       order.buyer?.sub_role === 'platinum' ? 'Platinum' :
+                       order.buyer?.sub_role === 'gold' ? 'Gold' : '-'}
+                    </TableCell>
                     <TableCell>
                       {order.buyer?.whatsapp_number ? (
                         <a
