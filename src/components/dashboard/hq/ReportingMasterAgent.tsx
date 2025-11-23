@@ -23,6 +23,7 @@ const ReportingMasterAgent = () => {
           id,
           idstaff,
           full_name,
+          sub_role,
           user_roles!user_roles_user_id_fkey!inner(role)
         `)
         .eq("user_roles.role", "master_agent");
@@ -216,6 +217,7 @@ const ReportingMasterAgent = () => {
             id: ma.id,
             idstaff: ma.idstaff,
             full_name: ma.full_name,
+            sub_role: ma.sub_role,
             latestBalance,
             stockIn,
             totalPurchase,
@@ -342,6 +344,7 @@ const ReportingMasterAgent = () => {
                   <TableHead>No</TableHead>
                   <TableHead>ID STAFF</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
@@ -363,6 +366,7 @@ const ReportingMasterAgent = () => {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{item.idstaff || "-"}</TableCell>
                     <TableCell>{item.full_name || "-"}</TableCell>
+                    <TableCell>{item.sub_role === 'dealer_1' ? 'Dealer 1' : item.sub_role === 'dealer_2' ? 'Dealer 2' : '-'}</TableCell>
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
