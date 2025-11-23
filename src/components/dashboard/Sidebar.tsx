@@ -334,16 +334,31 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                 </Collapsible>
 
                 {/* Logistic */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("logistic")}
-                    isActive={activeView === "logistic"}
-                    className="cursor-pointer"
-                  >
-                    <Package className="h-4 w-4" />
-                    {open && <span>Logistic</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <Collapsible className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <Package className="h-4 w-4" />
+                        {open && <span>Logistic</span>}
+                        {open && <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton onClick={() => onViewChange("logistic")} isActive={activeView === "logistic"}>
+                            <span>Dashboard</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton onClick={() => onViewChange("processed-stock-view")} isActive={activeView === "processed-stock-view"}>
+                            <span>Processed</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
