@@ -66,62 +66,22 @@ CREATE INDEX IF NOT EXISTS processed_stock_user_id_idx ON public.processed_stock
 CREATE INDEX IF NOT EXISTS processed_stock_date_idx ON public.processed_stock(date DESC);
 CREATE INDEX IF NOT EXISTS processed_stock_status_idx ON public.processed_stock(status);
 
--- Create logistic user
-DO $$
-DECLARE
-  new_user_id uuid;
-BEGIN
-  -- Insert into auth.users
-  INSERT INTO auth.users (
-    id,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    created_at,
-    updated_at,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    is_super_admin,
-    role
-  ) VALUES (
-    gen_random_uuid(),
-    'ojlg@logistic.com',
-    crypt('OJLG', gen_salt('bf')),
-    now(),
-    now(),
-    now(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    '{}'::jsonb,
-    false,
-    'authenticated'
-  )
-  ON CONFLICT (email) DO NOTHING
-  RETURNING id INTO new_user_id;
-
-  -- Only proceed if user was created
-  IF new_user_id IS NOT NULL THEN
-    -- Insert into profiles
-    INSERT INTO public.profiles (
-      id,
-      email,
-      full_name,
-      idstaff,
-      is_active
-    ) VALUES (
-      new_user_id,
-      'ojlg@logistic.com',
-      'OJLG - Logistic',
-      'OJLG',
-      true
-    );
-
-    -- Insert into user_roles
-    INSERT INTO public.user_roles (
-      user_id,
-      role
-    ) VALUES (
-      new_user_id,
-      'logistic'
-    );
-  END IF;
-END $$;
+-- Note: The logistic user (OJLG/OJLG) must be created manually through Supabase Auth
+-- due to auth.users table restrictions in migrations.
+--
+-- To create the user:
+-- 1. Go to Supabase Dashboard -> Authentication -> Users
+-- 2. Click "Add user" -> "Create new user"
+-- 3. Email: ojlg@logistic.com
+-- 4. Password: OJLG
+-- 5. After user is created, run this SQL in the SQL Editor:
+--
+-- INSERT INTO public.profiles (id, email, full_name, idstaff, is_active)
+-- SELECT id, email, 'OJLG - Logistic', 'OJLG', true
+-- FROM auth.users WHERE email = 'ojlg@logistic.com'
+-- ON CONFLICT (id) DO NOTHING;
+--
+-- INSERT INTO public.user_roles (user_id, role)
+-- SELECT id, 'logistic'::app_role
+-- FROM auth.users WHERE email = 'ojlg@logistic.com'
+-- ON CONFLICT DO NOTHING;
