@@ -53,8 +53,8 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
     if (userRole === "hq") {
       return [
         { title: "Dashboard", icon: Home, value: "dashboard" },
-        { title: "Inventory", icon: Package, value: "products" },
-        { title: "Product", icon: DollarSign, value: "pricing" },
+        { title: "Product", icon: Package, value: "products" },
+        { title: "Bundle", icon: DollarSign, value: "pricing" },
         { title: "Master Agents & Agents", icon: Users, value: "users" },
         { title: "Stock In HQ", icon: Package, value: "stock-in-hq" },
         { title: "Stock Out HQ", icon: Package, value: "stock-out-hq" },
