@@ -133,6 +133,7 @@ const MyAgents = () => {
           full_name: userData.fullName,
           idstaff: userData.idstaff,
           state: userData.state,
+          sub_role: userData.subRole,
         })
         .eq("id", userData.id);
 
@@ -207,6 +208,7 @@ const MyAgents = () => {
     setIdstaff(agent.idstaff || "");
     setEmail(agent.email);
     setState(agent.state || "");
+    setSubRole(agent.sub_role || "platinum");
     setNewPassword("");
     setIsEditOpen(true);
   };
@@ -218,6 +220,7 @@ const MyAgents = () => {
       fullName,
       idstaff,
       state,
+      subRole,
       newPassword,
     });
   };
@@ -432,6 +435,18 @@ const MyAgents = () => {
                           {stateName}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-subRole">Role Tier</Label>
+                  <Select value={subRole} onValueChange={setSubRole} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platinum">Platinum</SelectItem>
+                      <SelectItem value="gold">Gold</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
