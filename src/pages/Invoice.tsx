@@ -9,22 +9,10 @@ const Invoice = () => {
   const orderNumber = searchParams.get("order");
   const [orderData, setOrderData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch logo URL from system_settings
-        const { data: logoData } = await (supabase as any)
-          .from("system_settings")
-          .select("setting_value")
-          .eq("setting_key", "logo_url")
-          .maybeSingle();
-
-        if (logoData?.setting_value) {
-          setLogoUrl(logoData.setting_value);
-        }
-
         // Fetch order details
         const { data: order, error: orderError } = await supabase
           .from("pending_orders")
@@ -129,13 +117,13 @@ const Invoice = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8 pb-8 border-b-2 border-gray-200">
           <div>
-            {logoUrl ? (
-              <img src={logoUrl} alt="Company Logo" className="h-16 w-auto mb-4" />
-            ) : (
-              <div className="h-16 w-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-white font-bold text-xl">OliveJardin Hub</span>
-              </div>
-            )}
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-gray-900">OLIVE JARDIN SDN BHD (1579025-U)</h2>
+              <p className="text-sm text-gray-700 mt-1">No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan</p>
+              <p className="text-sm text-gray-700">Tel: 010-262 8508 / 012-343 8508</p>
+              <p className="text-sm text-gray-700">Email: olivejardin8008@gmail.com</p>
+              <p className="text-sm text-gray-700">Website: olivejardin.com</p>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">INVOICE</h1>
             <p className="text-gray-600 mt-1">Order #{orderData.order_number}</p>
           </div>
