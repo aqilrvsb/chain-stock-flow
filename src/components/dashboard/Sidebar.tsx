@@ -398,6 +398,108 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
     );
   }
 
+  // Logistic Sidebar
+  if (userRole === "logistic") {
+    return (
+      <Sidebar className="border-r">
+        <SidebarHeader className="border-b p-4">
+          <h1 className="text-xl font-bold text-primary">
+            {open ? "OliveJardin Hub" : "OJ"}
+          </h1>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("dashboard")}
+                    isActive={activeView === "dashboard"}
+                    className="cursor-pointer"
+                  >
+                    <Home className="h-4 w-4" />
+                    {open && <span>Dashboard</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("processed")}
+                    isActive={activeView === "processed"}
+                    className="cursor-pointer"
+                  >
+                    <Package className="h-4 w-4" />
+                    {open && <span>Processed</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("settings")}
+                    isActive={activeView === "settings"}
+                    className="cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4" />
+                    {open && <span>Settings</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setIsSOPOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {open && <span>SOP</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                {profile?.idstaff?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+            {open && (
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{profile?.idstaff || user?.email?.split("@")[0]}</p>
+              </div>
+            )}
+          </div>
+          {open && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={signOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          )}
+        </SidebarFooter>
+
+        <SOPModal
+          isOpen={isSOPOpen}
+          onClose={() => setIsSOPOpen(false)}
+          userRole={userRole || ""}
+        />
+      </Sidebar>
+    );
+  }
+
   // Default sidebar for other roles
   return (
     <Sidebar className="border-r">

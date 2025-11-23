@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import HQDashboard from "@/components/dashboard/HQDashboard";
 import MasterAgentDashboard from "@/components/dashboard/MasterAgentDashboard";
 import AgentDashboard from "@/components/dashboard/AgentDashboard";
+import LogisticDashboard from "@/components/dashboard/LogisticDashboard";
 
 const Dashboard = () => {
   const { user, userRole, loading } = useAuth();
@@ -37,6 +38,7 @@ const Dashboard = () => {
       {userRole === "hq" && <HQDashboard />}
       {userRole === "master_agent" && <MasterAgentDashboard />}
       {userRole === "agent" && <AgentDashboard />}
+      {userRole === "logistic" && <LogisticDashboard />}
     </>
   );
 };
