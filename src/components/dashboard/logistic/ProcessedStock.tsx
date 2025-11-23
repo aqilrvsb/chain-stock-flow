@@ -40,31 +40,7 @@ const ProcessedStock = () => {
     },
   });
 
-  // Fetch ALL raw material stock (no date filter)
-  const { data: allRawMaterials } = useQuery({
-    queryKey: ["all-raw-material-stock"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("raw_material_stock")
-        .select("quantity");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch ALL processed stock (no date filter)
-  const { data: allProcessedStock } = useQuery({
-    queryKey: ["all-processed-stock"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("processed_stock")
-        .select("quantity, status");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch processed stock WITH date filter for table display
+  // Fetch processed stock WITH date filter
   const { data: processedStock, isLoading } = useQuery({
     queryKey: ["processed-stock", startDate, endDate],
     queryFn: async () => {
@@ -106,7 +82,6 @@ const ProcessedStock = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["processed-stock"] });
-      queryClient.invalidateQueries({ queryKey: ["all-processed-stock"] });
       toast.success("Processed stock added successfully");
       setIsDialogOpen(false);
       setSelectedProduct("");
@@ -119,21 +94,6 @@ const ProcessedStock = () => {
       toast.error("Failed to add processed stock: " + error.message);
     },
   });
-
-  // Calculate totals WITHOUT date filter
-  const totalRawMaterial = allRawMaterials?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-
-  const totalAllSuccess = allProcessedStock?.filter(item => item.status === 'success')
-    .reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const totalAllReject = allProcessedStock?.filter(item => item.status === 'reject')
-    .reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const totalAllDamage = allProcessedStock?.filter(item => item.status === 'damage')
-    .reduce((sum, item) => sum + item.quantity, 0) || 0;
-  const totalAllLost = allProcessedStock?.filter(item => item.status === 'lost')
-    .reduce((sum, item) => sum + item.quantity, 0) || 0;
-
-  const totalProcessed = totalAllSuccess + totalAllReject + totalAllDamage + totalAllLost;
-  const totalPending = totalRawMaterial - totalProcessed;
 
   // Calculate totals WITH date filter
   const totalSuccess = processedStock?.filter(item => item.status === 'success')
@@ -148,6 +108,8 @@ const ProcessedStock = () => {
   const totalLost = processedStock?.filter(item => item.status === 'lost')
     .reduce((sum, item) => sum + item.quantity, 0) || 0;
 
+  const totalProcessed = totalSuccess + totalReject + totalDamage + totalLost;
+
   const stats = [
     {
       title: "Total Processed",
@@ -155,7 +117,7 @@ const ProcessedStock = () => {
       icon: PackageCheck,
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
-      noFilter: true,
+      noFilter: false,
     },
     {
       title: "Total Success Packaging",
