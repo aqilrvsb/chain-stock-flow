@@ -340,16 +340,23 @@ const ProcessedStock = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {processedStock?.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{format(new Date(item.date), "dd-MM-yyyy")}</TableCell>
-                      <TableCell>{item.product?.name}</TableCell>
-                      <TableCell>{item.product?.sku}</TableCell>
-                      <TableCell className="font-bold">{item.quantity}</TableCell>
-                      <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell>{item.description || "-"}</TableCell>
-                    </TableRow>
-                  ))}
+                  {processedStock?.map((item) => {
+                    const itemDate = item.date ? new Date(item.date) : null;
+                    const isValidDate = itemDate && !isNaN(itemDate.getTime());
+
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          {isValidDate ? format(itemDate, "dd-MM-yyyy") : "-"}
+                        </TableCell>
+                        <TableCell>{item.product?.name}</TableCell>
+                        <TableCell>{item.product?.sku}</TableCell>
+                        <TableCell className="font-bold">{item.quantity}</TableCell>
+                        <TableCell>{getStatusBadge(item.status)}</TableCell>
+                        <TableCell>{item.description || "-"}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
