@@ -1,14 +1,6 @@
 -- Add 'logistic' to app_role enum
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_enum
-    WHERE enumlabel = 'logistic'
-    AND enumtypid = 'app_role'::regtype
-  ) THEN
-    ALTER TYPE app_role ADD VALUE 'logistic';
-  END IF;
-END $$;
+-- Note: This must be done outside a transaction block
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'logistic';
 
 -- Create processed_stock table for packaging tracking
 CREATE TABLE IF NOT EXISTS public.processed_stock (
