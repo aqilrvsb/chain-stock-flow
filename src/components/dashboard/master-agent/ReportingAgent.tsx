@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Users, ArrowUpCircle, ArrowDownCircle, Target } from "lucide-react";
 
 const ReportingAgent = () => {
   const { user } = useAuth();
+  const { isCustomerSegmentEnabled } = useCustomerSegment();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -270,11 +272,15 @@ const ReportingAgent = () => {
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
-                  <TableHead>Customer Stock Out</TableHead>
-                  <TableHead>Customer Total Sales</TableHead>
+                  {isCustomerSegmentEnabled && (
+                    <>
+                      <TableHead>Customer Stock Out</TableHead>
+                      <TableHead>Customer Total Sales</TableHead>
+                    </>
+                  )}
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
-                  <TableHead>Total Customer</TableHead>
+                  {isCustomerSegmentEnabled && <TableHead>Total Customer</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,11 +292,15 @@ const ReportingAgent = () => {
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
-                    <TableCell>{item.customerStockOut}</TableCell>
-                    <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>
+                    {isCustomerSegmentEnabled && (
+                      <>
+                        <TableCell>{item.customerStockOut}</TableCell>
+                        <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>
+                      </>
+                    )}
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
-                    <TableCell>{item.totalCustomers}</TableCell>
+                    {isCustomerSegmentEnabled && <TableCell>{item.totalCustomers}</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>

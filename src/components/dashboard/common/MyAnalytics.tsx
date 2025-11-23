@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
 
 const MyAnalytics = () => {
   const { user, userRole } = useAuth();
+  const { isCustomerSegmentEnabled } = useCustomerSegment();
 
   // Date filters start as empty
   const [startDate, setStartDate] = useState("");
@@ -347,10 +349,18 @@ const MyAnalytics = () => {
 
   const getSummaryStats = () => {
     if (userRole === "master_agent") {
-      // Calculate combined totals
-      const totalSales = (stats?.agentSalesTotal || 0) + (stats?.customerSalesTotal || 0);
-      const totalProfit = (stats?.agentProfit || 0) + (stats?.customerProfit || 0);
-      const totalUnitOut = (stats?.totalUnitOut || 0) + (stats?.customerUnitsSold || 0);
+      // Calculate combined totals - only include customer data if segment is enabled
+      const customerSales = isCustomerSegmentEnabled ? (stats?.customerSalesTotal || 0) : 0;
+      const customerProfit = isCustomerSegmentEnabled ? (stats?.customerProfit || 0) : 0;
+      const customerUnits = isCustomerSegmentEnabled ? (stats?.customerUnitsSold || 0) : 0;
+
+      const totalSales = (stats?.agentSalesTotal || 0) + customerSales;
+      const totalProfit = (stats?.agentProfit || 0) + customerProfit;
+      const totalUnitOut = (stats?.totalUnitOut || 0) + customerUnits;
+
+      const subtitle = isCustomerSegmentEnabled
+        ? "Combined agent + customer"
+        : "Agent sales only";
 
       return [
         {
@@ -377,31 +387,31 @@ const MyAnalytics = () => {
         {
           title: "Total Sales",
           value: `RM ${totalSales.toFixed(2)}`,
-          subtitle: "Combined agent + customer sales",
+          subtitle: `${subtitle} sales`,
           icon: DollarSign,
           color: "text-emerald-600",
         },
         {
           title: "Total Profit",
           value: `RM ${totalProfit.toFixed(2)}`,
-          subtitle: "Combined agent + customer profit",
+          subtitle: `${subtitle} profit`,
           icon: TrendingUp,
           color: "text-green-600",
         },
         {
           title: "Total Unit Out",
           value: totalUnitOut,
-          subtitle: "Combined agent + customer units sold",
+          subtitle: `${subtitle} units sold`,
           icon: Package,
           color: "text-orange-600",
         },
       ];
     }
 
-    // Agent role
-    const totalSales = stats?.customerSalesTotal || 0;
-    const totalProfit = stats?.customerProfit || 0;
-    const totalUnitOut = stats?.customerUnitsSold || 0;
+    // Agent role - only show customer data if segment is enabled
+    const totalSales = isCustomerSegmentEnabled ? (stats?.customerSalesTotal || 0) : 0;
+    const totalProfit = isCustomerSegmentEnabled ? (stats?.customerProfit || 0) : 0;
+    const totalUnitOut = isCustomerSegmentEnabled ? (stats?.customerUnitsSold || 0) : 0;
 
     return [
       {
@@ -425,27 +435,29 @@ const MyAnalytics = () => {
         icon: DollarSign,
         color: "text-cyan-600",
       },
-      {
-        title: "Total Sales",
-        value: `RM ${totalSales.toFixed(2)}`,
-        subtitle: "Customer sales",
-        icon: DollarSign,
-        color: "text-emerald-600",
-      },
-      {
-        title: "Total Profit",
-        value: `RM ${totalProfit.toFixed(2)}`,
-        subtitle: "Customer profit",
-        icon: TrendingUp,
-        color: "text-green-600",
-      },
-      {
-        title: "Total Unit Out",
-        value: totalUnitOut,
-        subtitle: "Customer units sold",
-        icon: Package,
-        color: "text-orange-600",
-      },
+      ...(isCustomerSegmentEnabled ? [
+        {
+          title: "Total Sales",
+          value: `RM ${totalSales.toFixed(2)}`,
+          subtitle: "Customer sales",
+          icon: DollarSign,
+          color: "text-emerald-600",
+        },
+        {
+          title: "Total Profit",
+          value: `RM ${totalProfit.toFixed(2)}`,
+          subtitle: "Customer profit",
+          icon: TrendingUp,
+          color: "text-green-600",
+        },
+        {
+          title: "Total Unit Out",
+          value: totalUnitOut,
+          subtitle: "Customer units sold",
+          icon: Package,
+          color: "text-orange-600",
+        },
+      ] : []),
     ];
   };
 
@@ -517,31 +529,33 @@ const MyAnalytics = () => {
             </div>
           )}
 
-          {/* Customer Statistics Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold">Customer Statistics</h2>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {customerStats.map((stat, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-2 flex-1">
-                        <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                        <p className="text-2xl font-bold">{stat.value}</p>
-                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+          {/* Customer Statistics Section - Only show if customer segment is enabled */}
+          {isCustomerSegmentEnabled && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-bold">Customer Statistics</h2>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {customerStats.map((stat, index) => (
+                  <Card key={index} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+                          <p className="text-2xl font-bold">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                        </div>
+                        <div className="p-2 rounded-full bg-muted">
+                          <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                        </div>
                       </div>
-                      <div className="p-2 rounded-full bg-muted">
-                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Summary Section */}
           <div className="space-y-4">

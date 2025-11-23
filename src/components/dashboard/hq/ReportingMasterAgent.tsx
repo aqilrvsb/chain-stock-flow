@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Package, ArrowUpCircle, ArrowDownCircle, Target } from "lucide-react";
 
 const ReportingMasterAgent = () => {
+  const { isCustomerSegmentEnabled } = useCustomerSegment();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -344,15 +346,15 @@ const ReportingMasterAgent = () => {
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
                   <TableHead>Agent Stock Out</TableHead>
-                  <TableHead>Customer Stock Out</TableHead>
+                  {isCustomerSegmentEnabled && <TableHead>Customer Stock Out</TableHead>}
                   <TableHead>Agent Total Sales</TableHead>
-                  <TableHead>Customer Total Sales</TableHead>
+                  {isCustomerSegmentEnabled && <TableHead>Customer Total Sales</TableHead>}
                   <TableHead>Agent Profit</TableHead>
-                  <TableHead>Customer Profit</TableHead>
+                  {isCustomerSegmentEnabled && <TableHead>Customer Profit</TableHead>}
                   <TableHead>Target Monthly</TableHead>
                   <TableHead>Target Yearly</TableHead>
                   <TableHead>Agent</TableHead>
-                  <TableHead>Total Customer</TableHead>
+                  {isCustomerSegmentEnabled && <TableHead>Total Customer</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -365,15 +367,15 @@ const ReportingMasterAgent = () => {
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>
                     <TableCell>{item.agentStockOut}</TableCell>
-                    <TableCell>{item.customerStockOut}</TableCell>
+                    {isCustomerSegmentEnabled && <TableCell>{item.customerStockOut}</TableCell>}
                     <TableCell>RM {item.agentTotalSales.toFixed(2)}</TableCell>
-                    <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>
+                    {isCustomerSegmentEnabled && <TableCell>RM {item.customerTotalSales.toFixed(2)}</TableCell>}
                     <TableCell>RM {item.agentProfit.toFixed(2)}</TableCell>
-                    <TableCell>RM {item.customerProfit.toFixed(2)}</TableCell>
+                    {isCustomerSegmentEnabled && <TableCell>RM {item.customerProfit.toFixed(2)}</TableCell>}
                     <TableCell>{item.targetMonthly}</TableCell>
                     <TableCell>{item.targetYearly}</TableCell>
                     <TableCell>{item.agentCount}</TableCell>
-                    <TableCell>{item.totalCustomers}</TableCell>
+                    {isCustomerSegmentEnabled && <TableCell>{item.totalCustomers}</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>
