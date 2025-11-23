@@ -122,10 +122,25 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
   // Filter and paginate bundles
   const filteredBundles = bundles?.filter((bundle) => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       bundle.name.toLowerCase().includes(searchLower) ||
       bundle.products?.name?.toLowerCase().includes(searchLower)
     );
+
+    if (!matchesSearch) return false;
+
+    // Filter by sub-role price
+    const subRole = profile?.sub_role;
+    if (!subRole) return false;
+
+    // Get price based on sub-role and check if > 0
+    let price = 0;
+    if (subRole === 'dealer_1') price = bundle.dealer_1_price || 0;
+    else if (subRole === 'dealer_2') price = bundle.dealer_2_price || 0;
+    else if (subRole === 'platinum') price = bundle.platinum_price || 0;
+    else if (subRole === 'gold') price = bundle.gold_price || 0;
+
+    return price > 0;
   }) || [];
 
   const totalPages = Math.ceil(filteredBundles.length / ITEMS_PER_PAGE);
@@ -478,7 +493,14 @@ const PurchaseProducts = ({ userType, onNavigateToSettings, onNavigateToTransact
           </div>
         ) : (
           paginatedBundles.map((bundle) => {
-            const price = userType === "master_agent" ? bundle.master_agent_price : bundle.agent_price;
+            // Get price based on sub-role
+            const subRole = profile?.sub_role;
+            let price = 0;
+            if (subRole === 'dealer_1') price = bundle.dealer_1_price || 0;
+            else if (subRole === 'dealer_2') price = bundle.dealer_2_price || 0;
+            else if (subRole === 'platinum') price = bundle.platinum_price || 0;
+            else if (subRole === 'gold') price = bundle.gold_price || 0;
+
             return (
               <Card key={bundle.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="aspect-square relative overflow-hidden bg-muted">
