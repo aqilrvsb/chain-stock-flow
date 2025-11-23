@@ -29,6 +29,7 @@ const MasterAgentManagement = () => {
   const [idstaff, setIdstaff] = useState("");
   const [state, setState] = useState("");
   const [subRole, setSubRole] = useState<string>("dealer_1");
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const { toast} = useToast();
   const queryClient = useQueryClient();
 
@@ -49,10 +50,17 @@ const MasterAgentManagement = () => {
     },
   });
 
+  // Filter master agents by role
+  const filteredMasterAgents = roleFilter
+    ? masterAgents?.filter(ma => ma.sub_role === roleFilter)
+    : masterAgents;
+
   const stats = {
-    total: masterAgents?.length || 0,
-    active: masterAgents?.filter(u => u.is_active)?.length || 0,
-    inactive: masterAgents?.filter(u => !u.is_active)?.length || 0,
+    total: filteredMasterAgents?.length || 0,
+    active: filteredMasterAgents?.filter(u => u.is_active)?.length || 0,
+    inactive: filteredMasterAgents?.filter(u => !u.is_active)?.length || 0,
+    dealer1: masterAgents?.filter(u => u.sub_role === 'dealer_1')?.length || 0,
+    dealer2: masterAgents?.filter(u => u.sub_role === 'dealer_2')?.length || 0,
   };
 
   const createUser = useMutation({
@@ -267,7 +275,7 @@ const MasterAgentManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Master Agents</CardTitle>
@@ -293,6 +301,30 @@ const MasterAgentManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.inactive}</div>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all ${roleFilter === 'dealer_1' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => setRoleFilter(roleFilter === 'dealer_1' ? null : 'dealer_1')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Dealer 1</CardTitle>
+            <Users className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.dealer1}</div>
+          </CardContent>
+        </Card>
+        <Card
+          className={`cursor-pointer transition-all ${roleFilter === 'dealer_2' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => setRoleFilter(roleFilter === 'dealer_2' ? null : 'dealer_2')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Dealer 2</CardTitle>
+            <Users className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.dealer2}</div>
           </CardContent>
         </Card>
       </div>
@@ -491,6 +523,7 @@ const MasterAgentManagement = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>State</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Created At</TableHead>
@@ -499,12 +532,17 @@ const MasterAgentManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {masterAgents?.map((user) => (
+                {filteredMasterAgents?.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.idstaff || "N/A"}</TableCell>
                     <TableCell>{user.full_name || "N/A"}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.state || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.sub_role === 'dealer_1' ? "default" : "secondary"}>
+                        {user.sub_role === 'dealer_1' ? 'Dealer 1' : user.sub_role === 'dealer_2' ? 'Dealer 2' : 'N/A'}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? "default" : "secondary"}>
                         {user.is_active ? "Active" : "Inactive"}
