@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS public.processed_stock (
 -- Add RLS policies for processed_stock
 ALTER TABLE public.processed_stock ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Logistic users can view processed stock" ON public.processed_stock;
+DROP POLICY IF EXISTS "Logistic users can insert processed stock" ON public.processed_stock;
+DROP POLICY IF EXISTS "Logistic users can update processed stock" ON public.processed_stock;
+DROP POLICY IF EXISTS "Logistic users can delete processed stock" ON public.processed_stock;
+
 -- Logistic users can view all processed stock entries
 CREATE POLICY "Logistic users can view processed stock"
   ON public.processed_stock FOR SELECT TO authenticated
