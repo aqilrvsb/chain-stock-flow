@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const BundleManagement = () => {
@@ -236,6 +236,30 @@ const BundleManagement = () => {
     updateBundle.mutate();
   };
 
+  const deleteBundle = useMutation({
+    mutationFn: async (bundleId: string) => {
+      const { error } = await supabase
+        .from("bundles")
+        .update({ is_active: false })
+        .eq("id", bundleId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bundles"] });
+      toast.success("Bundle deleted successfully!");
+    },
+    onError: (error) => {
+      toast.error("Failed to delete bundle: " + error.message);
+    },
+  });
+
+  const handleDelete = (bundleId: string) => {
+    if (confirm("Are you sure you want to delete this bundle?")) {
+      deleteBundle.mutate(bundleId);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -253,14 +277,14 @@ const BundleManagement = () => {
                 Add Bundle
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Create New Bundle</DialogTitle>
                 <DialogDescription>
                   Set up a product bundle with pricing for different agent levels
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
                 <div className="space-y-2">
                   <Label htmlFor="bundleImage">Bundle Image</Label>
                   <Input
@@ -374,14 +398,14 @@ const BundleManagement = () => {
             setIsEditDialogOpen(open);
             if (!open) resetForm();
           }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>Edit Bundle</DialogTitle>
                 <DialogDescription>
                   Update bundle information and pricing
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleUpdate} className="space-y-4">
+              <form onSubmit={handleUpdate} className="space-y-4 overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
                 <div className="space-y-2">
                   <Label htmlFor="editBundleImage">Bundle Image</Label>
                   <Input
@@ -535,9 +559,19 @@ const BundleManagement = () => {
                   <TableCell>RM {parseFloat(bundle.platinum_price?.toString() || "0").toFixed(2)}</TableCell>
                   <TableCell>RM {parseFloat(bundle.gold_price?.toString() || "0").toFixed(2)}</TableCell>
                   <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(bundle)}>
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(bundle)}>
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(bundle.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
