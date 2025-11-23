@@ -332,6 +332,18 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
+
+                {/* Logistic */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("logistic")}
+                    isActive={activeView === "logistic"}
+                    className="cursor-pointer"
+                  >
+                    <Package className="h-4 w-4" />
+                    {open && <span>Logistic</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

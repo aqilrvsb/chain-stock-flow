@@ -20,6 +20,7 @@ import TransactionAgent from "./hq/TransactionAgent";
 import ReportingMasterAgent from "./hq/ReportingMasterAgent";
 import ReportingAgent from "./hq/ReportingAgent";
 import Settings from "./common/Settings";
+import LogisticAnalytics from "./logistic/LogisticAnalytics";
 
 const HQDashboard = () => {
   const { userProfile } = useAuth();
@@ -62,6 +63,8 @@ const HQDashboard = () => {
         return <ReportingMasterAgent />;
       case "reporting-agent":
         return <ReportingAgent />;
+      case "logistic":
+        return <LogisticAnalytics />;
       case "settings":
         return <Settings />;
       case "dashboard":
