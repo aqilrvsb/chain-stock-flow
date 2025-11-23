@@ -26,7 +26,8 @@ const ReportingAgent = () => {
           agent:profiles!master_agent_relationships_agent_id_fkey(
             id,
             idstaff,
-            full_name
+            full_name,
+            sub_role
           )
         `)
         .eq("master_agent_id", user?.id);
@@ -147,6 +148,7 @@ const ReportingAgent = () => {
             id: agent.id,
             idstaff: agent.idstaff,
             full_name: agent.full_name,
+            sub_role: agent.sub_role,
             latestBalance,
             stockIn,
             totalPurchase,
@@ -269,6 +271,7 @@ const ReportingAgent = () => {
                   <TableHead>No</TableHead>
                   <TableHead>ID STAFF</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Latest Balance</TableHead>
                   <TableHead>Stock In</TableHead>
                   <TableHead>Total Purchase</TableHead>
@@ -289,6 +292,9 @@ const ReportingAgent = () => {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{item.idstaff || "-"}</TableCell>
                     <TableCell>{item.full_name || "-"}</TableCell>
+                    <TableCell>
+                      {item.sub_role === 'platinum' ? 'Platinum' : item.sub_role === 'gold' ? 'Gold' : '-'}
+                    </TableCell>
                     <TableCell>{item.latestBalance}</TableCell>
                     <TableCell>{item.stockIn}</TableCell>
                     <TableCell>RM {item.totalPurchase.toFixed(2)}</TableCell>

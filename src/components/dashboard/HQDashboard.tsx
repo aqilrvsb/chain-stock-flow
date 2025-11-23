@@ -10,6 +10,10 @@ import StockOutHQ from "./hq/StockOutHQ";
 import StockInHQ from "./hq/StockInHQ";
 import RewardMasterAgent from "./hq/RewardMasterAgent";
 import RewardAgent from "./hq/RewardAgent";
+import RewardMasterAgentDealer1 from "./hq/RewardMasterAgentDealer1";
+import RewardMasterAgentDealer2 from "./hq/RewardMasterAgentDealer2";
+import RewardAgentPlatinum from "./hq/RewardAgentPlatinum";
+import RewardAgentGold from "./hq/RewardAgentGold";
 import TransactionManagement from "./hq/TransactionManagement";
 import TransactionAgent from "./hq/TransactionAgent";
 import ReportingMasterAgent from "./hq/ReportingMasterAgent";
@@ -39,6 +43,14 @@ const HQDashboard = () => {
         return <RewardMasterAgent />;
       case "reward-agent":
         return <RewardAgent />;
+      case "reward-ma-dealer1":
+        return <RewardMasterAgentDealer1 />;
+      case "reward-ma-dealer2":
+        return <RewardMasterAgentDealer2 />;
+      case "reward-agent-platinum":
+        return <RewardAgentPlatinum />;
+      case "reward-agent-gold":
+        return <RewardAgentGold />;
       case "transactions":
         return <TransactionManagement />;
       case "transaction-agent":

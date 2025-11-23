@@ -61,8 +61,10 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Transaction Master Agent", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
         { title: "Rewards", icon: Gift, value: "rewards" },
-        { title: "Reward Master Agent", icon: Award, value: "reward-ma" },
-        { title: "Reward Agent", icon: Award, value: "reward-agent" },
+        { title: "Reward MA Dealer 1", icon: Award, value: "reward-ma-dealer1" },
+        { title: "Reward MA Dealer 2", icon: Award, value: "reward-ma-dealer2" },
+        { title: "Reward Agent Platinum", icon: Award, value: "reward-agent-platinum" },
+        { title: "Reward Agent Gold", icon: Award, value: "reward-agent-gold" },
         { title: "Reporting Master Agent", icon: FileText, value: "reporting-ma" },
         { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
       ];

@@ -29,7 +29,7 @@ const TransactionAgent = () => {
         .from("agent_purchases" as any)
         .select(`
           *,
-          agent:profiles!agent_id(idstaff, full_name, whatsapp_number, delivery_address),
+          agent:profiles!agent_id(idstaff, full_name, whatsapp_number, delivery_address, sub_role),
           product:products(name, sku),
           bundle:bundles(name)
         `)
@@ -319,6 +319,7 @@ const TransactionAgent = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>IDSTAFF</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>No Whatsapp</TableHead>
                   <TableHead>Alamat</TableHead>
                   <TableHead>Product</TableHead>
@@ -342,6 +343,9 @@ const TransactionAgent = () => {
                     <TableCell>{format(new Date(purchase.created_at), "dd-MM-yyyy")}</TableCell>
                     <TableCell>{purchase.agent?.idstaff || "-"}</TableCell>
                     <TableCell>{purchase.agent?.full_name || "-"}</TableCell>
+                    <TableCell>
+                      {purchase.agent?.sub_role === 'platinum' ? 'Platinum' : purchase.agent?.sub_role === 'gold' ? 'Gold' : '-'}
+                    </TableCell>
                     <TableCell>{purchase.agent?.whatsapp_number || "-"}</TableCell>
                     <TableCell>{purchase.agent?.delivery_address || "-"}</TableCell>
                     <TableCell>{purchase.product?.name}</TableCell>
