@@ -1,6 +1,3 @@
--- Add 'logistic' to user_role enum
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'logistic';
-
 -- Create processed_stock table for packaging tracking
 CREATE TABLE IF NOT EXISTS public.processed_stock (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
