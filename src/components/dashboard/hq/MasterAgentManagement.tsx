@@ -156,6 +156,7 @@ const MasterAgentManagement = () => {
           full_name: userData.fullName,
           idstaff: userData.idstaff,
           state: userData.state,
+          sub_role: userData.subRole,
         })
         .eq("id", userData.id);
 
@@ -226,6 +227,7 @@ const MasterAgentManagement = () => {
     setIdstaff(user.idstaff || "");
     setEmail(user.email);
     setState(user.state || "");
+    setSubRole(user.sub_role || "dealer_1");
     setNewPassword("");
     setIsEditOpen(true);
   };
@@ -237,6 +239,7 @@ const MasterAgentManagement = () => {
       fullName,
       idstaff,
       state,
+      subRole,
       newPassword,
     });
   };
@@ -427,6 +430,18 @@ const MasterAgentManagement = () => {
                           {stateName}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-subRole">Role Tier</Label>
+                  <Select value={subRole} onValueChange={setSubRole} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dealer_1">Dealer 1</SelectItem>
+                      <SelectItem value="dealer_2">Dealer 2</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
