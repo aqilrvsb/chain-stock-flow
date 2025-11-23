@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -30,6 +31,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
   const { open } = useSidebar();
   const { signOut, user } = useAuth();
   const [isSOPOpen, setIsSOPOpen] = useState(false);
+  const { isCustomerSegmentEnabled } = useCustomerSegment();
 
   // Fetch user profile to get idstaff
   const { data: profile } = useQuery({
@@ -65,25 +67,41 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
         { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
       ];
     } else if (userRole === "master_agent") {
-      return [
+      const items = [
         { title: "Dashboard", icon: Home, value: "dashboard" },
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
         { title: "My Agents", icon: Users, value: "agents" },
-        { title: "Customers", icon: UserCheck, value: "customers" },
+      ];
+
+      // Only add Customers if customer segment is enabled
+      if (isCustomerSegmentEnabled) {
+        items.push({ title: "Customers", icon: UserCheck, value: "customers" });
+      }
+
+      items.push(
         { title: "Transactions", icon: BarChart3, value: "transactions" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
         { title: "Reward Agent", icon: Award, value: "reward-agent" },
         { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
-      ];
+      );
+
+      return items;
     } else if (userRole === "agent") {
-      return [
+      const items = [
         { title: "Dashboard", icon: Home, value: "dashboard" },
         { title: "Purchase", icon: Package, value: "purchase" },
         { title: "Inventory", icon: Package, value: "inventory" },
-        { title: "Customers", icon: UserCheck, value: "customers" },
-        { title: "Transactions", icon: BarChart3, value: "transactions" },
       ];
+
+      // Only add Customers if customer segment is enabled
+      if (isCustomerSegmentEnabled) {
+        items.push({ title: "Customers", icon: UserCheck, value: "customers" });
+      }
+
+      items.push({ title: "Transactions", icon: BarChart3, value: "transactions" });
+
+      return items;
     }
     return [{ title: "Dashboard", icon: Home, value: "dashboard" }];
   };

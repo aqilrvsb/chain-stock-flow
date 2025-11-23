@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
+import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import PurchaseProducts from "./common/PurchaseProducts";
 import AgentInventory from "./agent/AgentInventory";
 import AgentTransactions from "./agent/AgentTransactions";
@@ -12,6 +13,14 @@ const AgentDashboard = () => {
   const { userProfile } = useAuth();
   const userName = userProfile?.idstaff || "User";
   const [activeView, setActiveView] = useState("dashboard");
+  const { isCustomerSegmentEnabled } = useCustomerSegment();
+
+  // Redirect to dashboard if customer segment is disabled and user is on customers view
+  useEffect(() => {
+    if (!isCustomerSegmentEnabled && activeView === "customers") {
+      setActiveView("dashboard");
+    }
+  }, [isCustomerSegmentEnabled, activeView]);
 
   const renderView = () => {
     switch (activeView) {

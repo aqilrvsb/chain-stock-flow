@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload } from "lucide-react";
 
@@ -66,11 +67,18 @@ const Settings = () => {
         .eq("setting_key", "favicon_url")
         .maybeSingle();
 
+      const { data: customerSegmentEnabled } = await (supabase as any)
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "customer_segment_enabled")
+        .maybeSingle();
+
       return {
         apiKey: apiKey?.setting_value || "",
         collectionId: collectionId?.setting_value || "",
         logoUrl: logoUrl?.setting_value || "",
         faviconUrl: faviconUrl?.setting_value || "",
+        customerSegmentEnabled: customerSegmentEnabled?.setting_value === 'true',
       };
     },
     enabled: userRole === 'hq',
@@ -347,6 +355,31 @@ const Settings = () => {
     }
   };
 
+  const handleCustomerSegmentToggle = async (enabled: boolean) => {
+    try {
+      await (supabase as any).rpc('upsert_system_setting', {
+        p_key: 'customer_segment_enabled',
+        p_value: enabled.toString()
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["system-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-segment-enabled"] });
+
+      toast({
+        title: enabled ? "Customer segment enabled" : "Customer segment disabled",
+        description: enabled
+          ? "Customer features are now visible across all roles"
+          : "Customer features are now hidden across all roles"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -458,7 +491,7 @@ const Settings = () => {
                   <p className="text-muted-foreground">Collection ID: {billplzConfig.collectionId || 'Not set'}</p>
                 </div>
               )}
-              
+
               <div className="space-y-2">
                 <Label htmlFor="billplz_api_key">Billplz API Key</Label>
                 <Input
@@ -484,6 +517,34 @@ const Settings = () => {
               <Button onClick={handleBillplzUpdate}>
                 Save Billplz Configuration
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Segment</CardTitle>
+              <CardDescription>
+                Enable or disable customer-related features across all roles (HQ, Master Agent, Agent)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="customer-segment-toggle" className="text-base">
+                    Customer Features
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {systemSettings?.customerSegmentEnabled
+                      ? "Customer features are visible in all dashboards and sidebars"
+                      : "Customer features are hidden across the platform"}
+                  </p>
+                </div>
+                <Switch
+                  id="customer-segment-toggle"
+                  checked={systemSettings?.customerSegmentEnabled ?? true}
+                  onCheckedChange={handleCustomerSegmentToggle}
+                />
+              </div>
             </CardContent>
           </Card>
         </>
