@@ -29,6 +29,7 @@ const AgentManagement = () => {
   const [idstaff, setIdstaff] = useState("");
   const [masterAgentId, setMasterAgentId] = useState("");
   const [state, setState] = useState("");
+  const [subRole, setSubRole] = useState<string>("platinum");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -114,6 +115,7 @@ const AgentManagement = () => {
           masterAgentId: userData.masterAgentId,
           idstaff: userData.idstaff,
           state: userData.state,
+          subRole: userData.subRole,
         },
       });
 
@@ -169,7 +171,7 @@ const AgentManagement = () => {
       });
       return;
     }
-    createUser.mutate({ email, password, fullName, masterAgentId, idstaff, state });
+    createUser.mutate({ email, password, fullName, masterAgentId, idstaff, state, subRole });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -312,6 +314,7 @@ const AgentManagement = () => {
     setIdstaff("");
     setMasterAgentId("");
     setState("");
+    setSubRole("platinum");
     setEditingUser(null);
   };
 
@@ -429,6 +432,18 @@ const AgentManagement = () => {
                           {ma.idstaff ? `${ma.idstaff} - ${ma.full_name || ma.email}` : (ma.full_name || ma.email)}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subRole">Role Tier</Label>
+                  <Select value={subRole} onValueChange={setSubRole} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="platinum">Platinum</SelectItem>
+                      <SelectItem value="gold">Gold</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
