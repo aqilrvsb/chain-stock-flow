@@ -28,7 +28,8 @@ const MasterAgentManagement = () => {
   const [fullName, setFullName] = useState("");
   const [idstaff, setIdstaff] = useState("");
   const [state, setState] = useState("");
-  const { toast } = useToast();
+  const [subRole, setSubRole] = useState<string>("dealer_1");
+  const { toast} = useToast();
   const queryClient = useQueryClient();
 
   const { data: masterAgents, isLoading } = useQuery({
@@ -64,6 +65,7 @@ const MasterAgentManagement = () => {
           role: 'master_agent',
           idstaff: userData.idstaff,
           state: userData.state,
+          subRole: userData.subRole,
         },
       });
 
@@ -133,7 +135,7 @@ const MasterAgentManagement = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createUser.mutate({ email, password, fullName, idstaff, state });
+    createUser.mutate({ email, password, fullName, idstaff, state, subRole });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -256,6 +258,7 @@ const MasterAgentManagement = () => {
     setFullName("");
     setIdstaff("");
     setState("");
+    setSubRole("dealer_1");
     setEditingUser(null);
   };
 
@@ -358,6 +361,18 @@ const MasterAgentManagement = () => {
                           {stateName}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subRole">Role Tier</Label>
+                  <Select value={subRole} onValueChange={setSubRole} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dealer_1">Dealer 1</SelectItem>
+                      <SelectItem value="dealer_2">Dealer 2</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
