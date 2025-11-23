@@ -3,6 +3,7 @@ import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import LogisticAnalytics from "./logistic/LogisticAnalytics";
 import ProcessedStock from "./logistic/ProcessedStock";
+import RawMaterialView from "./logistic/RawMaterialView";
 import Settings from "./common/Settings";
 
 const LogisticDashboard = () => {
@@ -14,6 +15,8 @@ const LogisticDashboard = () => {
     switch (activeView) {
       case "processed":
         return <ProcessedStock />;
+      case "raw-material-view":
+        return <RawMaterialView />;
       case "settings":
         return <Settings />;
       case "dashboard":

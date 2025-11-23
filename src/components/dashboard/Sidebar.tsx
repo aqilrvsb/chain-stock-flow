@@ -446,6 +446,17 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     {open && <span>Processed</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("raw-material-view")}
+                    isActive={activeView === "raw-material-view"}
+                    className="cursor-pointer"
+                  >
+                    <Package className="h-4 w-4" />
+                    {open && <span>Raw Material</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
