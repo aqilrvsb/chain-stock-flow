@@ -150,27 +150,11 @@ const ProcessedStock = () => {
 
   const stats = [
     {
-      title: "Total Raw Material",
-      value: totalRawMaterial,
-      icon: Package,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
-      noFilter: true,
-    },
-    {
       title: "Total Processed",
       value: totalProcessed,
       icon: PackageCheck,
       color: "text-indigo-600",
       bgColor: "bg-indigo-50",
-      noFilter: true,
-    },
-    {
-      title: "Total Pending",
-      value: totalPending,
-      icon: Loader,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-50",
       noFilter: true,
     },
     {
