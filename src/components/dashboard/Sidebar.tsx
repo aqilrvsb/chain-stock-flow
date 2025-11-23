@@ -154,15 +154,6 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                             <span>Bundle</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => onViewChange("raw-material")}
-                            isActive={activeView === "raw-material"}
-                            className="cursor-pointer"
-                          >
-                            <span>Raw Material</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>
@@ -208,6 +199,15 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                             className="cursor-pointer"
                           >
                             <span>Stock Out HQ</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("raw-material")}
+                            isActive={activeView === "raw-material"}
+                            className="cursor-pointer"
+                          >
+                            <span>Raw Material</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>
