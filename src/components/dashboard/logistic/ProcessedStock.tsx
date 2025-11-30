@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, Plus, Calendar, CheckCircle, XCircle, AlertTriangle, Loader, PackageCheck } from "lucide-react";
+import { Package, Plus, Calendar, CheckCircle, XCircle, AlertTriangle, Loader, PackageCheck, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -21,6 +21,8 @@ const ProcessedStock = () => {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -94,6 +96,77 @@ const ProcessedStock = () => {
       toast.error("Failed to add processed stock: " + error.message);
     },
   });
+
+  const updateProcessedStock = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("processed_stock")
+        .update({
+          product_id: selectedProduct,
+          quantity: parseInt(quantity),
+          status: status,
+          date: stockDate,
+          description: description || null,
+        })
+        .eq("id", editingItem?.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["processed-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["all-processed-stock"] });
+      toast.success("Processed stock updated successfully");
+      setIsEditDialogOpen(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast.error("Failed to update processed stock: " + error.message);
+    },
+  });
+
+  const deleteProcessedStock = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("processed_stock")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["processed-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["all-processed-stock"] });
+      toast.success("Processed stock deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to delete processed stock: " + error.message);
+    },
+  });
+
+  const resetForm = () => {
+    setSelectedProduct("");
+    setQuantity("");
+    setStatus("");
+    setStockDate(format(new Date(), "yyyy-MM-dd"));
+    setDescription("");
+    setEditingItem(null);
+  };
+
+  const handleEdit = (item: any) => {
+    setEditingItem(item);
+    setSelectedProduct(item.product_id);
+    setQuantity(item.quantity.toString());
+    setStatus(item.status);
+    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setDescription(item.description || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to delete this processed stock entry?")) {
+      deleteProcessedStock.mutate(id);
+    }
+  };
 
   // Calculate totals WITH date filter
   const totalSuccess = processedStock?.filter(item => item.status === 'success')
@@ -312,6 +385,7 @@ const ProcessedStock = () => {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -329,6 +403,24 @@ const ProcessedStock = () => {
                         <TableCell className="font-bold">{item.quantity}</TableCell>
                         <TableCell>{getStatusBadge(item.status)}</TableCell>
                         <TableCell>{item.description || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -338,6 +430,81 @@ const ProcessedStock = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-sm md:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Processed Stock</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Product</Label>
+              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.sku})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="reject">Reject</SelectItem>
+                  <SelectItem value="damage">Damage</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={stockDate}
+                onChange={(e) => setStockDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description (Optional)</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add notes about this processed stock..."
+              />
+            </div>
+            <Button
+              onClick={() => updateProcessedStock.mutate()}
+              className="w-full"
+              disabled={!selectedProduct || !quantity || !status || updateProcessedStock.isPending}
+            >
+              {updateProcessedStock.isPending ? "Updating..." : "Update Processed Stock"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
