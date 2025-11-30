@@ -1,5 +1,9 @@
 -- Add UPDATE and DELETE RLS policies for logistic users on processed_stock table
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Logistic users can update processed stock" ON public.processed_stock;
+DROP POLICY IF EXISTS "Logistic users can delete processed stock" ON public.processed_stock;
+
 -- Logistic users can update processed stock entries
 CREATE POLICY "Logistic users can update processed stock"
   ON public.processed_stock FOR UPDATE TO authenticated
