@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, Plus, Calendar } from "lucide-react";
+import { Package, Plus, Calendar, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -20,6 +20,8 @@ const RawMaterialStock = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
 
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -91,6 +93,74 @@ const RawMaterialStock = () => {
       toast.error("Failed to add raw material: " + error.message);
     },
   });
+
+  const updateRawMaterial = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("raw_material_stock")
+        .update({
+          product_id: selectedProduct,
+          quantity: parseInt(quantity),
+          date: stockDate,
+          description: description || null,
+        })
+        .eq("id", editingItem?.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raw-material-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["all-raw-material-stock"] });
+      toast.success("Raw material updated successfully");
+      setIsEditDialogOpen(false);
+      resetForm();
+    },
+    onError: (error: any) => {
+      toast.error("Failed to update raw material: " + error.message);
+    },
+  });
+
+  const deleteRawMaterial = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("raw_material_stock")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raw-material-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["all-raw-material-stock"] });
+      toast.success("Raw material deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to delete raw material: " + error.message);
+    },
+  });
+
+  const resetForm = () => {
+    setSelectedProduct("");
+    setQuantity("");
+    setStockDate(format(new Date(), "yyyy-MM-dd"));
+    setDescription("");
+    setEditingItem(null);
+  };
+
+  const handleEdit = (item: any) => {
+    setEditingItem(item);
+    setSelectedProduct(item.product_id);
+    setQuantity(item.quantity.toString());
+    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setDescription(item.description || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to delete this raw material entry?")) {
+      deleteRawMaterial.mutate(id);
+    }
+  };
 
   const totalRecords = rawMaterials?.length || 0;
   const totalQuantity = rawMaterials?.reduce((sum, item) => sum + item.quantity, 0) || 0;
@@ -228,24 +298,111 @@ const RawMaterialStock = () => {
                   <TableHead>SKU</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rawMaterials?.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{format(new Date(item.date), "dd-MM-yyyy")}</TableCell>
-                    <TableCell>{item.product?.name}</TableCell>
-                    <TableCell>{item.product?.sku}</TableCell>
-                    <TableCell className="font-bold">{item.quantity}</TableCell>
-                    <TableCell>{item.description || "-"}</TableCell>
-                  </TableRow>
-                ))}
+                {rawMaterials?.map((item) => {
+                  const itemDate = item.date ? new Date(item.date) : null;
+                  const isValidDate = itemDate && !isNaN(itemDate.getTime());
+
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        {isValidDate ? format(itemDate, "dd-MM-yyyy") : "-"}
+                      </TableCell>
+                      <TableCell>{item.product?.name}</TableCell>
+                      <TableCell>{item.product?.sku}</TableCell>
+                      <TableCell className="font-bold">{item.quantity}</TableCell>
+                      <TableCell>{item.description || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-sm md:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Raw Material Stock</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Product</Label>
+              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.sku})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={stockDate}
+                onChange={(e) => setStockDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description (Optional)</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add notes about this raw material..."
+              />
+            </div>
+            <Button
+              onClick={() => updateRawMaterial.mutate()}
+              className="w-full"
+              disabled={!selectedProduct || !quantity || updateRawMaterial.isPending}
+            >
+              {updateRawMaterial.isPending ? "Updating..." : "Update Raw Material"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
