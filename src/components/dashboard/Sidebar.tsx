@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, ChevronRight, Warehouse } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, Warehouse } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -340,7 +340,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                       <SidebarMenuButton className="cursor-pointer">
                         <Package className="h-4 w-4" />
                         {open && <span>Logistic</span>}
-                        {open && <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
