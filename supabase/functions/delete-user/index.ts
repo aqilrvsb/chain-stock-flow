@@ -103,39 +103,166 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Check if agent has any transaction history in agent_purchases
-    const { data: agentPurchases, error: purchaseError } = await supabaseAdmin
+    console.log('Deleting user and all related records:', userId)
+
+    // Delete all related records before deleting the user
+    // Order matters due to foreign key constraints
+
+    // 1. Delete from transactions (buyer_id or seller_id)
+    const { error: transactionsError } = await supabaseAdmin
+      .from('transactions')
+      .delete()
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+
+    if (transactionsError) {
+      console.error('Error deleting transactions:', transactionsError)
+      throw new Error('Error deleting transaction history')
+    }
+    console.log('Deleted transactions for user:', userId)
+
+    // 2. Delete from agent_purchases (agent_id or master_agent_id)
+    const { error: agentPurchasesError } = await supabaseAdmin
       .from('agent_purchases')
-      .select('id')
-      .eq('agent_id', userId)
-      .limit(1)
+      .delete()
+      .or(`agent_id.eq.${userId},master_agent_id.eq.${userId}`)
 
-    if (purchaseError) {
-      console.error('Error checking agent purchases:', purchaseError)
-      throw new Error('Error checking transaction history')
+    if (agentPurchasesError) {
+      console.error('Error deleting agent purchases:', agentPurchasesError)
+      throw new Error('Error deleting agent purchases')
     }
+    console.log('Deleted agent_purchases for user:', userId)
 
-    if (agentPurchases && agentPurchases.length > 0) {
-      throw new Error('Cannot delete agent with existing transaction history')
+    // 3. Delete from customer_purchases (seller_id)
+    const { error: customerPurchasesError } = await supabaseAdmin
+      .from('customer_purchases')
+      .delete()
+      .eq('seller_id', userId)
+
+    if (customerPurchasesError) {
+      console.error('Error deleting customer purchases:', customerPurchasesError)
+      throw new Error('Error deleting customer purchases')
     }
+    console.log('Deleted customer_purchases for user:', userId)
 
-    // Check if agent has any orders in pending_orders
-    const { data: pendingOrders, error: ordersError } = await supabaseAdmin
+    // 4. Delete from pending_orders (buyer_id)
+    const { error: pendingOrdersError } = await supabaseAdmin
       .from('pending_orders')
-      .select('id')
+      .delete()
       .eq('buyer_id', userId)
-      .limit(1)
 
-    if (ordersError) {
-      console.error('Error checking pending orders:', ordersError)
-      throw new Error('Error checking transaction history')
+    if (pendingOrdersError) {
+      console.error('Error deleting pending orders:', pendingOrdersError)
+      throw new Error('Error deleting pending orders')
     }
+    console.log('Deleted pending_orders for user:', userId)
 
-    if (pendingOrders && pendingOrders.length > 0) {
-      throw new Error('Cannot delete agent with existing transaction history')
+    // 5. Delete from inventory (user_id)
+    const { error: inventoryError } = await supabaseAdmin
+      .from('inventory')
+      .delete()
+      .eq('user_id', userId)
+
+    if (inventoryError) {
+      console.error('Error deleting inventory:', inventoryError)
+      throw new Error('Error deleting inventory')
     }
+    console.log('Deleted inventory for user:', userId)
 
-    console.log('Deleting user:', userId)
+    // 6. Delete from customers (created_by)
+    const { error: customersError } = await supabaseAdmin
+      .from('customers')
+      .delete()
+      .eq('created_by', userId)
+
+    if (customersError) {
+      console.error('Error deleting customers:', customersError)
+      throw new Error('Error deleting customers')
+    }
+    console.log('Deleted customers for user:', userId)
+
+    // 7. Delete from processed_stock (user_id)
+    const { error: processedStockError } = await supabaseAdmin
+      .from('processed_stock')
+      .delete()
+      .eq('user_id', userId)
+
+    if (processedStockError) {
+      console.error('Error deleting processed stock:', processedStockError)
+      throw new Error('Error deleting processed stock')
+    }
+    console.log('Deleted processed_stock for user:', userId)
+
+    // 8. Delete from raw_material_stock (user_id)
+    const { error: rawMaterialError } = await supabaseAdmin
+      .from('raw_material_stock')
+      .delete()
+      .eq('user_id', userId)
+
+    if (rawMaterialError) {
+      console.error('Error deleting raw material stock:', rawMaterialError)
+      throw new Error('Error deleting raw material stock')
+    }
+    console.log('Deleted raw_material_stock for user:', userId)
+
+    // 9. Delete from stock_in_hq (user_id)
+    const { error: stockInError } = await supabaseAdmin
+      .from('stock_in_hq')
+      .delete()
+      .eq('user_id', userId)
+
+    if (stockInError) {
+      console.error('Error deleting stock_in_hq:', stockInError)
+      throw new Error('Error deleting stock in records')
+    }
+    console.log('Deleted stock_in_hq for user:', userId)
+
+    // 10. Delete from stock_out_hq (user_id)
+    const { error: stockOutError } = await supabaseAdmin
+      .from('stock_out_hq')
+      .delete()
+      .eq('user_id', userId)
+
+    if (stockOutError) {
+      console.error('Error deleting stock_out_hq:', stockOutError)
+      throw new Error('Error deleting stock out records')
+    }
+    console.log('Deleted stock_out_hq for user:', userId)
+
+    // 11. Delete from master_agent_relationships (if agent)
+    const { error: relationshipError } = await supabaseAdmin
+      .from('master_agent_relationships')
+      .delete()
+      .eq('agent_id', userId)
+
+    if (relationshipError) {
+      console.error('Error deleting master_agent_relationships:', relationshipError)
+      throw new Error('Error deleting agent relationships')
+    }
+    console.log('Deleted master_agent_relationships for user:', userId)
+
+    // 12. Delete from user_roles (user_id)
+    const { error: userRolesError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+
+    if (userRolesError) {
+      console.error('Error deleting user roles:', userRolesError)
+      throw new Error('Error deleting user roles')
+    }
+    console.log('Deleted user_roles for user:', userId)
+
+    // 13. Delete from profiles (id)
+    const { error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (profilesError) {
+      console.error('Error deleting profile:', profilesError)
+      throw new Error('Error deleting user profile')
+    }
+    console.log('Deleted profile for user:', userId)
 
     // Delete from auth.users - this will cascade delete to profiles via trigger
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
