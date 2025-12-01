@@ -26,7 +26,8 @@
       "Bash(del publicfavicon.ico)",
       "Bash(npx supabase db push:*)",
       "Bash(NUL)",
-      "Bash(if exist nul del /f nul)"
+      "Bash(if exist nul del /f nul)",
+      "Bash(del \"supabase\\migrations\\20251201000001_remove_stock_in_hq_inventory_trigger.sql\")"
     ],
     "deny": [],
     "ask": []

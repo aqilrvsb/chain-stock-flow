@@ -66,7 +66,7 @@ const StockInHQ = () => {
 
   const addStock = useMutation({
     mutationFn: async () => {
-      // Insert stock in record
+      // Insert stock in record only - database trigger handles inventory update
       const { error: stockInError } = await supabase
         .from("stock_in_hq")
         .insert({
@@ -78,31 +78,6 @@ const StockInHQ = () => {
         });
 
       if (stockInError) throw stockInError;
-
-      // Update inventory
-      const { data: existing } = await supabase
-        .from("inventory")
-        .select("*")
-        .eq("user_id", user?.id)
-        .eq("product_id", selectedProduct)
-        .single();
-
-      if (existing) {
-        const { error } = await supabase
-          .from("inventory")
-          .update({ quantity: existing.quantity + parseInt(quantity) })
-          .eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("inventory")
-          .insert({
-            user_id: user?.id,
-            product_id: selectedProduct,
-            quantity: parseInt(quantity),
-          });
-        if (error) throw error;
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stock-in-hq"] });
