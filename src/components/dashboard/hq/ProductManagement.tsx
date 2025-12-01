@@ -147,18 +147,7 @@ const ProductManagement = () => {
 
       if (productError) throw productError;
 
-      // Add initial inventory for HQ
-      if (productData.quantity > 0) {
-        const { error: inventoryError } = await supabase
-          .from("inventory")
-          .insert({
-            user_id: productData.userId,
-            product_id: product.id,
-            quantity: productData.quantity,
-          });
-
-        if (inventoryError) throw inventoryError;
-      }
+      // Note: Initial inventory is 0 - stock should be added via Stock In HQ
 
       return product;
     },
@@ -280,8 +269,6 @@ const ProductManagement = () => {
       name,
       sku,
       baseCost: parseFloat(baseCost),
-      quantity: parseInt(quantity) || 0,
-      userId: user?.id,
       imageFile,
     });
   };
@@ -447,29 +434,16 @@ const ProductManagement = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="baseCost">Base Cost</Label>
-                  <Input
-                    id="baseCost"
-                    type="number"
-                    step="0.01"
-                    value={baseCost}
-                    onChange={(e) => setBaseCost(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Initial Quantity</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    required
-                    min="0"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="baseCost">Base Cost</Label>
+                <Input
+                  id="baseCost"
+                  type="number"
+                  step="0.01"
+                  value={baseCost}
+                  onChange={(e) => setBaseCost(e.target.value)}
+                  required
+                />
               </div>
               <Button type="submit" className="w-full" disabled={createProduct.isPending}>
                 Create Product
