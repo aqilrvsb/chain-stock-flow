@@ -88,19 +88,12 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
-  // Calculate statistics
-  const totalCustomers = new Set(purchases?.map(p => p.customer_id)).size || 0;
-  const totalUnitsPurchased = purchases?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
-  const totalPrice = purchases?.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
-  // Count unique transactions (StoreHub invoices or individual purchases)
-  const uniqueTransactions = new Set(
-    purchases?.map(p => {
-      // Extract invoice number from StoreHub remarks format: "StoreHub: INVOICENUMBER-ITEMINDEX"
-      const match = p.remarks?.match(/^StoreHub: ([^-]+)/);
-      return match ? match[1] : p.id; // Use invoice number for StoreHub, or purchase ID for manual
-    })
-  );
-  const totalTransactions = uniqueTransactions.size || 0;
+  // Calculate statistics - exclude COD from stats
+  const nonCodPurchases = purchases?.filter(p => p.payment_method !== "COD") || [];
+  const totalCustomers = new Set(nonCodPurchases.map(p => p.customer_id)).size || 0;
+  const totalUnitsPurchased = nonCodPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+  const totalPrice = nonCodPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
+  const totalTransactions = nonCodPurchases.length || 0;
 
   const stats = [
     {
