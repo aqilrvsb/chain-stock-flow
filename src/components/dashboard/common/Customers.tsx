@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, Plus } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
@@ -25,6 +25,22 @@ const Customers = ({ userType }: CustomersProps) => {
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [closingTypeFilter, setClosingTypeFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Fetch profile for StoreHub credentials (Branch only)
+  const { data: profile } = useQuery({
+    queryKey: ["profile-storehub", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("storehub_username, storehub_password")
+        .eq("id", user?.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: userType === "branch" && !!user?.id,
+  });
 
   // Fetch products for the dropdown
   const { data: products } = useQuery({
@@ -194,6 +210,217 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
+  // Sync from StoreHub (Branch only)
+  const handleStorehubSync = async () => {
+    if (!profile?.storehub_username || !profile?.storehub_password) {
+      Swal.fire({
+        icon: "warning",
+        title: "StoreHub Not Configured",
+        text: "Please configure your StoreHub credentials in Settings first.",
+        confirmButtonText: "OK"
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    try {
+      // Call Edge Function to fetch from StoreHub
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke("storehub-sync", {
+        body: {
+          storehub_username: profile.storehub_username,
+          storehub_password: profile.storehub_password,
+          date: today,
+        },
+        headers: {
+          Authorization: `Bearer ${session?.session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to sync from StoreHub");
+      }
+
+      const { transactions, customers: storehubCustomers, products: storehubProducts } = response.data;
+
+      if (!transactions || transactions.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "No Transactions",
+          text: `No transactions found in StoreHub for today (${today}).`,
+          confirmButtonText: "OK"
+        });
+        setIsSyncing(false);
+        return;
+      }
+
+      let importedCount = 0;
+      let skippedCount = 0;
+
+      // Process each transaction
+      for (const transaction of transactions) {
+        // Skip cancelled or return transactions
+        if (transaction.isCancelled || transaction.transactionType === "Return") {
+          skippedCount++;
+          continue;
+        }
+
+        // Get customer info from StoreHub
+        let customerName = "Walk-In Customer";
+        let customerPhone = "";
+        let customerAddress = "";
+        let customerState = "";
+
+        if (transaction.customerRefId) {
+          const storehubCustomer = storehubCustomers?.find(
+            (c: any) => c.refId === transaction.customerRefId
+          );
+          if (storehubCustomer) {
+            customerName = `${storehubCustomer.firstName || ""} ${storehubCustomer.lastName || ""}`.trim() || "Walk-In Customer";
+            customerPhone = storehubCustomer.phone || "";
+            customerAddress = [storehubCustomer.address1, storehubCustomer.address2, storehubCustomer.city]
+              .filter(Boolean)
+              .join(", ");
+            customerState = storehubCustomer.state || "";
+          }
+        }
+
+        // Check if this transaction already exists (by invoice number)
+        const { data: existingPurchase } = await supabase
+          .from("customer_purchases")
+          .select("id")
+          .eq("seller_id", user?.id)
+          .eq("remarks", `StoreHub: ${transaction.invoiceNumber}`)
+          .single();
+
+        if (existingPurchase) {
+          skippedCount++;
+          continue;
+        }
+
+        // Create or get customer
+        let customerId: string | null = null;
+        if (customerPhone) {
+          const { data: existingCustomer } = await supabase
+            .from("customers")
+            .select("id")
+            .eq("phone", customerPhone)
+            .eq("created_by", user?.id)
+            .single();
+
+          if (existingCustomer) {
+            customerId = existingCustomer.id;
+          }
+        }
+
+        if (!customerId) {
+          const { data: newCustomer, error: customerError } = await supabase
+            .from("customers")
+            .insert({
+              name: customerName,
+              phone: customerPhone || `storehub-${transaction.refId?.substring(0, 8) || Date.now()}`,
+              address: customerAddress,
+              state: customerState || "Unknown",
+              created_by: user?.id,
+            })
+            .select()
+            .single();
+
+          if (customerError) {
+            console.error("Failed to create customer:", customerError);
+            skippedCount++;
+            continue;
+          }
+          customerId = newCustomer.id;
+        }
+
+        // Process each item in the transaction
+        for (const item of transaction.items || []) {
+          if (item.itemType !== "Item") continue;
+
+          // Try to match product by SKU or name
+          const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
+          let localProduct = null;
+
+          if (storehubProduct) {
+            // Try to match by SKU first
+            localProduct = products?.find(
+              (p: any) => p.sku?.toLowerCase() === storehubProduct.sku?.toLowerCase()
+            );
+            // Then by name
+            if (!localProduct) {
+              localProduct = products?.find(
+                (p: any) => p.name?.toLowerCase() === storehubProduct.name?.toLowerCase()
+              );
+            }
+          }
+
+          // Determine payment method
+          let paymentMethod = "Cash";
+          if (transaction.payments && transaction.payments.length > 0) {
+            const payment = transaction.payments[0];
+            if (payment.paymentMethod?.toLowerCase().includes("card") ||
+                payment.paymentMethod?.toLowerCase().includes("credit")) {
+              paymentMethod = "Online Transfer";
+            } else if (payment.paymentMethod?.toLowerCase() === "cash") {
+              paymentMethod = "Cash";
+            } else {
+              paymentMethod = payment.paymentMethod || "Cash";
+            }
+          }
+
+          // Create customer purchase record
+          const { error: purchaseError } = await supabase
+            .from("customer_purchases")
+            .insert({
+              customer_id: customerId,
+              seller_id: user?.id,
+              product_id: localProduct?.id || null,
+              quantity: item.quantity || 1,
+              unit_price: item.unitPrice || item.subTotal / (item.quantity || 1),
+              total_price: item.total || item.subTotal,
+              payment_method: paymentMethod,
+              closing_type: "Walk In", // StoreHub transactions are Walk In
+              remarks: `StoreHub: ${transaction.invoiceNumber}`,
+            });
+
+          if (purchaseError) {
+            console.error("Failed to create purchase:", purchaseError);
+            skippedCount++;
+          } else {
+            importedCount++;
+          }
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+
+      Swal.fire({
+        icon: "success",
+        title: "Sync Complete!",
+        html: `
+          <p>StoreHub sync completed for ${today}</p>
+          <p><strong>Imported:</strong> ${importedCount} items</p>
+          <p><strong>Skipped:</strong> ${skippedCount} (duplicates/cancelled)</p>
+        `,
+        confirmButtonText: "OK"
+      });
+
+    } catch (error: any) {
+      console.error("StoreHub sync error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Sync Failed",
+        text: error.message || "Failed to sync from StoreHub",
+        confirmButtonText: "OK"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -203,10 +430,26 @@ const Customers = ({ userType }: CustomersProps) => {
             Manage your customer purchases and track sales
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Customer Purchase
-        </Button>
+        <div className="flex gap-2">
+          {userType === "branch" && (
+            <Button
+              variant="outline"
+              onClick={handleStorehubSync}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {isSyncing ? "Syncing..." : "Sync StoreHub"}
+            </Button>
+          )}
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Customer Purchase
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
