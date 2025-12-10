@@ -61,7 +61,7 @@ const MarketerManagement = () => {
     enabled: !!user?.id,
   });
 
-  // Register marketer mutation
+  // Register marketer mutation using edge function
   const registerMutation = useMutation({
     mutationFn: async ({
       idStaff,
@@ -72,45 +72,14 @@ const MarketerManagement = () => {
       fullName: string;
       password: string;
     }) => {
-      // Check if Staff ID already exists
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("idstaff", idStaff)
-        .single();
+      const { data, error } = await supabase.functions.invoke("register-marketer", {
+        body: { idStaff, fullName, password },
+      });
 
-      if (existing) {
-        throw new Error("Staff ID already exists");
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Create profile with marketer role
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          email: `${idStaff}@marketer.local`,
-          full_name: fullName,
-          idstaff: idStaff,
-          password_hash: password.toUpperCase(),
-          branch_id: user?.id,
-          is_active: true,
-        })
-        .select()
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Assign marketer role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({
-          user_id: profile.id,
-          role: "marketer",
-          created_by: user?.id,
-        });
-
-      if (roleError) throw roleError;
-
-      return profile;
+      return data.user;
     },
     onSuccess: () => {
       toast.success("Marketer registered successfully");
