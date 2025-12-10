@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 const MasterAgentInventory = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -54,41 +54,80 @@ const MasterAgentInventory = () => {
       // Calculate Stock In and Stock Out for each product
       const productsWithStock = await Promise.all(
         allProductsData.map(async (product) => {
-          // Stock In from pending_orders (Master Agent purchases from HQ)
-          let stockInQuery = supabase
-            .from("pending_orders")
-            .select("quantity")
-            .eq("buyer_id", user?.id)
-            .eq("product_id", product.id)
-            .eq("status", "completed");
+          let stockIn = 0;
+          let stockOut = 0;
 
-          if (startDate) {
-            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          // For Branch: Stock In comes from stock_in_branch table
+          if (userRole === "branch") {
+            let stockInBranchQuery = supabase
+              .from("stock_in_branch")
+              .select("quantity")
+              .eq("branch_id", user?.id)
+              .eq("product_id", product.id);
+
+            if (startDate) {
+              stockInBranchQuery = stockInBranchQuery.gte("date", startDate + 'T00:00:00.000Z');
+            }
+            if (endDate) {
+              stockInBranchQuery = stockInBranchQuery.lte("date", endDate + 'T23:59:59.999Z');
+            }
+
+            const { data: stockInBranchData } = await stockInBranchQuery;
+            stockIn = stockInBranchData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+            // Stock Out from stock_out_branch
+            let stockOutBranchQuery = supabase
+              .from("stock_out_branch")
+              .select("quantity")
+              .eq("branch_id", user?.id)
+              .eq("product_id", product.id);
+
+            if (startDate) {
+              stockOutBranchQuery = stockOutBranchQuery.gte("date", startDate + 'T00:00:00.000Z');
+            }
+            if (endDate) {
+              stockOutBranchQuery = stockOutBranchQuery.lte("date", endDate + 'T23:59:59.999Z');
+            }
+
+            const { data: stockOutBranchData } = await stockOutBranchQuery;
+            stockOut = stockOutBranchData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+          } else {
+            // For Master Agent: Stock In from pending_orders (Master Agent purchases from HQ)
+            let stockInQuery = supabase
+              .from("pending_orders")
+              .select("quantity")
+              .eq("buyer_id", user?.id)
+              .eq("product_id", product.id)
+              .eq("status", "completed");
+
+            if (startDate) {
+              stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            }
+            if (endDate) {
+              stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            }
+
+            const { data: stockInData } = await stockInQuery;
+            stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+            // Stock Out from agent_purchases (Agent purchases from Master Agent)
+            let stockOutQuery = supabase
+              .from("agent_purchases")
+              .select("quantity")
+              .eq("master_agent_id", user?.id)
+              .eq("product_id", product.id)
+              .eq("status", "completed");
+
+            if (startDate) {
+              stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            }
+            if (endDate) {
+              stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            }
+
+            const { data: stockOutData } = await stockOutQuery;
+            stockOut = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
           }
-          if (endDate) {
-            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
-          }
-
-          const { data: stockInData } = await stockInQuery;
-          const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-
-          // Stock Out from agent_purchases (Agent purchases from Master Agent)
-          let stockOutQuery = supabase
-            .from("agent_purchases")
-            .select("quantity")
-            .eq("master_agent_id", user?.id)
-            .eq("product_id", product.id)
-            .eq("status", "completed");
-
-          if (startDate) {
-            stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
-          }
-          if (endDate) {
-            stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
-          }
-
-          const { data: stockOutData } = await stockOutQuery;
-          const stockOut = stockOutData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
           return {
             ...product,
