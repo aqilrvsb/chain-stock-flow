@@ -10,6 +10,7 @@ import ReportingAgent from "./master-agent/ReportingAgent";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
 import Customers from "./common/Customers";
+import StockOutBranch from "./branch/StockOutBranch";
 
 const BranchDashboard = () => {
   const { userProfile } = useAuth();
@@ -21,6 +22,8 @@ const BranchDashboard = () => {
     switch (activeView) {
       case "inventory":
         return <MasterAgentInventory />;
+      case "stock-out":
+        return <StockOutBranch />;
       case "agents":
         return <MyAgents />;
       case "customers":

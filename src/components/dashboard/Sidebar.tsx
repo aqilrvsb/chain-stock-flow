@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, Warehouse } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, Warehouse, ArrowRightFromLine } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -96,6 +96,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
       return [
         { title: "Dashboard", icon: Home, value: "dashboard" },
         { title: "Inventory", icon: Package, value: "inventory" },
+        { title: "Stock Out", icon: ArrowRightFromLine, value: "stock-out" },
         { title: "My Agents", icon: Users, value: "agents" },
         { title: "Customers", icon: UserCheck, value: "customers" },
         { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },

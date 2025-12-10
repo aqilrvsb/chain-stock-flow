@@ -14,7 +14,7 @@ import { Package, Minus, Calendar, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-const StockOutHQ = () => {
+const StockOutBranch = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
@@ -27,9 +27,7 @@ const StockOutHQ = () => {
   const [quantity, setQuantity] = useState("");
   const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [description, setDescription] = useState("");
-  const [selectedMasterAgent, setSelectedMasterAgent] = useState("");
-  const [selectedBranch, setSelectedBranch] = useState("");
-  const [recipientType, setRecipientType] = useState<"none" | "master_agent" | "branch">("none");
+  const [selectedAgent, setSelectedAgent] = useState("");
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -43,65 +41,44 @@ const StockOutHQ = () => {
     },
   });
 
-  const { data: masterAgents } = useQuery({
-    queryKey: ["master-agents"],
+  // Get agents that belong to this branch
+  const { data: myAgents } = useQuery({
+    queryKey: ["branch-agents", user?.id],
     queryFn: async () => {
-      // First get all user_ids with master_agent role
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "master_agent");
+      // First get agent IDs from branch_agent_relationships
+      const { data: relationships, error: relError } = await supabase
+        .from("branch_agent_relationships")
+        .select("agent_id")
+        .eq("branch_id", user?.id);
 
-      if (rolesError) throw rolesError;
-      if (!userRoles || userRoles.length === 0) return [];
+      if (relError) throw relError;
+      if (!relationships || relationships.length === 0) return [];
 
-      const masterAgentIds = userRoles.map(ur => ur.user_id);
+      const agentIds = relationships.map(r => r.agent_id);
 
-      // Then get profiles for those user_ids
+      // Then get agent profiles
       const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, idstaff")
-        .in("id", masterAgentIds);
+        .in("id", agentIds);
 
       if (error) throw error;
       return data;
     },
-  });
-
-  const { data: branches } = useQuery({
-    queryKey: ["branches-list"],
-    queryFn: async () => {
-      // First get all user_ids with branch role
-      const { data: userRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "branch");
-
-      if (rolesError) throw rolesError;
-      if (!userRoles || userRoles.length === 0) return [];
-
-      const branchIds = userRoles.map(ur => ur.user_id);
-
-      // Then get profiles for those user_ids
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, idstaff")
-        .in("id", branchIds);
-
-      if (error) throw error;
-      return data;
-    },
+    enabled: !!user?.id,
   });
 
   const { data: stockOuts, isLoading } = useQuery({
-    queryKey: ["stock-out-hq", startDate, endDate],
+    queryKey: ["stock-out-branch", user?.id, startDate, endDate],
     queryFn: async () => {
       let query = supabase
-        .from("stock_out_hq")
+        .from("stock_out_branch")
         .select(`
           *,
-          product:products(name, sku)
+          product:products(name, sku),
+          recipient:profiles!stock_out_branch_recipient_id_fkey(idstaff, full_name)
         `)
+        .eq("branch_id", user?.id)
         .order("date", { ascending: false });
 
       if (startDate) {
@@ -115,6 +92,7 @@ const StockOutHQ = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!user?.id,
   });
 
   const removeStock = useMutation({
@@ -136,149 +114,65 @@ const StockOutHQ = () => {
         throw new Error(`Insufficient inventory. Available: ${existing.quantity}, Requested: ${quantityToRemove}`);
       }
 
-      // Get product details for pricing
-      const { data: product } = await supabase
-        .from("products")
-        .select("price_hq_to_ma")
-        .eq("id", selectedProduct)
-        .single();
-
-      // Determine recipient
-      const recipientId = recipientType === "master_agent" ? selectedMasterAgent :
-                          recipientType === "branch" ? selectedBranch : null;
-
-      // Insert stock out record with recipient info
+      // Insert stock out record
       const { error: stockOutError } = await supabase
-        .from("stock_out_hq")
+        .from("stock_out_branch")
         .insert({
-          user_id: user?.id,
+          branch_id: user?.id,
           product_id: selectedProduct,
           quantity: quantityToRemove,
           date: stockDate,
           description: description || null,
-          recipient_id: recipientId,
-          recipient_type: recipientType !== "none" ? recipientType : null,
+          recipient_id: selectedAgent || null,
         });
 
       if (stockOutError) throw stockOutError;
 
-      // Update HQ inventory (decrease)
-      const newQuantity = existing.quantity - quantityToRemove;
-      const { error: updateError } = await supabase
-        .from("inventory")
-        .update({ quantity: newQuantity })
-        .eq("id", existing.id);
+      // Branch inventory is automatically updated by the database trigger
 
-      if (updateError) throw updateError;
-
-      // If master agent is selected, create pending_order record and update MA inventory
-      if (recipientType === "master_agent" && selectedMasterAgent && selectedMasterAgent.trim() !== "") {
-        const unitPrice = product?.price_hq_to_ma || 0;
-        const totalPrice = unitPrice * quantityToRemove;
-
-        // Generate order number
-        const orderNumber = `HQ-${Date.now()}`;
-
-        // Create pending_orders record with billplz_bill_id = 'HQ' for HQ manual transfers
-        const { error: orderError } = await supabase
-          .from("pending_orders")
-          .insert({
-            order_number: orderNumber,
-            buyer_id: selectedMasterAgent,
-            product_id: selectedProduct,
-            quantity: quantityToRemove,
-            unit_price: unitPrice,
-            total_price: totalPrice,
-            status: "completed",
-            transaction_id: "HQ_MANUAL_TRANSFER",
-            billplz_bill_id: "HQ",
-            remarks: description || `Manual stock transfer from HQ - Date: ${stockDate}`,
-          });
-
-        if (orderError) throw orderError;
-
-        // Check if MA already has inventory for this product
-        const { data: maInventory } = await supabase
+      // If agent is selected, update agent's inventory
+      if (selectedAgent && selectedAgent.trim() !== "") {
+        // Check if agent already has inventory for this product
+        const { data: agentInventory } = await supabase
           .from("inventory")
           .select("*")
-          .eq("user_id", selectedMasterAgent)
+          .eq("user_id", selectedAgent)
           .eq("product_id", selectedProduct)
           .single();
 
-        if (maInventory) {
-          // Update existing MA inventory (increase)
-          const { error: maUpdateError } = await supabase
+        if (agentInventory) {
+          // Update existing agent inventory (increase)
+          const { error: agentUpdateError } = await supabase
             .from("inventory")
-            .update({ quantity: maInventory.quantity + quantityToRemove })
-            .eq("id", maInventory.id);
+            .update({ quantity: agentInventory.quantity + quantityToRemove })
+            .eq("id", agentInventory.id);
 
-          if (maUpdateError) throw maUpdateError;
+          if (agentUpdateError) throw agentUpdateError;
         } else {
-          // Create new inventory record for MA
-          const { error: maInsertError } = await supabase
+          // Create new inventory record for agent
+          const { error: agentInsertError } = await supabase
             .from("inventory")
             .insert({
-              user_id: selectedMasterAgent,
+              user_id: selectedAgent,
               product_id: selectedProduct,
               quantity: quantityToRemove,
             });
 
-          if (maInsertError) throw maInsertError;
+          if (agentInsertError) throw agentInsertError;
         }
-      }
-
-      // If branch is selected, create stock_in_branch record and update Branch inventory
-      if (recipientType === "branch" && selectedBranch && selectedBranch.trim() !== "") {
-        // Create stock_in_branch record for the branch
-        const { data: stockOutRecord } = await supabase
-          .from("stock_out_hq")
-          .select("id")
-          .eq("user_id", user?.id)
-          .eq("product_id", selectedProduct)
-          .eq("date", stockDate)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        const { error: stockInBranchError } = await supabase
-          .from("stock_in_branch")
-          .insert({
-            branch_id: selectedBranch,
-            product_id: selectedProduct,
-            quantity: quantityToRemove,
-            description: description || `Stock transfer from HQ - Date: ${stockDate}`,
-            date: stockDate,
-            source_type: "hq",
-            hq_stock_out_id: stockOutRecord?.id || null,
-          });
-
-        if (stockInBranchError) throw stockInBranchError;
-
-        // Branch inventory is automatically updated by the database trigger
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-out-branch"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["pending-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["stock-in-branch"] });
 
-      const message = recipientType === "master_agent"
-        ? "Stock transferred to Master Agent successfully"
-        : recipientType === "branch"
-        ? "Stock transferred to Branch successfully"
+      const message = selectedAgent && selectedAgent.trim() !== ""
+        ? "Stock transferred to Agent successfully"
         : "Stock out recorded successfully";
       toast.success(message);
 
       setIsDialogOpen(false);
-      setSelectedProduct("");
-      setQuantity("");
-      setStockDate(format(new Date(), "yyyy-MM-dd"));
-      setDescription("");
-      setSelectedMasterAgent("");
-      setSelectedBranch("");
-      setRecipientType("none");
+      resetForm();
     },
     onError: (error: any) => {
       toast.error(error.message || "Failed to process stock out");
@@ -288,7 +182,7 @@ const StockOutHQ = () => {
   const updateStock = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from("stock_out_hq")
+        .from("stock_out_branch")
         .update({
           product_id: selectedProduct,
           quantity: parseInt(quantity),
@@ -300,7 +194,7 @@ const StockOutHQ = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-out-branch"] });
       toast.success("Stock out record updated successfully");
       setIsEditDialogOpen(false);
       resetForm();
@@ -313,14 +207,14 @@ const StockOutHQ = () => {
   const deleteStock = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("stock_out_hq")
+        .from("stock_out_branch")
         .delete()
         .eq("id", id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-out-branch"] });
       toast.success("Stock out record deleted successfully");
     },
     onError: (error: any) => {
@@ -333,9 +227,7 @@ const StockOutHQ = () => {
     setQuantity("");
     setStockDate(format(new Date(), "yyyy-MM-dd"));
     setDescription("");
-    setSelectedMasterAgent("");
-    setSelectedBranch("");
-    setRecipientType("none");
+    setSelectedAgent("");
     setEditingItem(null);
   };
 
@@ -367,10 +259,10 @@ const StockOutHQ = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-            Stock Out HQ
+            Stock Out
           </h1>
           <p className="text-muted-foreground mt-2">
-            Manage HQ inventory and stock removals
+            Transfer stock to your agents (optional)
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -382,7 +274,7 @@ const StockOutHQ = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Stock Out from HQ</DialogTitle>
+              <DialogTitle>Stock Out to Agent</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -401,61 +293,31 @@ const StockOutHQ = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Transfer To (Optional)</Label>
-                <Select
-                  value={recipientType}
-                  onValueChange={(value: "none" | "master_agent" | "branch") => {
-                    setRecipientType(value);
-                    setSelectedMasterAgent("");
-                    setSelectedBranch("");
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select recipient type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Transfer (Regular Stock Out)</SelectItem>
-                    <SelectItem value="master_agent">Master Agent</SelectItem>
-                    <SelectItem value="branch">Branch</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Agent (Optional)</Label>
+                <div className="flex gap-2">
+                  <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No Agent (Regular Stock Out)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {myAgents?.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.idstaff} - {agent.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedAgent && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelectedAgent("")}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </div>
-
-              {recipientType === "master_agent" && (
-                <div className="space-y-2">
-                  <Label>Master Agent</Label>
-                  <Select value={selectedMasterAgent} onValueChange={setSelectedMasterAgent}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Master Agent" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {masterAgents?.map((ma) => (
-                        <SelectItem key={ma.id} value={ma.id}>
-                          {ma.idstaff} - {ma.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {recipientType === "branch" && (
-                <div className="space-y-2">
-                  <Label>Branch</Label>
-                  <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches?.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.idstaff} - {branch.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label>Quantity</Label>
                 <Input
@@ -485,8 +347,9 @@ const StockOutHQ = () => {
                 onClick={() => removeStock.mutate()}
                 className="w-full"
                 variant="destructive"
+                disabled={!selectedProduct || !quantity || removeStock.isPending}
               >
-                Stock Out
+                {removeStock.isPending ? "Processing..." : "Stock Out"}
               </Button>
             </div>
           </DialogContent>
@@ -538,52 +401,54 @@ const StockOutHQ = () => {
             <p>Loading stock records...</p>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stockOuts?.map((item) => {
-                  const itemDate = item.date ? new Date(item.date) : null;
-                  const isValidDate = itemDate && !isNaN(itemDate.getTime());
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Agent</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stockOuts?.map((item) => {
+                    const itemDate = item.date ? new Date(item.date) : null;
+                    const isValidDate = itemDate && !isNaN(itemDate.getTime());
 
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell>{isValidDate ? format(itemDate, "dd-MM-yyyy") : "-"}</TableCell>
-                      <TableCell>{item.product?.name}</TableCell>
-                      <TableCell>{item.product?.sku}</TableCell>
-                      <TableCell className="font-bold text-red-600">{item.quantity}</TableCell>
-                      <TableCell>{item.description || "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>{isValidDate ? format(itemDate, "dd-MM-yyyy") : "-"}</TableCell>
+                        <TableCell>{item.product?.name}</TableCell>
+                        <TableCell>{item.product?.sku}</TableCell>
+                        <TableCell>{item.recipient?.idstaff || "-"}</TableCell>
+                        <TableCell className="font-bold text-red-600">{item.quantity}</TableCell>
+                        <TableCell>{item.description || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
@@ -653,4 +518,4 @@ const StockOutHQ = () => {
   );
 };
 
-export default StockOutHQ;
+export default StockOutBranch;
