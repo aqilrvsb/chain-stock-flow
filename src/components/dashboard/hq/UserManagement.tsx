@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MasterAgentManagement from "./MasterAgentManagement";
 import AgentManagement from "./AgentManagement";
+import BranchManagement from "./BranchManagement";
 
 const UserManagement = () => {
   return (
@@ -9,10 +10,14 @@ const UserManagement = () => {
       <Tabs defaultValue="master_agents" className="w-full">
         <TabsList>
           <TabsTrigger value="master_agents">Master Agents</TabsTrigger>
+          <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="agents">Agents</TabsTrigger>
         </TabsList>
         <TabsContent value="master_agents">
           <MasterAgentManagement />
+        </TabsContent>
+        <TabsContent value="branches">
+          <BranchManagement />
         </TabsContent>
         <TabsContent value="agents">
           <AgentManagement />
