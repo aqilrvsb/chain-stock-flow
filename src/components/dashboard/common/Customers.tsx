@@ -95,7 +95,50 @@ const Customers = ({ userType }: CustomersProps) => {
   }) || [];
   const totalCustomers = new Set(filteredPurchases.map(p => p.customer_id)).size || 0;
   const totalUnitsPurchased = filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
-  const totalPrice = filteredPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
+
+  // For Total Revenue: Use transaction_total (StoreHub invoice total) when available
+  // Group by invoice and sum unique transaction totals to match StoreHub exactly
+  const invoiceTotals = new Map<string, number>();
+  (purchases || []).forEach((p: any) => {
+    // Extract invoice number from StoreHub remarks or storehub_invoice field
+    const invoiceMatch = p.remarks?.match(/^StoreHub: ([^-]+)/);
+    const invoiceNumber = p.storehub_invoice || (invoiceMatch ? invoiceMatch[1] : null);
+
+    if (invoiceNumber && p.transaction_total) {
+      // StoreHub transaction - use transaction_total (only count once per invoice)
+      if (!invoiceTotals.has(invoiceNumber)) {
+        invoiceTotals.set(invoiceNumber, Number(p.transaction_total) || 0);
+      }
+    } else if (!invoiceNumber) {
+      // Manual entry - use total_price and unique ID
+      const productName = p.product?.name || p.storehub_product || "";
+      if (!productName.toUpperCase().includes("COD")) {
+        invoiceTotals.set(p.id, Number(p.total_price) || 0);
+      }
+    }
+  });
+
+  // For StoreHub entries without transaction_total (old data), fall back to summing item prices
+  const storehubInvoicesWithTotal = new Set(
+    (purchases || []).filter((p: any) => p.transaction_total).map((p: any) => {
+      const match = p.remarks?.match(/^StoreHub: ([^-]+)/);
+      return p.storehub_invoice || (match ? match[1] : null);
+    }).filter(Boolean)
+  );
+
+  // Add item prices for StoreHub entries without transaction_total
+  filteredPurchases.forEach((p: any) => {
+    const invoiceMatch = p.remarks?.match(/^StoreHub: ([^-]+)/);
+    const invoiceNumber = p.storehub_invoice || (invoiceMatch ? invoiceMatch[1] : null);
+    if (invoiceNumber && !storehubInvoicesWithTotal.has(invoiceNumber)) {
+      // Old StoreHub data without transaction_total - sum item prices
+      const currentTotal = invoiceTotals.get(invoiceNumber) || 0;
+      invoiceTotals.set(invoiceNumber, currentTotal + (Number(p.total_price) || 0));
+    }
+  });
+
+  const totalPrice = Array.from(invoiceTotals.values()).reduce((sum, val) => sum + val, 0);
+
   // Count unique transactions (by invoice number from remarks) to match StoreHub
   const uniqueInvoices = new Set(
     filteredPurchases.map(p => {
@@ -267,13 +310,28 @@ const Customers = ({ userType }: CustomersProps) => {
       const sortedTransactions = [...(transactions || [])].sort((a: any, b: any) =>
         new Date(a.transactionTime).getTime() - new Date(b.transactionTime).getTime()
       );
+      let expectedTotal = 0;
       sortedTransactions.forEach((t: any, idx: number) => {
         const utcDate = new Date(t.transactionTime);
         const malaysiaDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
         const timeStr = malaysiaDate.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
-        console.log(`${idx + 1}. ${timeStr} | Invoice: ${t.invoiceNumber} | Total: RM ${t.total} | Items: ${t.items?.length || 0}`);
+        expectedTotal += Number(t.total) || 0;
+
+        // For multi-item transactions, show item details
+        if ((t.items?.length || 0) > 1) {
+          console.log(`${idx + 1}. ${timeStr} | Invoice: ${t.invoiceNumber} | Total: RM ${t.total} | Items: ${t.items?.length || 0}`);
+          t.items?.forEach((item: any, itemIdx: number) => {
+            if (item.itemType === "Item") {
+              const itemName = item.itemName || item.name || "Unknown";
+              const isCOD = itemName.toUpperCase() === "COD";
+              console.log(`   Item ${itemIdx}: ${itemName} | Qty: ${item.quantity} | Total: RM ${item.total || item.subTotal}${isCOD ? ' [SKIPPED - COD]' : ''}`);
+            }
+          });
+        } else {
+          console.log(`${idx + 1}. ${timeStr} | Invoice: ${t.invoiceNumber} | Total: RM ${t.total} | Items: ${t.items?.length || 0}`);
+        }
       });
-      console.log("=========================================");
+      console.log(`========== EXPECTED TOTAL: RM ${expectedTotal} ==========`);
 
       if (!transactions || transactions.length === 0) {
         Swal.fire({
@@ -419,7 +477,9 @@ const Customers = ({ userType }: CustomersProps) => {
               payment_method: paymentMethod,
               closing_type: "Walk In", // StoreHub transactions are Walk In
               remarks: itemRemarks, // Unique per item: InvoiceNumber-ItemIndex
-            });
+              transaction_total: transaction.total, // Full invoice total from StoreHub
+              storehub_invoice: transaction.invoiceNumber, // Invoice number for grouping
+            } as any);
 
           if (purchaseError) {
             console.error("Failed to create purchase:", purchaseError);
