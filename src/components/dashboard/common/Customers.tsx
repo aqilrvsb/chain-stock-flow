@@ -245,6 +245,15 @@ const Customers = ({ userType }: CustomersProps) => {
 
       const { transactions, customers: storehubCustomers, products: storehubProducts } = response.data;
 
+      // Debug: Log StoreHub data structure
+      console.log("StoreHub Transactions:", transactions);
+      console.log("StoreHub Customers:", storehubCustomers);
+      console.log("StoreHub Products:", storehubProducts);
+      if (transactions?.[0]) {
+        console.log("Sample Transaction:", JSON.stringify(transactions[0], null, 2));
+        console.log("Sample Items:", transactions[0].items);
+      }
+
       if (!transactions || transactions.length === 0) {
         Swal.fire({
           icon: "info",
@@ -338,9 +347,11 @@ const Customers = ({ userType }: CustomersProps) => {
         for (const item of transaction.items || []) {
           if (item.itemType !== "Item") continue;
 
-          // Get StoreHub product info
-          const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
-          const storehubProductName = storehubProduct?.name || item.name || "Unknown Product";
+          // Get StoreHub product info (use refId/productRefId per StoreHub API)
+          const storehubProduct = storehubProducts?.find((p: any) =>
+            p.refId === item.productRefId || p.id === item.productId
+          );
+          const storehubProductName = item.itemName || storehubProduct?.name || item.name || "Unknown Product";
 
           // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
           let paymentMethod = "Cash";
@@ -562,7 +573,7 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{purchase.customer?.state || "-"}</TableCell>
                     <TableCell>{purchase.payment_method}</TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
-                    <TableCell>{purchase.product?.name || "-"}</TableCell>
+                    <TableCell>{purchase.product?.name || purchase.storehub_product || "-"}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>{purchase.tracking_number || "-"}</TableCell>
