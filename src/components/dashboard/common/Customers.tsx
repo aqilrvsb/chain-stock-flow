@@ -296,18 +296,6 @@ const Customers = ({ userType }: CustomersProps) => {
           }
         }
 
-        // Check if this transaction already exists (by invoice number)
-        const { data: existingPurchases } = await supabase
-          .from("customer_purchases")
-          .select("id")
-          .eq("seller_id", user?.id)
-          .ilike("remarks", `StoreHub: ${transaction.invoiceNumber}%`);
-
-        if (existingPurchases && existingPurchases.length > 0) {
-          skippedCount++;
-          continue;
-        }
-
         // Create or get customer
         let customerId: string | null = null;
         if (customerPhone) {
@@ -344,8 +332,24 @@ const Customers = ({ userType }: CustomersProps) => {
         }
 
         // Process each item in the transaction
-        for (const item of transaction.items || []) {
+        for (let itemIndex = 0; itemIndex < (transaction.items || []).length; itemIndex++) {
+          const item = transaction.items[itemIndex];
           if (item.itemType !== "Item") continue;
+
+          // Create unique remarks for each item: InvoiceNumber-ItemIndex
+          const itemRemarks = `StoreHub: ${transaction.invoiceNumber}-${itemIndex}`;
+
+          // Check if this specific item already exists
+          const { data: existingItem } = await supabase
+            .from("customer_purchases")
+            .select("id")
+            .eq("seller_id", user?.id)
+            .eq("remarks", itemRemarks);
+
+          if (existingItem && existingItem.length > 0) {
+            skippedCount++;
+            continue; // Skip this item, already imported
+          }
 
           // Get StoreHub product info (use refId/productRefId per StoreHub API)
           const storehubProduct = storehubProducts?.find((p: any) =>
@@ -384,7 +388,7 @@ const Customers = ({ userType }: CustomersProps) => {
               total_price: item.total || item.subTotal,
               payment_method: paymentMethod,
               closing_type: "Walk In", // StoreHub transactions are Walk In
-              remarks: `StoreHub: ${transaction.invoiceNumber}`,
+              remarks: itemRemarks, // Unique per item: InvoiceNumber-ItemIndex
             });
 
           if (purchaseError) {
