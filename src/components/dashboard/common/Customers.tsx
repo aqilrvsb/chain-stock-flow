@@ -320,10 +320,35 @@ const Customers = ({ userType }: CustomersProps) => {
       return;
     }
 
+    // Show date picker popup first
+    const malaysiaDateNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+    const defaultDate = format(malaysiaDateNow, "yyyy-MM-dd");
+
+    const { value: selectedDate, isConfirmed } = await Swal.fire({
+      title: "Select Date to Sync",
+      html: `
+        <input type="date" id="sync-date" class="swal2-input" value="${defaultDate}" max="${defaultDate}" style="width: 100%;">
+        <p style="margin-top: 10px; font-size: 14px; color: #666;">Select the date to sync transactions from StoreHub</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Sync",
+      cancelButtonText: "Cancel",
+      preConfirm: () => {
+        const dateInput = document.getElementById('sync-date') as HTMLInputElement;
+        if (!dateInput?.value) {
+          Swal.showValidationMessage('Please select a date');
+          return false;
+        }
+        return dateInput.value;
+      }
+    });
+
+    if (!isConfirmed || !selectedDate) {
+      return;
+    }
+
     setIsSyncing(true);
-    // Use Malaysia timezone (UTC+8) for date
-    const malaysiaDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
-    const today = format(malaysiaDate, "yyyy-MM-dd");
+    const syncDate = selectedDate;
 
     try {
       // Call Edge Function to fetch from StoreHub
@@ -332,7 +357,7 @@ const Customers = ({ userType }: CustomersProps) => {
         body: {
           storehub_username: profile.storehub_username,
           storehub_password: profile.storehub_password,
-          date: today,
+          date: syncDate,
         },
         headers: {
           Authorization: `Bearer ${session?.session?.access_token}`,
@@ -347,7 +372,7 @@ const Customers = ({ userType }: CustomersProps) => {
 
       // Debug: Log ALL transactions with invoice numbers and times for comparison
       console.log("========== STOREHUB SYNC DEBUG ==========");
-      console.log(`Date requested: ${today}`);
+      console.log(`Date requested: ${syncDate}`);
       console.log(`Total transactions received: ${transactions?.length || 0}`);
       console.log("All transactions (sorted by time):");
       const sortedTransactions = [...(transactions || [])].sort((a: any, b: any) =>
@@ -380,7 +405,7 @@ const Customers = ({ userType }: CustomersProps) => {
         Swal.fire({
           icon: "info",
           title: "No Transactions",
-          text: `No transactions found in StoreHub for today (${today}).`,
+          text: `No transactions found in StoreHub for ${syncDate}.`,
           confirmButtonText: "OK"
         });
         setIsSyncing(false);
@@ -539,7 +564,7 @@ const Customers = ({ userType }: CustomersProps) => {
         icon: "success",
         title: "Sync Complete!",
         html: `
-          <p>StoreHub sync completed for ${today}</p>
+          <p>StoreHub sync completed for ${syncDate}</p>
           <p><strong>Imported:</strong> ${importedCount} items</p>
           <p><strong>Skipped:</strong> ${skippedCount} (duplicates/cancelled)</p>
         `,
