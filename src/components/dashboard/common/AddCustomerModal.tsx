@@ -22,12 +22,10 @@ interface AddCustomerModalProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CustomerPurchaseData) => void;
   isLoading?: boolean;
-  bundles: Array<{
+  products: Array<{
     id: string;
     name: string;
-    units: number;
-    agent_price?: number;
-    master_agent_price?: number;
+    sku: string;
   }>;
   userType: "master_agent" | "agent" | "branch";
 }
@@ -39,7 +37,8 @@ export interface CustomerPurchaseData {
   customerState: string;
   paymentMethod: string;
   closingType: string;
-  bundleId: string;
+  productId: string;
+  quantity: number;
   price: number;
 }
 
@@ -79,8 +78,7 @@ const AddCustomerModal = ({
   onOpenChange,
   onSubmit,
   isLoading = false,
-  bundles,
-  userType,
+  products,
 }: AddCustomerModalProps) => {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -88,11 +86,12 @@ const AddCustomerModal = ({
   const [customerState, setCustomerState] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [closingType, setClosingType] = useState("");
-  const [bundleId, setBundleId] = useState("");
+  const [productId, setProductId] = useState("");
+  const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
 
   const handleSubmit = () => {
-    if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !bundleId || !price) {
+    if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
       return;
     }
 
@@ -103,7 +102,8 @@ const AddCustomerModal = ({
       customerState,
       paymentMethod,
       closingType,
-      bundleId,
+      productId,
+      quantity: parseInt(quantity),
       price: parseFloat(price),
     });
 
@@ -114,7 +114,8 @@ const AddCustomerModal = ({
     setCustomerState("");
     setPaymentMethod("");
     setClosingType("");
-    setBundleId("");
+    setProductId("");
+    setQuantity("");
     setPrice("");
   };
 
@@ -124,7 +125,9 @@ const AddCustomerModal = ({
     customerState &&
     paymentMethod &&
     closingType &&
-    bundleId &&
+    productId &&
+    quantity &&
+    parseInt(quantity) > 0 &&
     price &&
     parseFloat(price) > 0;
 
@@ -220,21 +223,34 @@ const AddCustomerModal = ({
             </Select>
           </div>
 
-          {/* Bundle */}
+          {/* Product */}
           <div className="space-y-2">
-            <Label htmlFor="bundle">Bundle</Label>
-            <Select value={bundleId} onValueChange={setBundleId}>
-              <SelectTrigger id="bundle">
-                <SelectValue placeholder="Select bundle" />
+            <Label htmlFor="product">Product</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger id="product">
+                <SelectValue placeholder="Select product" />
               </SelectTrigger>
               <SelectContent>
-                {bundles?.map((bundle) => (
-                  <SelectItem key={bundle.id} value={bundle.id}>
-                    {bundle.name} ({bundle.units} units)
+                {products?.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name} ({product.sku})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Unit/Quantity */}
+          <div className="space-y-2">
+            <Label htmlFor="quantity">Unit</Label>
+            <Input
+              id="quantity"
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="Enter unit quantity"
+            />
           </div>
 
           {/* Price */}

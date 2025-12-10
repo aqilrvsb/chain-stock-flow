@@ -26,13 +26,13 @@ const Customers = ({ userType }: CustomersProps) => {
   const [closingTypeFilter, setClosingTypeFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch bundles for the dropdown
-  const { data: bundles } = useQuery({
-    queryKey: ["bundles-for-customer", userType],
+  // Fetch products for the dropdown
+  const { data: products } = useQuery({
+    queryKey: ["products-for-customer"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("bundles")
-        .select("*")
+        .from("products")
+        .select("id, name, sku")
         .eq("is_active", true);
       if (error) throw error;
       return data;
@@ -48,7 +48,6 @@ const Customers = ({ userType }: CustomersProps) => {
         .select(`
           *,
           customer:customers(name, phone, address, state),
-          bundle:bundles(name, units),
           product:products(name, sku)
         `)
         .eq("seller_id", user?.id)
@@ -108,29 +107,20 @@ const Customers = ({ userType }: CustomersProps) => {
 
   const createCustomerPurchase = useMutation({
     mutationFn: async (data: CustomerPurchaseData) => {
-      // Get bundle details
-      const { data: bundleData, error: bundleError } = await supabase
-        .from('bundles')
-        .select('product_id, units')
-        .eq('id', data.bundleId)
-        .single();
-
-      if (bundleError || !bundleData) throw bundleError || new Error('Bundle not found');
-
       // Check if seller has enough inventory
       const { data: inventoryData, error: inventoryError } = await supabase
         .from('inventory')
         .select('quantity')
         .eq('user_id', user?.id)
-        .eq('product_id', bundleData.product_id)
+        .eq('product_id', data.productId)
         .single();
 
       if (inventoryError || !inventoryData) {
         throw new Error('Inventory not found for this product');
       }
 
-      if (inventoryData.quantity < bundleData.units) {
-        throw new Error(`Insufficient inventory. Available: ${inventoryData.quantity}, Required: ${bundleData.units}`);
+      if (inventoryData.quantity < data.quantity) {
+        throw new Error(`Insufficient inventory. Available: ${inventoryData.quantity}, Required: ${data.quantity}`);
       }
 
       // Check if customer exists
@@ -167,10 +157,9 @@ const Customers = ({ userType }: CustomersProps) => {
         .insert({
           customer_id: customerId,
           seller_id: user?.id,
-          bundle_id: data.bundleId,
-          product_id: bundleData.product_id,
-          quantity: bundleData.units,
-          unit_price: data.price / bundleData.units,
+          product_id: data.productId,
+          quantity: data.quantity,
+          unit_price: data.price / data.quantity,
           total_price: data.price,
           payment_method: data.paymentMethod,
           closing_type: data.closingType,
@@ -182,9 +171,9 @@ const Customers = ({ userType }: CustomersProps) => {
       // Deduct inventory from seller
       const { error: updateError } = await supabase
         .from('inventory')
-        .update({ quantity: inventoryData.quantity - bundleData.units })
+        .update({ quantity: inventoryData.quantity - data.quantity })
         .eq('user_id', user?.id)
-        .eq('product_id', bundleData.product_id);
+        .eq('product_id', data.productId);
 
       if (updateError) throw updateError;
     },
@@ -316,7 +305,7 @@ const Customers = ({ userType }: CustomersProps) => {
                   <TableHead>State</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Jenis Closing</TableHead>
-                  <TableHead>Bundle</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Price</TableHead>
                 </TableRow>
@@ -338,7 +327,7 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{purchase.customer?.state || "-"}</TableCell>
                     <TableCell>{purchase.payment_method}</TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
-                    <TableCell>{purchase.bundle?.name || "-"}</TableCell>
+                    <TableCell>{purchase.product?.name || "-"}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
                   </TableRow>
@@ -355,7 +344,7 @@ const Customers = ({ userType }: CustomersProps) => {
         onOpenChange={setIsModalOpen}
         onSubmit={(data) => createCustomerPurchase.mutate(data)}
         isLoading={createCustomerPurchase.isPending}
-        bundles={bundles || []}
+        products={products || []}
         userType={userType}
       />
     </div>
