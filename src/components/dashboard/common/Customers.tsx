@@ -163,6 +163,7 @@ const Customers = ({ userType }: CustomersProps) => {
           total_price: data.price,
           payment_method: data.paymentMethod,
           closing_type: data.closingType,
+          tracking_number: data.trackingNumber || null,
           remarks: 'Customer purchase',
         });
 
@@ -308,6 +309,7 @@ const Customers = ({ userType }: CustomersProps) => {
                   <TableHead>Product</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Price</TableHead>
+                  <TableHead>Tracking No.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -330,6 +332,7 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{purchase.product?.name || "-"}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
+                    <TableCell>{purchase.tracking_number || "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

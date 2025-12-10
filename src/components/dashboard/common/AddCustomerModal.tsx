@@ -40,6 +40,7 @@ export interface CustomerPurchaseData {
   productId: string;
   quantity: number;
   price: number;
+  trackingNumber?: string;
 }
 
 const MALAYSIAN_STATES = [
@@ -89,6 +90,7 @@ const AddCustomerModal = ({
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
 
   const handleSubmit = () => {
     if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
@@ -105,6 +107,7 @@ const AddCustomerModal = ({
       productId,
       quantity: parseInt(quantity),
       price: parseFloat(price),
+      trackingNumber: trackingNumber || undefined,
     });
 
     // Reset form
@@ -117,6 +120,7 @@ const AddCustomerModal = ({
     setProductId("");
     setQuantity("");
     setPrice("");
+    setTrackingNumber("");
   };
 
   const isFormValid =
@@ -264,6 +268,17 @@ const AddCustomerModal = ({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="Enter price"
+            />
+          </div>
+
+          {/* Tracking Number (Optional) */}
+          <div className="space-y-2">
+            <Label htmlFor="tracking-number">Tracking Number (Optional)</Label>
+            <Input
+              id="tracking-number"
+              value={trackingNumber}
+              onChange={(e) => setTrackingNumber(e.target.value)}
+              placeholder="Enter tracking number"
             />
           </div>
         </div>
