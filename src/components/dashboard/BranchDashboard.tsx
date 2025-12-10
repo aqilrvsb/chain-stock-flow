@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { useCustomerSegment } from "@/hooks/useCustomerSegment";
 import MasterAgentInventory from "./master-agent/MasterAgentInventory";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
@@ -16,14 +15,7 @@ const BranchDashboard = () => {
   const { userProfile } = useAuth();
   const userName = userProfile?.idstaff || "User";
   const [activeView, setActiveView] = useState("dashboard");
-  const { isCustomerSegmentEnabled } = useCustomerSegment();
-
-  // Redirect to dashboard if customer segment is disabled and user is on customers view
-  useEffect(() => {
-    if (!isCustomerSegmentEnabled && activeView === "customers") {
-      setActiveView("dashboard");
-    }
-  }, [isCustomerSegmentEnabled, activeView]);
+  // Branch always has Customers enabled - no dependency on HQ settings
 
   const renderView = () => {
     switch (activeView) {
