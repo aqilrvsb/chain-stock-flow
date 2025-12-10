@@ -454,7 +454,17 @@ const BranchManagement = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(user.created_at), "dd-MM-yyyy")}
+                      <div className="text-sm">
+                        <div>{format(new Date(user.created_at), "dd-MM-yyyy")}</div>
+                        <div className="text-muted-foreground text-xs">
+                          {new Date(user.created_at).toLocaleTimeString('en-MY', {
+                            timeZone: 'Asia/Kuala_Lumpur',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
