@@ -712,6 +712,7 @@ const Settings = () => {
       )}
 
       {userRole === 'branch' && (
+        <>
         <Card>
           <CardHeader>
             <CardTitle>Storehub API Integration</CardTitle>
@@ -893,6 +894,7 @@ const Settings = () => {
             </Button>
           </CardContent>
         </Card>
+        </>
       )}
 
       <Card>
