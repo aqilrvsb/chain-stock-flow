@@ -314,7 +314,7 @@ const StockInBranch = () => {
           <CardTitle>Received Stock History</CardTitle>
         </CardHeader>
         <CardContent>
-          {approvedStock?.length === 0 ? (
+          {!approvedStock || approvedStock.length === 0 ? (
             <p className="text-muted-foreground">No stock received yet.</p>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">

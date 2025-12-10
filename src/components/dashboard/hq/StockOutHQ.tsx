@@ -124,7 +124,8 @@ const StockOutHQ = () => {
         .from("stock_out_hq")
         .select(`
           *,
-          product:products(name, sku)
+          product:products(name, sku),
+          recipient:profiles!stock_out_hq_recipient_id_fkey(idstaff, full_name)
         `)
         .order("date", { ascending: false });
 
@@ -790,12 +791,13 @@ const StockOutHQ = () => {
                   <TableHead>Product</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Quantity</TableHead>
+                  <TableHead>Sent To</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockOuts?.map((item) => {
+                {stockOuts?.map((item: any) => {
                   const itemDate = item.date ? new Date(item.date) : null;
                   const isValidDate = itemDate && !isNaN(itemDate.getTime());
 
@@ -805,6 +807,18 @@ const StockOutHQ = () => {
                       <TableCell>{item.product?.name}</TableCell>
                       <TableCell>{item.product?.sku}</TableCell>
                       <TableCell className="font-bold text-red-600">{item.quantity}</TableCell>
+                      <TableCell>
+                        {item.recipient_id && item.recipient ? (
+                          <div>
+                            <div className="font-medium">{item.recipient.idstaff}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {item.recipient_type === "master_agent" ? "Master Agent" : item.recipient_type === "branch" ? "Branch" : ""}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>{item.description || "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
