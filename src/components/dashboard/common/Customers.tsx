@@ -139,15 +139,58 @@ const Customers = ({ userType }: CustomersProps) => {
 
   const totalPrice = Array.from(invoiceTotals.values()).reduce((sum, val) => sum + val, 0);
 
+  // Group purchases by invoice for display (one row per transaction)
+  const groupedPurchases = (() => {
+    const grouped = new Map<string, any>();
+
+    (purchases || []).forEach((p: any) => {
+      // Extract invoice number from StoreHub remarks or storehub_invoice field
+      const invoiceMatch = p.remarks?.match(/^StoreHub: ([^-]+)/);
+      const invoiceNumber = p.storehub_invoice || (invoiceMatch ? invoiceMatch[1] : null);
+
+      // Skip COD products
+      const productName = p.product?.name || p.storehub_product || "";
+      if (productName.toUpperCase().includes("COD")) return;
+
+      const key = invoiceNumber || p.id; // Use invoice for StoreHub, or purchase ID for manual
+
+      if (!grouped.has(key)) {
+        // First item for this invoice - create new entry
+        grouped.set(key, {
+          id: p.id,
+          invoiceNumber: invoiceNumber,
+          created_at: p.created_at,
+          customer: p.customer,
+          payment_method: p.payment_method,
+          closing_type: p.closing_type,
+          tracking_number: p.tracking_number,
+          // For StoreHub: use transaction_total, for manual: use total_price
+          total_price: p.transaction_total || p.total_price,
+          // Combine product names
+          products: [productName],
+          // Sum quantities
+          total_quantity: p.quantity || 0,
+        });
+      } else {
+        // Additional item for same invoice - aggregate
+        const existing = grouped.get(key);
+        existing.products.push(productName);
+        existing.total_quantity += p.quantity || 0;
+        // Don't add to total_price if we have transaction_total (it's already the full amount)
+        if (!p.transaction_total) {
+          existing.total_price = (Number(existing.total_price) || 0) + (Number(p.total_price) || 0);
+        }
+      }
+    });
+
+    // Convert to array and sort by date descending
+    return Array.from(grouped.values()).sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  })();
+
   // Count unique transactions (by invoice number from remarks) to match StoreHub
-  const uniqueInvoices = new Set(
-    filteredPurchases.map(p => {
-      // Extract invoice number from StoreHub remarks: "StoreHub: INVOICENUMBER-ITEMINDEX"
-      const match = p.remarks?.match(/^StoreHub: ([^-]+)/);
-      return match ? match[1] : p.id; // Use invoice for StoreHub, or purchase ID for manual
-    })
-  );
-  const totalTransactions = uniqueInvoices.size || 0;
+  const totalTransactions = groupedPurchases.length;
 
   const stats = [
     {
@@ -651,7 +694,7 @@ const Customers = ({ userType }: CustomersProps) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {purchases?.map((purchase: any, index) => (
+                {groupedPurchases.map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
@@ -667,8 +710,14 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{purchase.customer?.state || "-"}</TableCell>
                     <TableCell>{purchase.payment_method}</TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
-                    <TableCell>{purchase.product?.name || purchase.storehub_product || "-"}</TableCell>
-                    <TableCell>{purchase.quantity}</TableCell>
+                    <TableCell>
+                      <span className="text-sm" title={purchase.products.join(", ")}>
+                        {purchase.products.length > 1
+                          ? `${purchase.products[0]} (+${purchase.products.length - 1} more)`
+                          : purchase.products[0] || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell>{purchase.total_quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>{purchase.tracking_number || "-"}</TableCell>
                   </TableRow>
