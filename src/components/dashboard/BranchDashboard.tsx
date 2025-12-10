@@ -3,6 +3,10 @@ import DashboardLayout from "./DashboardLayout";
 import { useAuth } from "@/hooks/useAuth";
 import MasterAgentInventory from "./master-agent/MasterAgentInventory";
 import MyAgents from "./master-agent/MyAgents";
+import TransactionAgent from "./master-agent/TransactionAgent";
+import RewardAgentPlatinum from "./master-agent/RewardAgentPlatinum";
+import RewardAgentGold from "./master-agent/RewardAgentGold";
+import ReportingAgent from "./master-agent/ReportingAgent";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
 import Customers from "./common/Customers";
@@ -30,6 +34,14 @@ const BranchDashboard = () => {
         return <Customers userType="branch" />;
       case "logistics":
         return <BranchLogistics />;
+      case "transaction-agent":
+        return <TransactionAgent />;
+      case "reward-agent-platinum":
+        return <RewardAgentPlatinum />;
+      case "reward-agent-gold":
+        return <RewardAgentGold />;
+      case "reporting-agent":
+        return <ReportingAgent />;
       case "analytics":
         return <MyAnalytics />;
       case "settings":

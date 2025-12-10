@@ -92,16 +92,8 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
 
       return items;
     } else if (userRole === "branch") {
-      // Branch always has Customers enabled - not dependent on HQ settings
-      return [
-        { title: "Dashboard", icon: Home, value: "dashboard" },
-        { title: "Inventory", icon: Package, value: "inventory" },
-        { title: "Stock In", icon: ArrowLeftToLine, value: "stock-in" },
-        { title: "Stock Out", icon: ArrowRightFromLine, value: "stock-out" },
-        { title: "My Agents", icon: Users, value: "agents" },
-        { title: "Customers", icon: UserCheck, value: "customers" },
-        { title: "Logistics", icon: Truck, value: "logistics" },
-      ];
+      // Branch has its own dedicated sidebar with collapsible Agent menu
+      return [];
     }
     return [{ title: "Dashboard", icon: Home, value: "dashboard" }];
   };
@@ -481,6 +473,220 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   >
                     <Package className="h-4 w-4" />
                     {open && <span>Raw Material</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup className="mt-auto">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("settings")}
+                    isActive={activeView === "settings"}
+                    className="cursor-pointer"
+                  >
+                    <Settings className="h-4 w-4" />
+                    {open && <span>Settings</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setIsSOPOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {open && <span>SOP</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                {profile?.idstaff?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+            {open && (
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{profile?.idstaff || user?.email?.split("@")[0]}</p>
+              </div>
+            )}
+          </div>
+          {open && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={signOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          )}
+        </SidebarFooter>
+
+        <SOPModal
+          isOpen={isSOPOpen}
+          onClose={() => setIsSOPOpen(false)}
+          userRole={userRole || ""}
+        />
+      </Sidebar>
+    );
+  }
+
+  // Branch Sidebar with collapsible Agent menu
+  if (userRole === "branch") {
+    return (
+      <Sidebar className="border-r">
+        <SidebarHeader className="border-b p-4">
+          <h1 className="text-xl font-bold text-primary">
+            {open ? "OliveJardin Hub" : "OJ"}
+          </h1>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {/* Dashboard */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("dashboard")}
+                    isActive={activeView === "dashboard"}
+                    className="cursor-pointer"
+                  >
+                    <Home className="h-4 w-4" />
+                    {open && <span>Dashboard</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Inventory */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("inventory")}
+                    isActive={activeView === "inventory"}
+                    className="cursor-pointer"
+                  >
+                    <Package className="h-4 w-4" />
+                    {open && <span>Inventory</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Stock In */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("stock-in")}
+                    isActive={activeView === "stock-in"}
+                    className="cursor-pointer"
+                  >
+                    <ArrowLeftToLine className="h-4 w-4" />
+                    {open && <span>Stock In</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Stock Out */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("stock-out")}
+                    isActive={activeView === "stock-out"}
+                    className="cursor-pointer"
+                  >
+                    <ArrowRightFromLine className="h-4 w-4" />
+                    {open && <span>Stock Out</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Agent Group - Collapsible */}
+                <Collapsible defaultOpen className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <Users className="h-4 w-4" />
+                        {open && <span>Agent</span>}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("agents")}
+                            isActive={activeView === "agents"}
+                            className="cursor-pointer"
+                          >
+                            <span>My Agents</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("transaction-agent")}
+                            isActive={activeView === "transaction-agent"}
+                            className="cursor-pointer"
+                          >
+                            <span>Transaction Agent</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reward-agent-platinum")}
+                            isActive={activeView === "reward-agent-platinum"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reward Agent Platinum</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reward-agent-gold")}
+                            isActive={activeView === "reward-agent-gold"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reward Agent Gold</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reporting-agent")}
+                            isActive={activeView === "reporting-agent"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reporting Agent</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+
+                {/* Customers */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("customers")}
+                    isActive={activeView === "customers"}
+                    className="cursor-pointer"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    {open && <span>Customers</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Logistics */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("logistics")}
+                    isActive={activeView === "logistics"}
+                    className="cursor-pointer"
+                  >
+                    <Truck className="h-4 w-4" />
+                    {open && <span>Logistics</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
