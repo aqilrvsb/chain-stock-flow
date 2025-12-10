@@ -60,7 +60,7 @@ const LogisticsOrder = () => {
         `)
         .eq("seller_id", user?.id)
         .eq("delivery_status", "Pending")
-        .or("platform.is.null,platform.neq.StoreHub")
+        .is("platform", null)
         .order("created_at", { ascending: false });
 
       if (startDate) {

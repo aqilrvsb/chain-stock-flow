@@ -58,7 +58,7 @@ const LogisticsReturn = () => {
         `)
         .eq("seller_id", user?.id)
         .eq("delivery_status", "Return")
-        .or("platform.is.null,platform.neq.StoreHub")
+        .is("platform", null)
         .order("date_return", { ascending: false });
 
       if (startDate) {
