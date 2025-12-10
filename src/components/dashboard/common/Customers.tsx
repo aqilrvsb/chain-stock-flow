@@ -288,14 +288,13 @@ const Customers = ({ userType }: CustomersProps) => {
         }
 
         // Check if this transaction already exists (by invoice number)
-        const { data: existingPurchase } = await supabase
+        const { data: existingPurchases } = await supabase
           .from("customer_purchases")
           .select("id")
           .eq("seller_id", user?.id)
-          .eq("remarks", `StoreHub: ${transaction.invoiceNumber}`)
-          .single();
+          .ilike("remarks", `StoreHub: ${transaction.invoiceNumber}%`);
 
-        if (existingPurchase) {
+        if (existingPurchases && existingPurchases.length > 0) {
           skippedCount++;
           continue;
         }
@@ -303,15 +302,14 @@ const Customers = ({ userType }: CustomersProps) => {
         // Create or get customer
         let customerId: string | null = null;
         if (customerPhone) {
-          const { data: existingCustomer } = await supabase
+          const { data: existingCustomers } = await supabase
             .from("customers")
             .select("id")
             .eq("phone", customerPhone)
-            .eq("created_by", user?.id)
-            .single();
+            .eq("created_by", user?.id);
 
-          if (existingCustomer) {
-            customerId = existingCustomer.id;
+          if (existingCustomers && existingCustomers.length > 0) {
+            customerId = existingCustomers[0].id;
           }
         }
 
@@ -340,22 +338,9 @@ const Customers = ({ userType }: CustomersProps) => {
         for (const item of transaction.items || []) {
           if (item.itemType !== "Item") continue;
 
-          // Try to match product by SKU or name
+          // Get StoreHub product info
           const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
-          let localProduct = null;
-
-          if (storehubProduct) {
-            // Try to match by SKU first
-            localProduct = products?.find(
-              (p: any) => p.sku?.toLowerCase() === storehubProduct.sku?.toLowerCase()
-            );
-            // Then by name
-            if (!localProduct) {
-              localProduct = products?.find(
-                (p: any) => p.name?.toLowerCase() === storehubProduct.name?.toLowerCase()
-              );
-            }
-          }
+          const storehubProductName = storehubProduct?.name || item.name || "Unknown Product";
 
           // Determine payment method
           let paymentMethod = "Cash";
@@ -371,13 +356,14 @@ const Customers = ({ userType }: CustomersProps) => {
             }
           }
 
-          // Create customer purchase record
+          // Create customer purchase record with storehub_product
           const { error: purchaseError } = await supabase
             .from("customer_purchases")
             .insert({
               customer_id: customerId,
               seller_id: user?.id,
-              product_id: localProduct?.id || null,
+              product_id: null, // No local product match needed
+              storehub_product: storehubProductName, // Store StoreHub product name
               quantity: item.quantity || 1,
               unit_price: item.unitPrice || item.subTotal / (item.quantity || 1),
               total_price: item.total || item.subTotal,
