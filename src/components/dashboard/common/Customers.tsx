@@ -251,16 +251,21 @@ const Customers = ({ userType }: CustomersProps) => {
 
       const { transactions, customers: storehubCustomers, products: storehubProducts } = response.data;
 
-      // Debug: Log ALL transactions with invoice numbers and times
-      console.log("=== STOREHUB SYNC DEBUG ===");
+      // Debug: Log ALL transactions with invoice numbers and times for comparison
+      console.log("========== STOREHUB SYNC DEBUG ==========");
+      console.log(`Date requested: ${today}`);
       console.log(`Total transactions received: ${transactions?.length || 0}`);
-      console.log("All transactions:");
-      transactions?.forEach((t: any, idx: number) => {
+      console.log("All transactions (sorted by time):");
+      const sortedTransactions = [...(transactions || [])].sort((a: any, b: any) =>
+        new Date(a.transactionTime).getTime() - new Date(b.transactionTime).getTime()
+      );
+      sortedTransactions.forEach((t: any, idx: number) => {
         const utcDate = new Date(t.transactionTime);
         const malaysiaDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
-        console.log(`${idx + 1}. Invoice: ${t.invoiceNumber} | Time (MY): ${malaysiaDate.toLocaleString()} | Type: ${t.transactionType} | Total: ${t.total} | Items: ${t.items?.length || 0}`);
+        const timeStr = malaysiaDate.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
+        console.log(`${idx + 1}. ${timeStr} | Invoice: ${t.invoiceNumber} | Total: RM ${t.total} | Items: ${t.items?.length || 0}`);
       });
-      console.log("=========================");
+      console.log("=========================================");
 
       if (!transactions || transactions.length === 0) {
         Swal.fire({
