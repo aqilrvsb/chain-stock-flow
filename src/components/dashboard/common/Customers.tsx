@@ -164,6 +164,7 @@ const Customers = ({ userType }: CustomersProps) => {
           payment_method: p.payment_method,
           closing_type: p.closing_type,
           tracking_number: p.tracking_number,
+          platform: p.platform || "Manual",
           // For StoreHub: use transaction_total, for manual: use total_price
           total_price: p.transaction_total || p.total_price,
           // Combine product names
@@ -547,6 +548,7 @@ const Customers = ({ userType }: CustomersProps) => {
               remarks: itemRemarks, // Unique per item: InvoiceNumber-ItemIndex
               transaction_total: transaction.total, // Full invoice total from StoreHub
               storehub_invoice: transaction.invoiceNumber, // Invoice number for grouping
+              platform: "StoreHub", // Track source platform
             } as any);
 
           if (purchaseError) {
@@ -706,6 +708,7 @@ const Customers = ({ userType }: CustomersProps) => {
                 <TableRow>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Platform</TableHead>
                   <TableHead>Name Customer</TableHead>
                   <TableHead>Phone Customer</TableHead>
                   <TableHead>Address</TableHead>
@@ -724,6 +727,15 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       {format(new Date(purchase.created_at), "dd-MM-yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        purchase.platform === "StoreHub"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {purchase.platform || "Manual"}
+                      </span>
                     </TableCell>
                     <TableCell>{purchase.customer?.name || "-"}</TableCell>
                     <TableCell>{purchase.customer?.phone || "-"}</TableCell>
