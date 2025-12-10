@@ -21,6 +21,8 @@ const Settings = () => {
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const [billplzApiKey, setBillplzApiKey] = useState("");
   const [billplzCollectionId, setBillplzCollectionId] = useState("");
+  const [storehubUsername, setStorehubUsername] = useState("");
+  const [storehubPassword, setStorehubPassword] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
@@ -380,6 +382,40 @@ const Settings = () => {
     }
   };
 
+  const handleStorehubUpdate = async () => {
+    if (!storehubUsername || !storehubPassword) {
+      toast({
+        title: "Missing information",
+        description: "Please provide both Username and Password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          storehub_username: storehubUsername,
+          storehub_password: storehubPassword,
+        })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Storehub credentials updated successfully" });
+      setStorehubUsername("");
+      setStorehubPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -548,6 +584,50 @@ const Settings = () => {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {userRole === 'branch' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Storehub API Integration</CardTitle>
+            <CardDescription>Configure your Storehub API credentials for POS integration</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profile && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p className="font-medium">Current Configuration:</p>
+                <p className="text-muted-foreground">Username: {profile.storehub_username || 'Not set'}</p>
+                <p className="text-muted-foreground">Password: {profile.storehub_password ? '••••••••' : 'Not set'}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="storehub_username">Storehub Username</Label>
+              <Input
+                id="storehub_username"
+                type="text"
+                value={storehubUsername}
+                onChange={(e) => setStorehubUsername(e.target.value)}
+                placeholder="Enter Storehub Username"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storehub_password">Storehub Password</Label>
+              <Input
+                id="storehub_password"
+                type="password"
+                value={storehubPassword}
+                onChange={(e) => setStorehubPassword(e.target.value)}
+                placeholder="Enter Storehub Password"
+              />
+            </div>
+
+            <Button onClick={handleStorehubUpdate}>
+              Save Storehub Configuration
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
