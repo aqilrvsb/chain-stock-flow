@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, Minus, Calendar, Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Package, Minus, Calendar, Pencil, Trash2, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -30,6 +32,9 @@ const StockOutHQ = () => {
   const [selectedMasterAgent, setSelectedMasterAgent] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("");
   const [recipientType, setRecipientType] = useState<"none" | "master_agent" | "branch">("none");
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectingRequest, setRejectingRequest] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -87,6 +92,25 @@ const StockOutHQ = () => {
         .from("profiles")
         .select("id, full_name, idstaff")
         .in("id", branchIds);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Get pending stock requests from branches
+  const { data: pendingRequests, isLoading: requestsLoading } = useQuery({
+    queryKey: ["branch-stock-requests-pending"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("branch_stock_requests")
+        .select(`
+          *,
+          product:products(name, sku),
+          branch:profiles!branch_stock_requests_branch_id_fkey(idstaff, full_name)
+        `)
+        .eq("status", "pending")
+        .order("requested_at", { ascending: true });
 
       if (error) throw error;
       return data;
@@ -328,6 +352,139 @@ const StockOutHQ = () => {
     },
   });
 
+  // Approve branch stock request
+  const approveRequest = useMutation({
+    mutationFn: async (request: any) => {
+      // Check if sufficient inventory exists in HQ
+      const { data: existing, error: fetchError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("product_id", request.product_id)
+        .single();
+
+      if (fetchError || !existing) {
+        throw new Error("No inventory found for this product in HQ");
+      }
+
+      if (existing.quantity < request.quantity) {
+        throw new Error(`Insufficient HQ inventory. Available: ${existing.quantity}, Requested: ${request.quantity}`);
+      }
+
+      const today = format(new Date(), "yyyy-MM-dd");
+
+      // Insert stock out record for HQ
+      const { data: stockOutRecord, error: stockOutError } = await supabase
+        .from("stock_out_hq")
+        .insert({
+          user_id: user?.id,
+          product_id: request.product_id,
+          quantity: request.quantity,
+          date: today,
+          description: `Approved request from Branch - ${request.description || "No notes"}`,
+          recipient_id: request.branch_id,
+          recipient_type: "branch",
+        })
+        .select("id")
+        .single();
+
+      if (stockOutError) throw stockOutError;
+
+      // Update HQ inventory (decrease)
+      const newQuantity = existing.quantity - request.quantity;
+      const { error: updateError } = await supabase
+        .from("inventory")
+        .update({ quantity: newQuantity })
+        .eq("id", existing.id);
+
+      if (updateError) throw updateError;
+
+      // Create stock_in_branch record for the branch
+      const { error: stockInBranchError } = await supabase
+        .from("stock_in_branch")
+        .insert({
+          branch_id: request.branch_id,
+          product_id: request.product_id,
+          quantity: request.quantity,
+          description: request.description || `Stock approved from HQ - Request approved`,
+          date: today,
+          source_type: "hq",
+          hq_stock_out_id: stockOutRecord?.id || null,
+        });
+
+      if (stockInBranchError) throw stockInBranchError;
+
+      // Update request status to approved
+      const { error: requestError } = await supabase
+        .from("branch_stock_requests")
+        .update({
+          status: "approved",
+          processed_at: new Date().toISOString(),
+          processed_by: user?.id,
+        })
+        .eq("id", request.id);
+
+      if (requestError) throw requestError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branch-stock-requests-pending"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-in-branch"] });
+      toast.success("Stock request approved! Stock transferred to branch.");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to approve request");
+    },
+  });
+
+  // Reject branch stock request
+  const rejectRequest = useMutation({
+    mutationFn: async ({ requestId, reason }: { requestId: string; reason: string }) => {
+      const { error } = await supabase
+        .from("branch_stock_requests")
+        .update({
+          status: "rejected",
+          processed_at: new Date().toISOString(),
+          processed_by: user?.id,
+          rejection_reason: reason || "Request rejected by HQ",
+        })
+        .eq("id", requestId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["branch-stock-requests-pending"] });
+      toast.success("Stock request rejected");
+      setIsRejectDialogOpen(false);
+      setRejectingRequest(null);
+      setRejectionReason("");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to reject request: " + error.message);
+    },
+  });
+
+  const handleApprove = (request: any) => {
+    if (confirm(`Approve stock request for ${request.quantity} units of ${request.product?.name}?`)) {
+      approveRequest.mutate(request);
+    }
+  };
+
+  const handleReject = (request: any) => {
+    setRejectingRequest(request);
+    setIsRejectDialogOpen(true);
+  };
+
+  const confirmReject = () => {
+    if (rejectingRequest) {
+      rejectRequest.mutate({
+        requestId: rejectingRequest.id,
+        reason: rejectionReason,
+      });
+    }
+  };
+
   const resetForm = () => {
     setSelectedProduct("");
     setQuantity("");
@@ -356,8 +513,10 @@ const StockOutHQ = () => {
 
   const totalRecords = stockOuts?.length || 0;
   const totalQuantity = stockOuts?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  const pendingRequestsCount = pendingRequests?.length || 0;
 
   const stats = [
+    { title: "Pending Requests", value: pendingRequestsCount, icon: Clock, color: "text-yellow-600" },
     { title: "Total Records", value: totalRecords, icon: Calendar, color: "text-blue-600" },
     { title: "Total Units", value: totalQuantity, icon: Package, color: "text-red-600" },
   ];
@@ -493,7 +652,7 @@ const StockOutHQ = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">
@@ -508,6 +667,92 @@ const StockOutHQ = () => {
           </Card>
         ))}
       </div>
+
+      {/* Pending Branch Stock Requests */}
+      {pendingRequestsCount > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              Pending Branch Stock Requests ({pendingRequestsCount})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {requestsLoading ? (
+              <p>Loading requests...</p>
+            ) : (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingRequests?.map((request: any) => {
+                      const requestDate = request.requested_at ? new Date(request.requested_at) : null;
+                      const isValidDate = requestDate && !isNaN(requestDate.getTime());
+
+                      return (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{isValidDate ? format(requestDate, "dd-MM-yyyy") : "-"}</div>
+                              <div className="text-muted-foreground text-xs">
+                                {isValidDate ? format(requestDate, "HH:mm") : ""}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{request.branch?.idstaff}</div>
+                              <div className="text-xs text-muted-foreground">{request.branch?.full_name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{request.product?.name}</TableCell>
+                          <TableCell>{request.product?.sku}</TableCell>
+                          <TableCell className="font-bold">{request.quantity}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{request.description || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                onClick={() => handleApprove(request)}
+                                disabled={approveRequest.isPending}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                onClick={() => handleReject(request)}
+                                disabled={rejectRequest.isPending}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -646,6 +891,59 @@ const StockOutHQ = () => {
             >
               {updateStock.isPending ? "Updating..." : "Update Stock Out"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Request Dialog */}
+      <Dialog open={isRejectDialogOpen} onOpenChange={(open) => {
+        setIsRejectDialogOpen(open);
+        if (!open) {
+          setRejectingRequest(null);
+          setRejectionReason("");
+        }
+      }}>
+        <DialogContent className="max-w-sm md:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Stock Request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {rejectingRequest && (
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="text-sm"><strong>Branch:</strong> {rejectingRequest.branch?.idstaff}</p>
+                <p className="text-sm"><strong>Product:</strong> {rejectingRequest.product?.name}</p>
+                <p className="text-sm"><strong>Quantity:</strong> {rejectingRequest.quantity}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Rejection Reason</Label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter reason for rejection..."
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setIsRejectDialogOpen(false);
+                  setRejectingRequest(null);
+                  setRejectionReason("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={confirmReject}
+                disabled={rejectRequest.isPending}
+              >
+                {rejectRequest.isPending ? "Rejecting..." : "Reject Request"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

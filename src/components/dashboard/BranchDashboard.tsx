@@ -10,6 +10,7 @@ import ReportingAgent from "./master-agent/ReportingAgent";
 import MyAnalytics from "./common/MyAnalytics";
 import Settings from "./common/Settings";
 import Customers from "./common/Customers";
+import StockInBranch from "./branch/StockInBranch";
 import StockOutBranch from "./branch/StockOutBranch";
 
 const BranchDashboard = () => {
@@ -22,6 +23,8 @@ const BranchDashboard = () => {
     switch (activeView) {
       case "inventory":
         return <MasterAgentInventory />;
+      case "stock-in":
+        return <StockInBranch />;
       case "stock-out":
         return <StockOutBranch />;
       case "agents":
