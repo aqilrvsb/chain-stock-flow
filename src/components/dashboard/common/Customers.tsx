@@ -220,6 +220,21 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   ];
 
+  // Fetch NinjaVan config for Branch
+  const { data: ninjavanConfig } = useQuery({
+    queryKey: ["ninjavan-config", user?.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("ninjavan_config")
+        .select("*")
+        .eq("profile_id", user?.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: userType === "branch" && !!user?.id,
+  });
+
   const createCustomerPurchase = useMutation({
     mutationFn: async (data: CustomerPurchaseData) => {
       // Check if seller has enough inventory
@@ -237,6 +252,10 @@ const Customers = ({ userType }: CustomersProps) => {
       if (inventoryData.quantity < data.quantity) {
         throw new Error(`Insufficient inventory. Available: ${inventoryData.quantity}, Required: ${data.quantity}`);
       }
+
+      // Get product info for NinjaVan
+      const selectedProduct = products?.find(p => p.id === data.productId);
+      const productName = selectedProduct?.name || "Product";
 
       // Check if customer exists
       const { data: existingCustomer } = await supabase
@@ -266,6 +285,48 @@ const Customers = ({ userType }: CustomersProps) => {
         customerId = newCustomer.id;
       }
 
+      // For COD payments with NinjaVan configured, create NinjaVan order
+      let trackingNumber = data.trackingNumber || null;
+      let ninjavanOrderId = null;
+
+      if (data.paymentMethod === 'COD' && ninjavanConfig && userType === 'branch') {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
+            body: {
+              profileId: user?.id,
+              customerName: data.customerName,
+              phone: data.customerPhone,
+              address: data.customerAddress,
+              postcode: data.customerPostcode || "",
+              city: data.customerCity || "",
+              state: data.customerState,
+              price: data.price,
+              paymentMethod: data.paymentMethod,
+              productName: productName,
+              quantity: data.quantity,
+            },
+            headers: {
+              Authorization: `Bearer ${session?.session?.access_token}`,
+            },
+          });
+
+          if (ninjavanResponse.error) {
+            console.error("NinjaVan error:", ninjavanResponse.error);
+            // Don't throw - allow purchase to proceed without NinjaVan
+            toast.error("NinjaVan order failed: " + (ninjavanResponse.error.message || "Unknown error"));
+          } else if (ninjavanResponse.data?.success) {
+            trackingNumber = ninjavanResponse.data.trackingNumber;
+            ninjavanOrderId = ninjavanResponse.data.trackingNumber;
+            console.log("NinjaVan order created:", trackingNumber);
+          }
+        } catch (ninjavanError: any) {
+          console.error("NinjaVan API error:", ninjavanError);
+          // Don't throw - allow purchase to proceed without NinjaVan
+          toast.error("NinjaVan order failed: " + (ninjavanError.message || "Unknown error"));
+        }
+      }
+
       // Create customer purchase record
       const { error: purchaseError } = await supabase
         .from('customer_purchases')
@@ -278,9 +339,11 @@ const Customers = ({ userType }: CustomersProps) => {
           total_price: data.price,
           payment_method: data.paymentMethod,
           closing_type: data.closingType,
-          tracking_number: data.trackingNumber || null,
+          tracking_number: trackingNumber,
           remarks: 'Customer purchase',
-        });
+          platform: 'Manual',
+          ninjavan_order_id: ninjavanOrderId,
+        } as any);
 
       if (purchaseError) throw purchaseError;
 
@@ -292,15 +355,23 @@ const Customers = ({ userType }: CustomersProps) => {
         .eq('product_id', data.productId);
 
       if (updateError) throw updateError;
+
+      return { trackingNumber };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setIsModalOpen(false);
+
+      let successMessage = "Customer purchase recorded successfully. Inventory has been updated.";
+      if (result?.trackingNumber) {
+        successMessage += `\n\nTracking Number: ${result.trackingNumber}`;
+      }
+
       Swal.fire({
         icon: "success",
         title: "Success!",
-        text: "Customer purchase recorded successfully. Inventory has been updated.",
+        text: successMessage,
         confirmButtonText: "OK"
       });
     },

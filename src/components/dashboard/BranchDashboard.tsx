@@ -12,6 +12,7 @@ import Settings from "./common/Settings";
 import Customers from "./common/Customers";
 import StockInBranch from "./branch/StockInBranch";
 import StockOutBranch from "./branch/StockOutBranch";
+import BranchLogistics from "./branch/BranchLogistics";
 
 const BranchDashboard = () => {
   const { userProfile } = useAuth();
@@ -31,6 +32,8 @@ const BranchDashboard = () => {
         return <MyAgents />;
       case "customers":
         return <Customers userType="branch" />;
+      case "logistics":
+        return <BranchLogistics />;
       case "transaction-agent":
         return <TransactionAgent />;
       case "reward-agent-platinum":

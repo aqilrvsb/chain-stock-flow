@@ -9,7 +9,33 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Truck } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const MALAYSIAN_STATES = [
+  "Johor",
+  "Kedah",
+  "Kelantan",
+  "Kuala Lumpur",
+  "Labuan",
+  "Melaka",
+  "Negeri Sembilan",
+  "Pahang",
+  "Penang",
+  "Perak",
+  "Perlis",
+  "Putrajaya",
+  "Sabah",
+  "Sarawak",
+  "Selangor",
+  "Terengganu",
+];
 
 const Settings = () => {
   const { user, userRole } = useAuth();
@@ -25,6 +51,18 @@ const Settings = () => {
   const [storehubPassword, setStorehubPassword] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  // NinjaVan config states
+  const [ninjavanClientId, setNinjavanClientId] = useState("");
+  const [ninjavanClientSecret, setNinjavanClientSecret] = useState("");
+  const [ninjavanSenderName, setNinjavanSenderName] = useState("");
+  const [ninjavanSenderPhone, setNinjavanSenderPhone] = useState("");
+  const [ninjavanSenderEmail, setNinjavanSenderEmail] = useState("");
+  const [ninjavanSenderAddress, setNinjavanSenderAddress] = useState("");
+  const [ninjavanSenderPostcode, setNinjavanSenderPostcode] = useState("");
+  const [ninjavanSenderCity, setNinjavanSenderCity] = useState("");
+  const [ninjavanSenderState, setNinjavanSenderState] = useState("");
+  const [savingNinjavan, setSavingNinjavan] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", user?.id],
@@ -88,6 +126,22 @@ const Settings = () => {
 
   // Keep billplzConfig for backward compatibility
   const billplzConfig = systemSettings;
+
+  // Fetch NinjaVan config (Branch only)
+  const { data: ninjavanConfig } = useQuery({
+    queryKey: ["ninjavan-config", user?.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("ninjavan_config")
+        .select("*")
+        .eq("profile_id", user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id && userRole === 'branch',
+  });
 
   const updateProfile = useMutation({
     mutationFn: async (updates: any) => {
@@ -416,6 +470,77 @@ const Settings = () => {
     }
   };
 
+  const handleNinjavanUpdate = async () => {
+    // Validate required fields
+    if (!ninjavanClientId || !ninjavanClientSecret || !ninjavanSenderName ||
+        !ninjavanSenderPhone || !ninjavanSenderEmail || !ninjavanSenderAddress ||
+        !ninjavanSenderPostcode || !ninjavanSenderCity || !ninjavanSenderState) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingNinjavan(true);
+
+    try {
+      const configData = {
+        profile_id: user?.id,
+        client_id: ninjavanClientId,
+        client_secret: ninjavanClientSecret,
+        sender_name: ninjavanSenderName,
+        sender_phone: ninjavanSenderPhone,
+        sender_email: ninjavanSenderEmail,
+        sender_address1: ninjavanSenderAddress,
+        sender_postcode: ninjavanSenderPostcode,
+        sender_city: ninjavanSenderCity,
+        sender_state: ninjavanSenderState,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (ninjavanConfig?.id) {
+        // Update existing config
+        const { error } = await (supabase as any)
+          .from("ninjavan_config")
+          .update(configData)
+          .eq("id", ninjavanConfig.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new config
+        const { error } = await (supabase as any)
+          .from("ninjavan_config")
+          .insert([configData]);
+
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["ninjavan-config"] });
+      toast({ title: "NinjaVan configuration saved successfully" });
+
+      // Clear form fields
+      setNinjavanClientId("");
+      setNinjavanClientSecret("");
+      setNinjavanSenderName("");
+      setNinjavanSenderPhone("");
+      setNinjavanSenderEmail("");
+      setNinjavanSenderAddress("");
+      setNinjavanSenderPostcode("");
+      setNinjavanSenderCity("");
+      setNinjavanSenderState("");
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingNinjavan(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -625,6 +750,146 @@ const Settings = () => {
 
             <Button onClick={handleStorehubUpdate}>
               Save Storehub Configuration
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Truck className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>NinjaVan Courier Integration</CardTitle>
+                <CardDescription>Configure NinjaVan API for automatic tracking number generation</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {ninjavanConfig && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p className="font-medium">Current Configuration:</p>
+                <p className="text-muted-foreground">Client ID: {ninjavanConfig.client_id ? '••••••••' : 'Not set'}</p>
+                <p className="text-muted-foreground">Sender: {ninjavanConfig.sender_name || 'Not set'}</p>
+                <p className="text-muted-foreground">Address: {ninjavanConfig.sender_address1 ? `${ninjavanConfig.sender_city}, ${ninjavanConfig.sender_state}` : 'Not set'}</p>
+              </div>
+            )}
+
+            {/* API Credentials */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm">API Credentials</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_client_id">Client ID *</Label>
+                  <Input
+                    id="ninjavan_client_id"
+                    type="password"
+                    value={ninjavanClientId}
+                    onChange={(e) => setNinjavanClientId(e.target.value)}
+                    placeholder="Enter NinjaVan Client ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_client_secret">Client Secret *</Label>
+                  <Input
+                    id="ninjavan_client_secret"
+                    type="password"
+                    value={ninjavanClientSecret}
+                    onChange={(e) => setNinjavanClientSecret(e.target.value)}
+                    placeholder="Enter NinjaVan Client Secret"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sender Information */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm">Sender Information (From)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_name">Sender Name *</Label>
+                  <Input
+                    id="ninjavan_sender_name"
+                    value={ninjavanSenderName}
+                    onChange={(e) => setNinjavanSenderName(e.target.value)}
+                    placeholder="e.g. My Company Sdn. Bhd."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_phone">Sender Phone *</Label>
+                  <Input
+                    id="ninjavan_sender_phone"
+                    value={ninjavanSenderPhone}
+                    onChange={(e) => setNinjavanSenderPhone(e.target.value)}
+                    placeholder="e.g. 60123456789"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_email">Sender Email *</Label>
+                  <Input
+                    id="ninjavan_sender_email"
+                    type="email"
+                    value={ninjavanSenderEmail}
+                    onChange={(e) => setNinjavanSenderEmail(e.target.value)}
+                    placeholder="e.g. shipping@company.com"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ninjavan_sender_address">Address *</Label>
+                <Textarea
+                  id="ninjavan_sender_address"
+                  value={ninjavanSenderAddress}
+                  onChange={(e) => setNinjavanSenderAddress(e.target.value)}
+                  placeholder="Enter pickup address (max 100 characters)"
+                  rows={2}
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_postcode">Postcode *</Label>
+                  <Input
+                    id="ninjavan_sender_postcode"
+                    value={ninjavanSenderPostcode}
+                    onChange={(e) => setNinjavanSenderPostcode(e.target.value)}
+                    placeholder="e.g. 50000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_city">City *</Label>
+                  <Input
+                    id="ninjavan_sender_city"
+                    value={ninjavanSenderCity}
+                    onChange={(e) => setNinjavanSenderCity(e.target.value)}
+                    placeholder="e.g. Kuala Lumpur"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ninjavan_sender_state">State *</Label>
+                  <Select
+                    value={ninjavanSenderState}
+                    onValueChange={setNinjavanSenderState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MALAYSIAN_STATES.map((state) => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <Button onClick={handleNinjavanUpdate} disabled={savingNinjavan}>
+              {savingNinjavan && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save NinjaVan Configuration
             </Button>
           </CardContent>
         </Card>
