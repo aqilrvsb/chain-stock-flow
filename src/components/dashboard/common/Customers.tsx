@@ -365,12 +365,11 @@ const Customers = ({ userType }: CustomersProps) => {
           const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
           const storehubProductName = storehubProduct?.name || item.itemName || item.name || "Unknown Product";
 
-          console.log(`=== PRODUCT LOOKUP ===`);
-          console.log(`Item productId: "${item.productId}"`);
-          console.log(`Item full data:`, item);
-          console.log(`Found product:`, storehubProduct);
-          console.log(`Final product name: "${storehubProductName}"`);
-          console.log(`======================`);
+          // Skip products named "COD" - don't import them at all
+          if (storehubProductName.toUpperCase() === "COD") {
+            skippedCount++;
+            continue;
+          }
 
 
           // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
