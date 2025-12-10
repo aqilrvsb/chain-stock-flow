@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Upload, FileText, X } from "lucide-react";
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -43,6 +44,8 @@ export interface CustomerPurchaseData {
   quantity: number;
   price: number;
   trackingNumber?: string;
+  orderFrom?: string;
+  attachmentFile?: File;
 }
 
 const MALAYSIAN_STATES = [
@@ -76,6 +79,17 @@ const CLOSING_TYPES = [
   "Walk In",
 ];
 
+const ORDER_FROM_OPTIONS = [
+  "Tiktok HQ",
+  "Shopee HQ",
+  "Online HQ",
+  "SYAHIR",
+  "AFIF",
+];
+
+// These sources require manual tracking number and PDF attachment
+const MANUAL_TRACKING_SOURCES = ["Tiktok HQ", "Shopee HQ"];
+
 const AddCustomerModal = ({
   open,
   onOpenChange,
@@ -96,15 +110,49 @@ const AddCustomerModal = ({
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [orderFrom, setOrderFrom] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if order source requires manual tracking (Tiktok/Shopee)
+  const requiresManualTracking = MANUAL_TRACKING_SOURCES.includes(orderFrom);
+  // Check if order source uses NinjaVan (Online HQ, SYAHIR, AFIF)
+  const usesNinjaVan = userType === "branch" && orderFrom && !requiresManualTracking;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      setAttachmentFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setAttachmentFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = () => {
-    // For Branch with COD, require postcode and city for NinjaVan
-    const requiresNinjavanFields = userType === "branch" && paymentMethod === "COD";
+    // For Branch with NinjaVan sources and COD, require postcode and city
+    const requiresNinjavanFields = userType === "branch" && paymentMethod === "COD" && usesNinjaVan;
 
+    // Basic validation
     if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
       return;
     }
 
+    // Branch requires orderFrom
+    if (userType === "branch" && !orderFrom) {
+      return;
+    }
+
+    // For Tiktok/Shopee: require tracking number and attachment
+    if (requiresManualTracking && (!trackingNumber || !attachmentFile)) {
+      return;
+    }
+
+    // For NinjaVan sources with COD: require postcode and city
     if (requiresNinjavanFields && (!customerPostcode || !customerCity)) {
       return;
     }
@@ -122,6 +170,8 @@ const AddCustomerModal = ({
       quantity: parseInt(quantity),
       price: parseFloat(price),
       trackingNumber: trackingNumber || undefined,
+      orderFrom: orderFrom || undefined,
+      attachmentFile: attachmentFile || undefined,
     });
 
     // Reset form
@@ -137,10 +187,15 @@ const AddCustomerModal = ({
     setQuantity("");
     setPrice("");
     setTrackingNumber("");
+    setOrderFrom("");
+    setAttachmentFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
-  // For Branch with COD, require postcode and city for NinjaVan
-  const requiresNinjavanFields = userType === "branch" && paymentMethod === "COD";
+  // For Branch with NinjaVan sources and COD, require postcode and city
+  const requiresNinjavanFields = userType === "branch" && paymentMethod === "COD" && usesNinjaVan;
 
   const isFormValid =
     customerName &&
@@ -153,6 +208,11 @@ const AddCustomerModal = ({
     parseInt(quantity) > 0 &&
     price &&
     parseFloat(price) > 0 &&
+    // Branch requires orderFrom
+    (userType !== "branch" || orderFrom) &&
+    // Tiktok/Shopee requires tracking + attachment
+    (!requiresManualTracking || (trackingNumber && attachmentFile)) &&
+    // NinjaVan COD requires postcode + city
     (!requiresNinjavanFields || (customerPostcode && customerCity));
 
   return (
@@ -254,6 +314,35 @@ const AddCustomerModal = ({
             </Select>
           </div>
 
+          {/* Order From - Branch only */}
+          {userType === "branch" && (
+            <div className="space-y-2">
+              <Label htmlFor="order-from">Order From *</Label>
+              <Select value={orderFrom} onValueChange={setOrderFrom}>
+                <SelectTrigger id="order-from">
+                  <SelectValue placeholder="Select order source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDER_FROM_OPTIONS.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {requiresManualTracking && (
+                <p className="text-xs text-orange-600">
+                  Tiktok/Shopee orders require manual tracking number and PDF attachment.
+                </p>
+              )}
+              {usesNinjaVan && paymentMethod === "COD" && (
+                <p className="text-xs text-blue-600">
+                  This order will use NinjaVan integration for shipping.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Jenis Closing */}
           <div className="space-y-2">
             <Label htmlFor="closing-type">Jenis Closing</Label>
@@ -315,16 +404,22 @@ const AddCustomerModal = ({
             />
           </div>
 
-          {/* Tracking Number (Optional) */}
+          {/* Tracking Number */}
           <div className="space-y-2">
             <Label htmlFor="tracking-number">
-              Tracking Number {requiresNinjavanFields ? "(Auto-generated by NinjaVan)" : "(Optional)"}
+              Tracking Number {requiresManualTracking ? "*" : requiresNinjavanFields ? "(Auto-generated by NinjaVan)" : "(Optional)"}
             </Label>
             <Input
               id="tracking-number"
               value={trackingNumber}
               onChange={(e) => setTrackingNumber(e.target.value)}
-              placeholder={requiresNinjavanFields ? "Will be auto-generated" : "Enter tracking number"}
+              placeholder={
+                requiresManualTracking
+                  ? "Enter tracking number from Tiktok/Shopee"
+                  : requiresNinjavanFields
+                  ? "Will be auto-generated"
+                  : "Enter tracking number"
+              }
               disabled={requiresNinjavanFields}
             />
             {requiresNinjavanFields && (
@@ -333,6 +428,54 @@ const AddCustomerModal = ({
               </p>
             )}
           </div>
+
+          {/* PDF Attachment - Required for Tiktok/Shopee */}
+          {requiresManualTracking && (
+            <div className="space-y-2">
+              <Label htmlFor="attachment">PDF Attachment *</Label>
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  id="attachment"
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {!attachmentFile ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload PDF
+                  </Button>
+                ) : (
+                  <div className="flex items-center justify-between p-2 border rounded-md bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-red-500" />
+                      <span className="text-sm truncate max-w-[200px]">
+                        {attachmentFile.name}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload the shipping label PDF from Tiktok/Shopee.
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button

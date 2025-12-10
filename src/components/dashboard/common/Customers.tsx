@@ -235,6 +235,9 @@ const Customers = ({ userType }: CustomersProps) => {
     enabled: userType === "branch" && !!user?.id,
   });
 
+  // Sources that use manual tracking (Tiktok/Shopee) vs NinjaVan
+  const MANUAL_TRACKING_SOURCES = ["Tiktok HQ", "Shopee HQ"];
+
   const createCustomerPurchase = useMutation({
     mutationFn: async (data: CustomerPurchaseData) => {
       // Check if seller has enough inventory
@@ -275,6 +278,8 @@ const Customers = ({ userType }: CustomersProps) => {
             name: data.customerName,
             phone: data.customerPhone,
             address: data.customerAddress,
+            postcode: data.customerPostcode || null,
+            city: data.customerCity || null,
             state: data.customerState,
             created_by: user?.id,
           })
@@ -283,13 +288,50 @@ const Customers = ({ userType }: CustomersProps) => {
 
         if (customerError) throw customerError;
         customerId = newCustomer.id;
+      } else {
+        // Update existing customer with postcode/city if provided
+        if (data.customerPostcode || data.customerCity) {
+          await supabase
+            .from('customers')
+            .update({
+              postcode: data.customerPostcode || null,
+              city: data.customerCity || null,
+            })
+            .eq('id', customerId);
+        }
       }
 
-      // For COD payments with NinjaVan configured, create NinjaVan order
+      // Determine if this order uses NinjaVan or manual tracking
+      const usesManualTracking = data.orderFrom && MANUAL_TRACKING_SOURCES.includes(data.orderFrom);
+      const usesNinjaVan = userType === 'branch' && data.orderFrom && !usesManualTracking;
+
+      // For COD payments with NinjaVan sources, create NinjaVan order
       let trackingNumber = data.trackingNumber || null;
       let ninjavanOrderId = null;
+      let attachmentUrl = null;
 
-      if (data.paymentMethod === 'COD' && ninjavanConfig && userType === 'branch') {
+      // Upload PDF attachment for Tiktok/Shopee orders
+      if (usesManualTracking && data.attachmentFile) {
+        const fileExt = data.attachmentFile.name.split('.').pop();
+        const fileName = `${user?.id}/${Date.now()}_${data.trackingNumber}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('public')
+          .upload(fileName, data.attachmentFile);
+
+        if (uploadError) {
+          console.error("Failed to upload attachment:", uploadError);
+          toast.error("Failed to upload PDF attachment");
+        } else {
+          const { data: publicUrl } = supabase.storage
+            .from('public')
+            .getPublicUrl(fileName);
+          attachmentUrl = publicUrl.publicUrl;
+        }
+      }
+
+      // Only use NinjaVan for non-Tiktok/Shopee sources with COD
+      if (data.paymentMethod === 'COD' && ninjavanConfig && usesNinjaVan) {
         try {
           const { data: session } = await supabase.auth.getSession();
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
@@ -343,6 +385,8 @@ const Customers = ({ userType }: CustomersProps) => {
           remarks: 'Customer purchase',
           platform: 'Manual',
           ninjavan_order_id: ninjavanOrderId,
+          order_from: data.orderFrom || null,
+          attachment_url: attachmentUrl,
         } as any);
 
       if (purchaseError) throw purchaseError;
