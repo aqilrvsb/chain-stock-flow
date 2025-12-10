@@ -56,9 +56,10 @@ const StockInBranch = () => {
   });
 
   // Get approved stock (stock_in_branch records)
-  const { data: approvedStock } = useQuery({
+  const { data: approvedStock, isLoading: stockLoading } = useQuery({
     queryKey: ["stock-in-branch", user?.id],
     queryFn: async () => {
+      console.log("Fetching stock_in_branch for branch:", user?.id);
       const { data, error } = await supabase
         .from("stock_in_branch")
         .select(`
@@ -68,7 +69,11 @@ const StockInBranch = () => {
         .eq("branch_id", user?.id)
         .order("date", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching stock_in_branch:", error);
+        throw error;
+      }
+      console.log("Stock in branch data:", data);
       return data;
     },
     enabled: !!user?.id,
@@ -314,7 +319,9 @@ const StockInBranch = () => {
           <CardTitle>Received Stock History</CardTitle>
         </CardHeader>
         <CardContent>
-          {!approvedStock || approvedStock.length === 0 ? (
+          {stockLoading ? (
+            <p>Loading received stock...</p>
+          ) : !approvedStock || approvedStock.length === 0 ? (
             <p className="text-muted-foreground">No stock received yet.</p>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
