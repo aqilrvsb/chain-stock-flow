@@ -251,14 +251,16 @@ const Customers = ({ userType }: CustomersProps) => {
 
       const { transactions, customers: storehubCustomers, products: storehubProducts } = response.data;
 
-      // Debug: Log StoreHub data structure
-      console.log("StoreHub Transactions:", transactions);
-      console.log("StoreHub Customers:", storehubCustomers);
-      console.log("StoreHub Products:", storehubProducts);
-      if (transactions?.[0]) {
-        console.log("Sample Transaction:", JSON.stringify(transactions[0], null, 2));
-        console.log("Sample Items:", transactions[0].items);
-      }
+      // Debug: Log ALL transactions with invoice numbers and times
+      console.log("=== STOREHUB SYNC DEBUG ===");
+      console.log(`Total transactions received: ${transactions?.length || 0}`);
+      console.log("All transactions:");
+      transactions?.forEach((t: any, idx: number) => {
+        const utcDate = new Date(t.transactionTime);
+        const malaysiaDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
+        console.log(`${idx + 1}. Invoice: ${t.invoiceNumber} | Time (MY): ${malaysiaDate.toLocaleString()} | Type: ${t.transactionType} | Total: ${t.total} | Items: ${t.items?.length || 0}`);
+      });
+      console.log("=========================");
 
       if (!transactions || transactions.length === 0) {
         Swal.fire({
