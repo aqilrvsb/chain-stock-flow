@@ -330,8 +330,8 @@ const Customers = ({ userType }: CustomersProps) => {
         }
       }
 
-      // Only use NinjaVan for non-Tiktok/Shopee sources with COD
-      if (data.paymentMethod === 'COD' && ninjavanConfig && usesNinjaVan) {
+      // Use NinjaVan for non-Tiktok/Shopee sources (both Online Transfer and COD)
+      if (ninjavanConfig && usesNinjaVan) {
         try {
           const { data: session } = await supabase.auth.getSession();
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
