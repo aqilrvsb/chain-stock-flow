@@ -5,14 +5,13 @@
 -- ============================================================================
 
 -- ============================================================================
--- 1. ADD 'branch' TO USER ROLE ENUM
+-- NOTE: The 'branch' role will be used in the user_roles table.
+-- The role column accepts text values, so no ALTER TYPE is needed.
+-- Just insert 'branch' as the role value when creating branch users.
 -- ============================================================================
 
--- Add 'branch' to the user_role enum type
-ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'branch';
-
 -- ============================================================================
--- 2. UPDATE stock_out_hq TABLE - Add recipient tracking
+-- 1. UPDATE stock_out_hq TABLE - Add recipient tracking
 -- ============================================================================
 
 -- Add recipient_id column (Master Agent or Branch receiving stock)
@@ -24,7 +23,7 @@ ALTER TABLE public.stock_out_hq
 ADD COLUMN IF NOT EXISTS recipient_type text CHECK (recipient_type IS NULL OR recipient_type = ANY (ARRAY['master_agent'::text, 'branch'::text]));
 
 -- ============================================================================
--- 3. CREATE BRANCH INVENTORY TABLES
+-- 2. CREATE BRANCH INVENTORY TABLES
 -- ============================================================================
 
 -- Stock In Branch: Records of stock received by Branch (from HQ stock out)
@@ -80,7 +79,7 @@ CREATE TABLE IF NOT EXISTS public.branch_processed_stock (
 );
 
 -- ============================================================================
--- 4. CREATE BRANCH AGENT RELATIONSHIPS TABLE
+-- 3. CREATE BRANCH AGENT RELATIONSHIPS TABLE
 -- ============================================================================
 
 -- Branch Agent Relationships: Links agents to their branch
@@ -93,23 +92,15 @@ CREATE TABLE IF NOT EXISTS public.branch_agent_relationships (
 );
 
 -- ============================================================================
--- 5. UPDATE agent_purchases TABLE - Add branch_id
+-- 4. UPDATE agent_purchases TABLE - Add branch_id
 -- ============================================================================
 
 -- Add branch_id column (NULL if purchasing from Master Agent)
 ALTER TABLE public.agent_purchases
 ADD COLUMN IF NOT EXISTS branch_id uuid REFERENCES public.profiles(id);
 
--- Add constraint: Agent must purchase from either Master Agent OR Branch (not both, not neither)
--- Note: This is a soft constraint - uncomment if you want to enforce it
--- ALTER TABLE public.agent_purchases
--- ADD CONSTRAINT agent_purchases_seller_check CHECK (
---   (master_agent_id IS NOT NULL AND branch_id IS NULL) OR
---   (master_agent_id IS NULL AND branch_id IS NOT NULL)
--- );
-
 -- ============================================================================
--- 6. ENABLE ROW LEVEL SECURITY (RLS)
+-- 5. ENABLE ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
 ALTER TABLE public.stock_in_branch ENABLE ROW LEVEL SECURITY;
@@ -119,7 +110,7 @@ ALTER TABLE public.branch_processed_stock ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.branch_agent_relationships ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
--- 7. RLS POLICIES FOR stock_in_branch
+-- 6. RLS POLICIES FOR stock_in_branch
 -- ============================================================================
 
 -- Branch can view their own stock in records
@@ -151,7 +142,7 @@ CREATE POLICY "HQ can insert stock_in_branch" ON public.stock_in_branch
   );
 
 -- ============================================================================
--- 8. RLS POLICIES FOR stock_out_branch
+-- 7. RLS POLICIES FOR stock_out_branch
 -- ============================================================================
 
 -- Branch can view their own stock out records
@@ -177,7 +168,7 @@ CREATE POLICY "HQ can view all stock_out_branch" ON public.stock_out_branch
   );
 
 -- ============================================================================
--- 9. RLS POLICIES FOR branch_raw_material_stock
+-- 8. RLS POLICIES FOR branch_raw_material_stock
 -- ============================================================================
 
 -- Branch can view their own raw material stock
@@ -203,7 +194,7 @@ CREATE POLICY "HQ can view all branch_raw_material_stock" ON public.branch_raw_m
   );
 
 -- ============================================================================
--- 10. RLS POLICIES FOR branch_processed_stock
+-- 9. RLS POLICIES FOR branch_processed_stock
 -- ============================================================================
 
 -- Branch can view their own processed stock
@@ -229,7 +220,7 @@ CREATE POLICY "HQ can view all branch_processed_stock" ON public.branch_processe
   );
 
 -- ============================================================================
--- 11. RLS POLICIES FOR branch_agent_relationships
+-- 10. RLS POLICIES FOR branch_agent_relationships
 -- ============================================================================
 
 -- Branch can view their own agent relationships
@@ -265,7 +256,7 @@ CREATE POLICY "Agent can view own branch_agent_relationships" ON public.branch_a
   FOR SELECT USING (agent_id = auth.uid());
 
 -- ============================================================================
--- 12. CREATE INDEXES FOR PERFORMANCE
+-- 11. CREATE INDEXES FOR PERFORMANCE
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_stock_in_branch_branch_id ON public.stock_in_branch(branch_id);
@@ -292,7 +283,7 @@ CREATE INDEX IF NOT EXISTS idx_stock_out_hq_recipient_type ON public.stock_out_h
 CREATE INDEX IF NOT EXISTS idx_agent_purchases_branch_id ON public.agent_purchases(branch_id);
 
 -- ============================================================================
--- 13. INVENTORY TRIGGER FOR BRANCH (Auto-sync inventory)
+-- 12. INVENTORY TRIGGER FOR BRANCH (Auto-sync inventory)
 -- ============================================================================
 
 -- Function to recalculate Branch inventory
@@ -305,6 +296,7 @@ DECLARE
   v_stock_in INTEGER;
   v_stock_out INTEGER;
   v_final_quantity INTEGER;
+  v_existing_id UUID;
 BEGIN
   -- Calculate total stock in for branch
   SELECT COALESCE(SUM(quantity), 0) INTO v_stock_in
@@ -322,11 +314,21 @@ BEGIN
     v_final_quantity := 0;
   END IF;
 
-  -- Update or insert inventory record
-  INSERT INTO public.inventory (user_id, product_id, quantity, updated_at)
-  VALUES (p_branch_id, p_product_id, v_final_quantity, now())
-  ON CONFLICT (user_id, product_id)
-  DO UPDATE SET quantity = v_final_quantity, updated_at = now();
+  -- Check if inventory record exists
+  SELECT id INTO v_existing_id
+  FROM public.inventory
+  WHERE user_id = p_branch_id AND product_id = p_product_id;
+
+  IF v_existing_id IS NOT NULL THEN
+    -- Update existing record
+    UPDATE public.inventory
+    SET quantity = v_final_quantity, updated_at = now()
+    WHERE id = v_existing_id;
+  ELSE
+    -- Insert new record
+    INSERT INTO public.inventory (user_id, product_id, quantity, updated_at)
+    VALUES (p_branch_id, p_product_id, v_final_quantity, now());
+  END IF;
 END;
 $$;
 
@@ -381,7 +383,7 @@ CREATE TRIGGER auto_sync_inventory_stock_out_branch
 -- DONE!
 -- ============================================================================
 -- After running this migration:
--- 1. HQ can create Branch users in the user management interface
+-- 1. HQ can create Branch users with role = 'branch' in user_roles table
 -- 2. HQ can Stock Out directly to Branch (no purchase required)
 -- 3. Branch has their own dashboard with:
 --    - Stock In (received from HQ)
