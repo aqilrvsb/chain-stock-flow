@@ -342,17 +342,21 @@ const Customers = ({ userType }: CustomersProps) => {
           const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
           const storehubProductName = storehubProduct?.name || item.name || "Unknown Product";
 
-          // Determine payment method
+          // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
           let paymentMethod = "Cash";
           if (transaction.payments && transaction.payments.length > 0) {
             const payment = transaction.payments[0];
-            if (payment.paymentMethod?.toLowerCase().includes("card") ||
-                payment.paymentMethod?.toLowerCase().includes("credit")) {
+            const method = payment.paymentMethod?.toLowerCase() || "";
+            if (method.includes("card") || method.includes("credit") ||
+                method.includes("debit") || method.includes("transfer") ||
+                method.includes("online") || method.includes("ewallet") ||
+                method.includes("grab") || method.includes("touch") ||
+                method.includes("boost") || method.includes("shopee")) {
               paymentMethod = "Online Transfer";
-            } else if (payment.paymentMethod?.toLowerCase() === "cash") {
-              paymentMethod = "Cash";
+            } else if (method.includes("cod") || method.includes("delivery")) {
+              paymentMethod = "COD";
             } else {
-              paymentMethod = payment.paymentMethod || "Cash";
+              paymentMethod = "Cash"; // Default to Cash for all other methods
             }
           }
 
