@@ -96,7 +96,15 @@ const Customers = ({ userType }: CustomersProps) => {
   const totalCustomers = new Set(filteredPurchases.map(p => p.customer_id)).size || 0;
   const totalUnitsPurchased = filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
   const totalPrice = filteredPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
-  const totalTransactions = filteredPurchases.length || 0;
+  // Count unique transactions (by invoice number from remarks) to match StoreHub
+  const uniqueInvoices = new Set(
+    filteredPurchases.map(p => {
+      // Extract invoice number from StoreHub remarks: "StoreHub: INVOICENUMBER-ITEMINDEX"
+      const match = p.remarks?.match(/^StoreHub: ([^-]+)/);
+      return match ? match[1] : p.id; // Use invoice for StoreHub, or purchase ID for manual
+    })
+  );
+  const totalTransactions = uniqueInvoices.size || 0;
 
   const stats = [
     {
