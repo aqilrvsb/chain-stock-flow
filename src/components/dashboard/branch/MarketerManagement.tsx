@@ -37,25 +37,23 @@ const MarketerManagement = () => {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
 
-  // Fetch marketers under this branch
+  // Fetch marketers under this branch - simple query by branch_id
+  // Marketers have branch_id set to the Branch user who created them
   const { data: marketers = [], isLoading } = useQuery({
     queryKey: ["branch-marketers", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select(`
-          id,
-          idstaff,
-          full_name,
-          is_active,
-          created_at,
-          user_roles!inner(role)
-        `)
+        .select("id, idstaff, full_name, is_active, created_at")
         .eq("branch_id", user?.id)
-        .eq("user_roles.role", "marketer")
+        .not("idstaff", "is", null)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching marketers:", error);
+        throw error;
+      }
+      console.log("Fetched marketers:", data);
       return data || [];
     },
     enabled: !!user?.id,
