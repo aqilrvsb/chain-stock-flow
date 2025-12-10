@@ -12,7 +12,10 @@ import Settings from "./common/Settings";
 import Customers from "./common/Customers";
 import StockInBranch from "./branch/StockInBranch";
 import StockOutBranch from "./branch/StockOutBranch";
-import BranchLogistics from "./branch/BranchLogistics";
+import LogisticsOrder from "./branch/LogisticsOrder";
+import LogisticsProcessed from "./branch/LogisticsProcessed";
+import LogisticsReturn from "./branch/LogisticsReturn";
+import LogisticsPendingTracking from "./branch/LogisticsPendingTracking";
 
 const BranchDashboard = () => {
   const { userProfile } = useAuth();
@@ -32,8 +35,14 @@ const BranchDashboard = () => {
         return <MyAgents />;
       case "customers":
         return <Customers userType="branch" />;
-      case "logistics":
-        return <BranchLogistics />;
+      case "logistics-order":
+        return <LogisticsOrder />;
+      case "logistics-processed":
+        return <LogisticsProcessed />;
+      case "logistics-return":
+        return <LogisticsReturn />;
+      case "logistics-pending-tracking":
+        return <LogisticsPendingTracking />;
       case "transaction-agent":
         return <TransactionAgent />;
       case "reward-agent-platinum":

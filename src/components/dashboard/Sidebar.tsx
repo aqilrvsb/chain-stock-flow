@@ -678,17 +678,58 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* Logistics */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("logistics")}
-                    isActive={activeView === "logistics"}
-                    className="cursor-pointer"
-                  >
-                    <Truck className="h-4 w-4" />
-                    {open && <span>Logistics</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {/* Logistics Group - Collapsible */}
+                <Collapsible defaultOpen className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <Truck className="h-4 w-4" />
+                        {open && <span>Logistics</span>}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("logistics-order")}
+                            isActive={activeView === "logistics-order"}
+                            className="cursor-pointer"
+                          >
+                            <span>Order</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("logistics-processed")}
+                            isActive={activeView === "logistics-processed"}
+                            className="cursor-pointer"
+                          >
+                            <span>Processed</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("logistics-return")}
+                            isActive={activeView === "logistics-return"}
+                            className="cursor-pointer"
+                          >
+                            <span>Return</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("logistics-pending-tracking")}
+                            isActive={activeView === "logistics-pending-tracking"}
+                            className="cursor-pointer"
+                          >
+                            <span>Pending Tracking</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
