@@ -1,4 +1,4 @@
-import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, Warehouse, ArrowRightFromLine, ArrowLeftToLine, Truck } from "lucide-react";
+import { Home, Package, Users, BarChart3, Settings, LogOut, Gift, DollarSign, Award, FileText, UserCheck, BookOpen, ChevronDown, Warehouse, ArrowRightFromLine, ArrowLeftToLine, Truck, Megaphone, ShoppingCart, Target, TrendingUp, Calculator, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -730,6 +730,50 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
+
+                {/* Marketer Group - Collapsible */}
+                <Collapsible defaultOpen className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <Megaphone className="h-4 w-4" />
+                        {open && <span>Marketer</span>}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("marketer-management")}
+                            isActive={activeView === "marketer-management"}
+                            className="cursor-pointer"
+                          >
+                            <span>My Marketers</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("marketer-reporting")}
+                            isActive={activeView === "marketer-reporting"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reporting</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("marketer-top10")}
+                            isActive={activeView === "marketer-top10"}
+                            className="cursor-pointer"
+                          >
+                            <span>Top 10</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -792,6 +836,162 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
           onClose={() => setIsSOPOpen(false)}
           userRole={userRole || ""}
         />
+      </Sidebar>
+    );
+  }
+
+  // Marketer Sidebar - separate dashboard for marketers
+  if (userRole === "marketer") {
+    return (
+      <Sidebar className="border-r">
+        <SidebarHeader className="border-b p-4">
+          <h1 className="text-xl font-bold text-primary">
+            {open ? "OliveJardin Hub" : "OJ"}
+          </h1>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {/* Dashboard */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("dashboard")}
+                    isActive={activeView === "dashboard"}
+                    className="cursor-pointer"
+                  >
+                    <Home className="h-4 w-4" />
+                    {open && <span>Dashboard</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Order */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("order")}
+                    isActive={activeView === "order"}
+                    className="cursor-pointer"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    {open && <span>Order</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* History */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("history")}
+                    isActive={activeView === "history"}
+                    className="cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" />
+                    {open && <span>History</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Leads */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("leads")}
+                    isActive={activeView === "leads"}
+                    className="cursor-pointer"
+                  >
+                    <Target className="h-4 w-4" />
+                    {open && <span>Leads</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Spend */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("spend")}
+                    isActive={activeView === "spend"}
+                    className="cursor-pointer"
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    {open && <span>Spend</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Reporting Spend */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("reporting-spend")}
+                    isActive={activeView === "reporting-spend"}
+                    className="cursor-pointer"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    {open && <span>Reporting Spend</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Top 10 */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("top10")}
+                    isActive={activeView === "top10"}
+                    className="cursor-pointer"
+                  >
+                    <Award className="h-4 w-4" />
+                    {open && <span>Top 10</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* PNL */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("pnl")}
+                    isActive={activeView === "pnl"}
+                    className="cursor-pointer"
+                  >
+                    <Calculator className="h-4 w-4" />
+                    {open && <span>PNL</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                {/* Profile */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("profile")}
+                    isActive={activeView === "profile"}
+                    className="cursor-pointer"
+                  >
+                    <User className="h-4 w-4" />
+                    {open && <span>Profile</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                {profile?.idstaff?.[0]?.toUpperCase() || user?.email?.[0].toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+            {open && (
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{profile?.idstaff || user?.email?.split("@")[0]}</p>
+              </div>
+            )}
+          </div>
+          {open && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              onClick={signOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
+            </Button>
+          )}
+        </SidebarFooter>
       </Sidebar>
     );
   }

@@ -16,6 +16,7 @@ import LogisticsOrder from "./branch/LogisticsOrder";
 import LogisticsProcessed from "./branch/LogisticsProcessed";
 import LogisticsReturn from "./branch/LogisticsReturn";
 import LogisticsPendingTracking from "./branch/LogisticsPendingTracking";
+import MarketerManagement from "./branch/MarketerManagement";
 
 const BranchDashboard = () => {
   const { userProfile } = useAuth();
@@ -43,6 +44,12 @@ const BranchDashboard = () => {
         return <LogisticsReturn />;
       case "logistics-pending-tracking":
         return <LogisticsPendingTracking />;
+      case "marketer-management":
+        return <MarketerManagement />;
+      case "marketer-reporting":
+        return <div className="text-center py-12 text-muted-foreground">Marketer Reporting - Coming Soon</div>;
+      case "marketer-top10":
+        return <div className="text-center py-12 text-muted-foreground">Marketer Top 10 - Coming Soon</div>;
       case "transaction-agent":
         return <TransactionAgent />;
       case "reward-agent-platinum":
