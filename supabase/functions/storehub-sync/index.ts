@@ -27,8 +27,14 @@ serve(async (req) => {
     // Format date for StoreHub API (YYYY-MM-DD)
     const today = date || new Date().toISOString().split('T')[0];
 
-    // Fetch transactions from StoreHub for today
-    const transactionsUrl = `https://api.storehubhq.com/transactions?from=${today}&to=${today}`;
+    // Calculate yesterday's date (needed because Malaysia is UTC+8,
+    // so early morning Malaysia time is still "yesterday" in UTC)
+    const todayDate = new Date(today + 'T00:00:00Z');
+    const yesterdayDate = new Date(todayDate.getTime() - (24 * 60 * 60 * 1000));
+    const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+    // Fetch transactions from StoreHub for yesterday and today (to cover timezone differences)
+    const transactionsUrl = `https://api.storehubhq.com/transactions?from=${yesterday}&to=${today}`;
 
     const transactionsResponse = await fetch(transactionsUrl, {
       method: "GET",
@@ -50,7 +56,20 @@ serve(async (req) => {
       );
     }
 
-    const transactions = await transactionsResponse.json();
+    const allTransactions = await transactionsResponse.json();
+
+    // Filter transactions by Malaysia time (UTC+8)
+    // Only include transactions where transactionTime in Malaysia timezone matches the requested date
+    const filteredTransactions = allTransactions.filter((t: any) => {
+      if (!t.transactionTime) return false;
+      // Convert UTC to Malaysia time
+      const utcDate = new Date(t.transactionTime);
+      const malaysiaDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000)); // Add 8 hours
+      const malaysiaDayStr = malaysiaDate.toISOString().split('T')[0];
+      return malaysiaDayStr === today;
+    });
+
+    const transactions = filteredTransactions;
 
     // Fetch customers from StoreHub
     const customersResponse = await fetch("https://api.storehubhq.com/customers", {

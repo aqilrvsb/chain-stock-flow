@@ -92,7 +92,15 @@ const Customers = ({ userType }: CustomersProps) => {
   const totalCustomers = new Set(purchases?.map(p => p.customer_id)).size || 0;
   const totalUnitsPurchased = purchases?.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
   const totalPrice = purchases?.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
-  const totalTransactions = purchases?.length || 0;
+  // Count unique transactions (StoreHub invoices or individual purchases)
+  const uniqueTransactions = new Set(
+    purchases?.map(p => {
+      // Extract invoice number from StoreHub remarks format: "StoreHub: INVOICENUMBER-ITEMINDEX"
+      const match = p.remarks?.match(/^StoreHub: ([^-]+)/);
+      return match ? match[1] : p.id; // Use invoice number for StoreHub, or purchase ID for manual
+    })
+  );
+  const totalTransactions = uniqueTransactions.size || 0;
 
   const stats = [
     {
@@ -223,7 +231,9 @@ const Customers = ({ userType }: CustomersProps) => {
     }
 
     setIsSyncing(true);
-    const today = format(new Date(), "yyyy-MM-dd");
+    // Use Malaysia timezone (UTC+8) for date
+    const malaysiaDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
+    const today = format(malaysiaDate, "yyyy-MM-dd");
 
     try {
       // Call Edge Function to fetch from StoreHub
@@ -278,46 +288,50 @@ const Customers = ({ userType }: CustomersProps) => {
 
         // Get customer info from StoreHub
         let customerName = "Walk-In Customer";
-        let customerPhone = "";
+        let customerPhone = "walk-in";
         let customerAddress = "";
-        let customerState = "";
+        let customerState = "Walk-In";
 
-        if (transaction.customerRefId) {
+        // Try both customerRefId and customerId
+        const custId = transaction.customerRefId || transaction.customerId;
+
+        if (custId) {
+          // Try multiple matching fields (refId, id, _id)
           const storehubCustomer = storehubCustomers?.find(
-            (c: any) => c.refId === transaction.customerRefId
+            (c: any) => c.refId === custId || c.id === custId || c._id === custId
           );
+
           if (storehubCustomer) {
             customerName = `${storehubCustomer.firstName || ""} ${storehubCustomer.lastName || ""}`.trim() || "Walk-In Customer";
-            customerPhone = storehubCustomer.phone || "";
+            customerPhone = storehubCustomer.phone || storehubCustomer.mobile || "walk-in";
             customerAddress = [storehubCustomer.address1, storehubCustomer.address2, storehubCustomer.city]
               .filter(Boolean)
               .join(", ");
-            customerState = storehubCustomer.state || "";
+            customerState = storehubCustomer.state || "Unknown";
           }
         }
 
-        // Create or get customer
+        // Create or get customer - use single "Walk-In Customer" for walk-in sales
         let customerId: string | null = null;
-        if (customerPhone) {
-          const { data: existingCustomers } = await supabase
-            .from("customers")
-            .select("id")
-            .eq("phone", customerPhone)
-            .eq("created_by", user?.id);
 
-          if (existingCustomers && existingCustomers.length > 0) {
-            customerId = existingCustomers[0].id;
-          }
-        }
+        // Check if customer exists by phone
+        const { data: existingCustomers } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("phone", customerPhone)
+          .eq("created_by", user?.id);
 
-        if (!customerId) {
+        if (existingCustomers && existingCustomers.length > 0) {
+          customerId = existingCustomers[0].id;
+        } else {
+          // Create new customer
           const { data: newCustomer, error: customerError } = await supabase
             .from("customers")
             .insert({
               name: customerName,
-              phone: customerPhone || `storehub-${transaction.refId?.substring(0, 8) || Date.now()}`,
+              phone: customerPhone,
               address: customerAddress,
-              state: customerState || "Unknown",
+              state: customerState,
               created_by: user?.id,
             })
             .select()
@@ -351,11 +365,17 @@ const Customers = ({ userType }: CustomersProps) => {
             continue; // Skip this item, already imported
           }
 
-          // Get StoreHub product info (use refId/productRefId per StoreHub API)
-          const storehubProduct = storehubProducts?.find((p: any) =>
-            p.refId === item.productRefId || p.id === item.productId
-          );
-          const storehubProductName = item.itemName || storehubProduct?.name || item.name || "Unknown Product";
+          // Get StoreHub product info - match by id
+          const storehubProduct = storehubProducts?.find((p: any) => p.id === item.productId);
+          const storehubProductName = storehubProduct?.name || item.itemName || item.name || "Unknown Product";
+
+          console.log(`=== PRODUCT LOOKUP ===`);
+          console.log(`Item productId: "${item.productId}"`);
+          console.log(`Item full data:`, item);
+          console.log(`Found product:`, storehubProduct);
+          console.log(`Final product name: "${storehubProductName}"`);
+          console.log(`======================`);
+
 
           // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
           let paymentMethod = "Cash";
