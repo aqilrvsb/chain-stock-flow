@@ -7,6 +7,7 @@ import HQDashboard from "@/components/dashboard/HQDashboard";
 import MasterAgentDashboard from "@/components/dashboard/MasterAgentDashboard";
 import AgentDashboard from "@/components/dashboard/AgentDashboard";
 import LogisticDashboard from "@/components/dashboard/LogisticDashboard";
+import BranchDashboard from "@/components/dashboard/BranchDashboard";
 
 const Dashboard = () => {
   const { user, userRole, loading } = useAuth();
@@ -39,6 +40,7 @@ const Dashboard = () => {
       {userRole === "master_agent" && <MasterAgentDashboard />}
       {userRole === "agent" && <AgentDashboard />}
       {userRole === "logistic" && <LogisticDashboard />}
+      {userRole === "branch" && <BranchDashboard />}
     </>
   );
 };

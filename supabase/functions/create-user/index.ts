@@ -11,7 +11,7 @@ const CreateUserSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email format" }).max(255),
   password: z.string().min(4, { message: "Password must be at least 4 characters" }).max(100),
   fullName: z.string().trim().min(1, { message: "Full name is required" }).max(100),
-  role: z.enum(['hq', 'master_agent', 'agent'], { invalid_type_error: "Invalid role" }),
+  role: z.enum(['hq', 'master_agent', 'agent', 'branch'], { invalid_type_error: "Invalid role" }),
   masterAgentId: z.string().uuid().optional(),
   idstaff: z.string().trim().min(1).max(50).optional(),
   state: z.string().trim().max(100).optional(),
@@ -58,9 +58,10 @@ Deno.serve(async (req) => {
     const userRole = roleData?.role
 
     // Authorization checks:
-    // - HQ can create: hq, master_agent, agent
+    // - HQ can create: hq, master_agent, agent, branch
     // - Master Agent can create: agent only
-    if (userRole !== 'hq' && userRole !== 'master_agent') {
+    // - Branch can create: agent only (for agents under their branch)
+    if (userRole !== 'hq' && userRole !== 'master_agent' && userRole !== 'branch') {
       throw new Error('Unauthorized to create users')
     }
 
@@ -75,9 +76,9 @@ Deno.serve(async (req) => {
 
     const { email, password, fullName, role, masterAgentId, idstaff, state, subRole } = validationResult.data
 
-    // Additional authorization: Master Agents can only create agents
-    if (userRole === 'master_agent' && role !== 'agent') {
-      throw new Error('Master Agents can only create agent accounts')
+    // Additional authorization: Master Agents and Branches can only create agents
+    if ((userRole === 'master_agent' || userRole === 'branch') && role !== 'agent') {
+      throw new Error('Master Agents and Branches can only create agent accounts')
     }
 
     // Validate idstaff uniqueness

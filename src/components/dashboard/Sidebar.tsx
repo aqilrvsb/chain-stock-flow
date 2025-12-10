@@ -91,6 +91,26 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
       items.push({ title: "Transactions", icon: BarChart3, value: "transactions" });
 
       return items;
+    } else if (userRole === "branch") {
+      const items = [
+        { title: "Dashboard", icon: Home, value: "dashboard" },
+        { title: "Inventory", icon: Package, value: "inventory" },
+        { title: "My Agents", icon: Users, value: "agents" },
+      ];
+
+      // Only add Customers if customer segment is enabled
+      if (isCustomerSegmentEnabled) {
+        items.push({ title: "Customers", icon: UserCheck, value: "customers" });
+      }
+
+      items.push(
+        { title: "Transaction Agent", icon: DollarSign, value: "transaction-agent" },
+        { title: "Reward Agent Platinum", icon: Award, value: "reward-agent-platinum" },
+        { title: "Reward Agent Gold", icon: Award, value: "reward-agent-gold" },
+        { title: "Reporting Agent", icon: FileText, value: "reporting-agent" },
+      );
+
+      return items;
     }
     return [{ title: "Dashboard", icon: Home, value: "dashboard" }];
   };
