@@ -159,7 +159,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   </SidebarMenuItem>
                 </Collapsible>
 
-                {/* Master Agents & Agents */}
+                {/* Master Agents, Branches & Agents */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => onViewChange("users")}
@@ -167,7 +167,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     className="cursor-pointer"
                   >
                     <Users className="h-4 w-4" />
-                    {open && <span>Master Agents & Agents</span>}
+                    {open && <span>Master, Branch & Agent</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 

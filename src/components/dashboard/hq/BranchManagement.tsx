@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Users, UserCheck, UserX, Building2 } from "lucide-react";
+import { Plus, Edit, Trash2, UserCheck, UserX, Building2 } from "lucide-react";
 import Swal from "sweetalert2";
 import { format } from "date-fns";
 import { MALAYSIA_STATES } from "@/constants/malaysiaStates";
@@ -28,8 +28,6 @@ const BranchManagement = () => {
   const [fullName, setFullName] = useState("");
   const [idstaff, setIdstaff] = useState("");
   const [state, setState] = useState("");
-  const [subRole, setSubRole] = useState<string>("dealer_1");
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -50,17 +48,10 @@ const BranchManagement = () => {
     },
   });
 
-  // Filter branches by role
-  const filteredBranches = roleFilter
-    ? branches?.filter(b => b.sub_role === roleFilter)
-    : branches;
-
   const stats = {
-    total: filteredBranches?.length || 0,
-    active: filteredBranches?.filter(u => u.is_active)?.length || 0,
-    inactive: filteredBranches?.filter(u => !u.is_active)?.length || 0,
-    dealer1: branches?.filter(u => u.sub_role === 'dealer_1')?.length || 0,
-    dealer2: branches?.filter(u => u.sub_role === 'dealer_2')?.length || 0,
+    total: branches?.length || 0,
+    active: branches?.filter(u => u.is_active)?.length || 0,
+    inactive: branches?.filter(u => !u.is_active)?.length || 0,
   };
 
   const createUser = useMutation({
@@ -73,7 +64,6 @@ const BranchManagement = () => {
           role: 'branch',
           idstaff: userData.idstaff,
           state: userData.state,
-          subRole: userData.subRole,
         },
       });
 
@@ -121,7 +111,7 @@ const BranchManagement = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createUser.mutate({ email, password, fullName, idstaff, state, subRole });
+    createUser.mutate({ email, password, fullName, idstaff, state });
   };
 
   const handleToggleActive = (userId: string, currentStatus: boolean) => {
@@ -137,7 +127,6 @@ const BranchManagement = () => {
           full_name: userData.fullName,
           idstaff: userData.idstaff,
           state: userData.state,
-          sub_role: userData.subRole,
         })
         .eq("id", userData.id);
 
@@ -208,7 +197,6 @@ const BranchManagement = () => {
     setIdstaff(user.idstaff || "");
     setEmail(user.email);
     setState(user.state || "");
-    setSubRole(user.sub_role || "dealer_1");
     setNewPassword("");
     setIsEditOpen(true);
   };
@@ -220,7 +208,6 @@ const BranchManagement = () => {
       fullName,
       idstaff,
       state,
-      subRole,
       newPassword,
     });
   };
@@ -242,13 +229,12 @@ const BranchManagement = () => {
     setFullName("");
     setIdstaff("");
     setState("");
-    setSubRole("dealer_1");
     setEditingUser(null);
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Branches</CardTitle>
@@ -274,30 +260,6 @@ const BranchManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.inactive}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`cursor-pointer transition-all ${roleFilter === 'dealer_1' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => setRoleFilter(roleFilter === 'dealer_1' ? null : 'dealer_1')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dealer 1</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.dealer1}</div>
-          </CardContent>
-        </Card>
-        <Card
-          className={`cursor-pointer transition-all ${roleFilter === 'dealer_2' ? 'ring-2 ring-primary' : ''}`}
-          onClick={() => setRoleFilter(roleFilter === 'dealer_2' ? null : 'dealer_2')}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dealer 2</CardTitle>
-            <Users className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.dealer2}</div>
           </CardContent>
         </Card>
       </div>
@@ -373,18 +335,6 @@ const BranchManagement = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="subRole">Pricing Tier</Label>
-                  <Select value={subRole} onValueChange={setSubRole} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select pricing tier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dealer_1">Dealer 1</SelectItem>
-                      <SelectItem value="dealer_2">Dealer 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <Button type="submit" className="w-full" disabled={createUser.isPending}>
                   Create Branch
                 </Button>
@@ -440,18 +390,6 @@ const BranchManagement = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-subRole">Pricing Tier</Label>
-                  <Select value={subRole} onValueChange={setSubRole} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select pricing tier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dealer_1">Dealer 1</SelectItem>
-                      <SelectItem value="dealer_2">Dealer 2</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="edit-password">Change Password (Optional)</Label>
                   <Input
                     id="edit-password"
@@ -497,7 +435,6 @@ const BranchManagement = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>State</TableHead>
-                  <TableHead>Pricing Tier</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead>Active</TableHead>
@@ -505,17 +442,12 @@ const BranchManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredBranches?.map((user) => (
+                {branches?.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.idstaff || "N/A"}</TableCell>
                     <TableCell>{user.full_name || "N/A"}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.state || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.sub_role === 'dealer_1' ? "default" : "secondary"}>
-                        {user.sub_role === 'dealer_1' ? 'Dealer 1' : user.sub_role === 'dealer_2' ? 'Dealer 2' : 'N/A'}
-                      </Badge>
-                    </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? "default" : "secondary"}>
                         {user.is_active ? "Active" : "Inactive"}
