@@ -14,7 +14,7 @@ import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
 
 interface CustomersProps {
-  userType: "master_agent" | "agent";
+  userType: "master_agent" | "agent" | "branch";
 }
 
 const Customers = ({ userType }: CustomersProps) => {
@@ -23,6 +23,7 @@ const Customers = ({ userType }: CustomersProps) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [closingTypeFilter, setClosingTypeFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch bundles for the dropdown
@@ -40,7 +41,7 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // Fetch customer purchases
   const { data: purchases, isLoading } = useQuery({
-    queryKey: ["customer_purchases", user?.id, startDate, endDate, paymentFilter],
+    queryKey: ["customer_purchases", user?.id, startDate, endDate, paymentFilter, closingTypeFilter],
     queryFn: async () => {
       let query = supabase
         .from("customer_purchases")
@@ -61,6 +62,9 @@ const Customers = ({ userType }: CustomersProps) => {
       }
       if (paymentFilter !== "all") {
         query = query.eq("payment_method", paymentFilter);
+      }
+      if (closingTypeFilter !== "all") {
+        query = query.eq("closing_type", closingTypeFilter);
       }
 
       const { data, error } = await query;
@@ -169,6 +173,7 @@ const Customers = ({ userType }: CustomersProps) => {
           unit_price: data.price / bundleData.units,
           total_price: data.price,
           payment_method: data.paymentMethod,
+          closing_type: data.closingType,
           remarks: 'Customer purchase',
         });
 
@@ -242,7 +247,7 @@ const Customers = ({ userType }: CustomersProps) => {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Filters</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Start Date</label>
                     <Input
@@ -273,6 +278,24 @@ const Customers = ({ userType }: CustomersProps) => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Jenis Closing</label>
+                    <Select value={closingTypeFilter} onValueChange={setClosingTypeFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Jenis Closing" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Jenis Closing</SelectItem>
+                        <SelectItem value="Website">Website</SelectItem>
+                        <SelectItem value="WhatsappBot">WhatsappBot</SelectItem>
+                        <SelectItem value="Call">Call</SelectItem>
+                        <SelectItem value="Manual">Manual</SelectItem>
+                        <SelectItem value="Live">Live</SelectItem>
+                        <SelectItem value="Shop">Shop</SelectItem>
+                        <SelectItem value="Walk In">Walk In</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -292,13 +315,14 @@ const Customers = ({ userType }: CustomersProps) => {
                   <TableHead>Address</TableHead>
                   <TableHead>State</TableHead>
                   <TableHead>Payment Method</TableHead>
+                  <TableHead>Jenis Closing</TableHead>
                   <TableHead>Bundle</TableHead>
                   <TableHead>Unit</TableHead>
                   <TableHead>Price</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {purchases?.map((purchase, index) => (
+                {purchases?.map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
@@ -313,6 +337,7 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{purchase.customer?.state || "-"}</TableCell>
                     <TableCell>{purchase.payment_method}</TableCell>
+                    <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>{purchase.bundle?.name || "-"}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>

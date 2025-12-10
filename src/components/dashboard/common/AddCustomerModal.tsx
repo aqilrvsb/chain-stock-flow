@@ -29,7 +29,7 @@ interface AddCustomerModalProps {
     agent_price?: number;
     master_agent_price?: number;
   }>;
-  userType: "master_agent" | "agent";
+  userType: "master_agent" | "agent" | "branch";
 }
 
 export interface CustomerPurchaseData {
@@ -38,6 +38,7 @@ export interface CustomerPurchaseData {
   customerAddress: string;
   customerState: string;
   paymentMethod: string;
+  closingType: string;
   bundleId: string;
   price: number;
 }
@@ -63,6 +64,16 @@ const MALAYSIAN_STATES = [
 
 const PAYMENT_METHODS = ["Online Transfer", "COD", "Cash"];
 
+const CLOSING_TYPES = [
+  "Website",
+  "WhatsappBot",
+  "Call",
+  "Manual",
+  "Live",
+  "Shop",
+  "Walk In",
+];
+
 const AddCustomerModal = ({
   open,
   onOpenChange,
@@ -76,11 +87,12 @@ const AddCustomerModal = ({
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerState, setCustomerState] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [closingType, setClosingType] = useState("");
   const [bundleId, setBundleId] = useState("");
   const [price, setPrice] = useState("");
 
   const handleSubmit = () => {
-    if (!customerName || !customerPhone || !customerState || !paymentMethod || !bundleId || !price) {
+    if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !bundleId || !price) {
       return;
     }
 
@@ -90,6 +102,7 @@ const AddCustomerModal = ({
       customerAddress,
       customerState,
       paymentMethod,
+      closingType,
       bundleId,
       price: parseFloat(price),
     });
@@ -100,6 +113,7 @@ const AddCustomerModal = ({
     setCustomerAddress("");
     setCustomerState("");
     setPaymentMethod("");
+    setClosingType("");
     setBundleId("");
     setPrice("");
   };
@@ -109,6 +123,7 @@ const AddCustomerModal = ({
     customerPhone &&
     customerState &&
     paymentMethod &&
+    closingType &&
     bundleId &&
     price &&
     parseFloat(price) > 0;
@@ -182,6 +197,23 @@ const AddCustomerModal = ({
                 {PAYMENT_METHODS.map((method) => (
                   <SelectItem key={method} value={method}>
                     {method}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Jenis Closing */}
+          <div className="space-y-2">
+            <Label htmlFor="closing-type">Jenis Closing</Label>
+            <Select value={closingType} onValueChange={setClosingType}>
+              <SelectTrigger id="closing-type">
+                <SelectValue placeholder="Select jenis closing" />
+              </SelectTrigger>
+              <SelectContent>
+                {CLOSING_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
                   </SelectItem>
                 ))}
               </SelectContent>
