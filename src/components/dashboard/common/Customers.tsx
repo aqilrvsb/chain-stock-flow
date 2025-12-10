@@ -88,12 +88,15 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
-  // Calculate statistics - exclude COD from stats
-  const nonCodPurchases = purchases?.filter(p => p.payment_method !== "COD") || [];
-  const totalCustomers = new Set(nonCodPurchases.map(p => p.customer_id)).size || 0;
-  const totalUnitsPurchased = nonCodPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
-  const totalPrice = nonCodPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
-  const totalTransactions = nonCodPurchases.length || 0;
+  // Calculate statistics - exclude products named "COD" from stats
+  const filteredPurchases = purchases?.filter(p => {
+    const productName = p.product?.name || p.storehub_product || "";
+    return !productName.toUpperCase().includes("COD");
+  }) || [];
+  const totalCustomers = new Set(filteredPurchases.map(p => p.customer_id)).size || 0;
+  const totalUnitsPurchased = filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
+  const totalPrice = filteredPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0) || 0;
+  const totalTransactions = filteredPurchases.length || 0;
 
   const stats = [
     {
