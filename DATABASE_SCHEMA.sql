@@ -489,6 +489,7 @@ CREATE TABLE public.spends (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   product text NOT NULL,
   jenis_platform text NOT NULL,  -- Facebook, TikTok, Google, etc.
+  jenis_closing text,  -- Website, WhatsappBot, Manual, Call, Live, Shop
   total_spend numeric NOT NULL DEFAULT 0,
   tarikh_spend date NOT NULL DEFAULT CURRENT_DATE,
   marketer_id_staff text,
