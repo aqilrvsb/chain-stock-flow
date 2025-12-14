@@ -109,32 +109,72 @@ const MarketerOrders = () => {
     trackingNumber: "",
   });
 
-  // Fetch products from branch's inventory (only products with quantity > 0)
+  // Fetch products from branch's stock_in_branch (aggregated by product)
   const { data: branchProducts = [], isLoading: productsLoading } = useQuery({
     queryKey: ["products-for-marketer", branchId],
     queryFn: async () => {
       if (!branchId) return [];
 
-      // Get products from branch's inventory with quantity > 0
-      const { data, error } = await supabase
-        .from("inventory")
-        .select(`
-          product_id,
-          quantity,
-          product:products(id, name, sku)
-        `)
-        .eq("user_id", branchId)
-        .gt("quantity", 0);
+      // Get all active products first
+      const { data: products, error: productsError } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .eq("is_active", true);
 
-      if (error) throw error;
+      if (productsError) throw productsError;
 
-      return (data || [])
-        .filter((inv: any) => inv.product)
-        .map((inv: any) => ({
-          id: inv.product.id,
-          name: inv.product.name,
-          sku: inv.product.sku,
-          available_quantity: inv.quantity,
+      // Get stock_in_branch records for this branch
+      const { data: stockIn, error: stockInError } = await supabase
+        .from("stock_in_branch")
+        .select("product_id, quantity")
+        .eq("branch_id", branchId);
+
+      if (stockInError) throw stockInError;
+
+      // Get stock_out_branch records for this branch (to subtract)
+      const { data: stockOut, error: stockOutError } = await supabase
+        .from("stock_out_branch")
+        .select("product_id, quantity")
+        .eq("branch_id", branchId);
+
+      if (stockOutError) throw stockOutError;
+
+      // Get customer_purchases by branch (sold items to subtract)
+      const { data: purchases, error: purchasesError } = await supabase
+        .from("customer_purchases")
+        .select("product_id, quantity")
+        .eq("seller_id", branchId);
+
+      if (purchasesError) throw purchasesError;
+
+      // Calculate net quantity per product
+      const quantityMap: Record<string, number> = {};
+
+      // Add stock in
+      (stockIn || []).forEach((item: any) => {
+        quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) + item.quantity;
+      });
+
+      // Subtract stock out
+      (stockOut || []).forEach((item: any) => {
+        quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) - item.quantity;
+      });
+
+      // Subtract purchases
+      (purchases || []).forEach((item: any) => {
+        if (item.product_id) {
+          quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) - item.quantity;
+        }
+      });
+
+      // Return products with quantity > 0
+      return (products || [])
+        .filter((p: any) => (quantityMap[p.id] || 0) > 0)
+        .map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          available_quantity: quantityMap[p.id] || 0,
         }));
     },
     enabled: !!branchId,
