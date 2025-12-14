@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -21,6 +21,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -28,12 +38,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Plus, Search, DollarSign, Pencil, Trash2 } from "lucide-react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { Loader2, Plus, DollarSign, RotateCcw, Pencil, Trash2 } from "lucide-react";
 
-const PLATFORMS = ["Facebook", "Database", "Shopee", "Tiktok", "Google"];
+const PLATFORM_OPTIONS = ["Facebook", "Tiktok", "Shopee", "Database", "Google"];
+const JENIS_CLOSING_OPTIONS = ["Website", "WhatsappBot", "Manual", "Call", "Live", "Shop"];
 
 const MarketerSpend = () => {
   const { user, userProfile } = useAuth();
@@ -43,36 +52,31 @@ const MarketerSpend = () => {
   // Dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSpend, setEditingSpend] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [spendToDelete, setSpendToDelete] = useState<string | null>(null);
 
   // Form state
-  const [product, setProduct] = useState("");
-  const [platform, setPlatform] = useState("");
-  const [totalSpend, setTotalSpend] = useState("");
-  const [tarikhSpend, setTarikhSpend] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [formData, setFormData] = useState({
+    product: "",
+    jenisPlatform: "",
+    jenisClosing: "",
+    totalSpend: "",
+    tarikhSpend: "",
+  });
 
   // Filter state
-  const today = new Date();
-  const [startDate, setStartDate] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Fetch spends
   const { data: spends = [], isLoading } = useQuery({
-    queryKey: ["marketer-spends-list", userIdStaff, startDate, endDate],
+    queryKey: ["marketer-spends", userIdStaff],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("spends")
         .select("*")
         .eq("marketer_id_staff", userIdStaff)
-        .order("tarikh_spend", { ascending: false });
-
-      if (startDate) {
-        query = query.gte("tarikh_spend", startDate);
-      }
-      if (endDate) {
-        query = query.lte("tarikh_spend", endDate);
-      }
-
-      const { data, error } = await query;
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -85,12 +89,38 @@ const MarketerSpend = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("name")
+        .select("id, name")
         .eq("is_active", true);
       if (error) throw error;
       return data || [];
     },
   });
+
+  // Filter spends based on date range
+  const filteredSpends = useMemo(() => {
+    return spends.filter((spend: any) => {
+      const spendDate = spend.tarikh_spend;
+      const matchesStartDate = !startDate || (spendDate && spendDate >= startDate);
+      const matchesEndDate = !endDate || (spendDate && spendDate <= endDate);
+      return matchesStartDate && matchesEndDate;
+    });
+  }, [spends, startDate, endDate]);
+
+  // Calculate stats - Total Spend and dynamic platform totals
+  const stats = useMemo(() => {
+    const totalSpend = filteredSpends.reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0);
+
+    // Calculate spend by platform dynamically
+    const platformSpends: Record<string, number> = {};
+    filteredSpends.forEach((spend: any) => {
+      const platform = spend.jenis_platform;
+      if (platform) {
+        platformSpends[platform] = (platformSpends[platform] || 0) + (Number(spend.total_spend) || 0);
+      }
+    });
+
+    return { totalSpend, platformSpends };
+  }, [filteredSpends]);
 
   // Create/Update mutation
   const saveMutation = useMutation({
@@ -100,7 +130,8 @@ const MarketerSpend = () => {
           .from("spends")
           .update({
             product: data.product,
-            jenis_platform: data.platform,
+            jenis_platform: data.jenisPlatform,
+            jenis_closing: data.jenisClosing,
             total_spend: parseFloat(data.totalSpend),
             tarikh_spend: data.tarikhSpend,
             updated_at: new Date().toISOString(),
@@ -110,7 +141,8 @@ const MarketerSpend = () => {
       } else {
         const { error } = await supabase.from("spends").insert({
           product: data.product,
-          jenis_platform: data.platform,
+          jenis_platform: data.jenisPlatform,
+          jenis_closing: data.jenisClosing,
           total_spend: parseFloat(data.totalSpend),
           tarikh_spend: data.tarikhSpend,
           marketer_id_staff: userIdStaff,
@@ -119,12 +151,12 @@ const MarketerSpend = () => {
       }
     },
     onSuccess: () => {
-      toast.success(editingSpend ? "Spend updated" : "Spend added");
+      toast.success(editingSpend ? "Spend Dikemaskini" : "Spend Ditambah");
       queryClient.invalidateQueries({ queryKey: ["marketer-spends"] });
       handleCloseDialog();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to save spend");
+      toast.error(error.message || "Gagal menyimpan spend");
     },
   });
 
@@ -135,252 +167,334 @@ const MarketerSpend = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Spend deleted");
+      toast.success("Spend Dipadam");
       queryClient.invalidateQueries({ queryKey: ["marketer-spends"] });
     },
     onError: () => {
-      toast.error("Failed to delete spend");
+      toast.error("Gagal memadam spend");
     },
   });
+
+  const resetFilters = () => {
+    setStartDate("");
+    setEndDate("");
+  };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingSpend(null);
-    setProduct("");
-    setPlatform("");
-    setTotalSpend("");
-    setTarikhSpend(format(new Date(), "yyyy-MM-dd"));
+    setFormData({
+      product: "",
+      jenisPlatform: "",
+      jenisClosing: "",
+      totalSpend: "",
+      tarikhSpend: "",
+    });
   };
 
-  const handleEdit = (spend: any) => {
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditClick = (spend: any) => {
     setEditingSpend(spend);
-    setProduct(spend.product || "");
-    setPlatform(spend.jenis_platform || "");
-    setTotalSpend(spend.total_spend?.toString() || "");
-    setTarikhSpend(spend.tarikh_spend || format(new Date(), "yyyy-MM-dd"));
+    setFormData({
+      product: spend.product || "",
+      jenisPlatform: spend.jenis_platform || "",
+      jenisClosing: spend.jenis_closing || "",
+      totalSpend: spend.total_spend?.toString() || "",
+      tarikhSpend: spend.tarikh_spend || "",
+    });
     setIsDialogOpen(true);
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setSpendToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!spendToDelete) return;
+    try {
+      await deleteMutation.mutateAsync(spendToDelete);
+    } finally {
+      setDeleteDialogOpen(false);
+      setSpendToDelete(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!product || !platform || !totalSpend || !tarikhSpend) {
-      toast.error("Please fill all required fields");
+
+    if (!formData.product || !formData.jenisPlatform || !formData.jenisClosing || !formData.totalSpend || !formData.tarikhSpend) {
+      toast.error("Sila lengkapkan semua medan yang diperlukan.");
       return;
     }
-    saveMutation.mutate({ product, platform, totalSpend, tarikhSpend });
+
+    saveMutation.mutate(formData);
   };
 
-  // Stats
-  const stats = useMemo(() => {
-    const total = spends.reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0);
-    const byPlatform: Record<string, number> = {};
-    spends.forEach((s: any) => {
-      const platform = s.jenis_platform || "Other";
-      byPlatform[platform] = (byPlatform[platform] || 0) + (Number(s.total_spend) || 0);
-    });
-    return { total, byPlatform };
-  }, [spends]);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Spend Management</h1>
-          <p className="text-muted-foreground mt-2">Track your marketing spend</p>
+          <h1 className="text-2xl font-bold text-primary">Spend</h1>
+          <p className="text-muted-foreground">Urus perbelanjaan marketing</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) handleCloseDialog();
+          }}
+        >
           <DialogTrigger asChild>
-            <Button onClick={() => handleCloseDialog()}>
+            <Button>
               <Plus className="w-4 h-4 mr-2" />
               Add Spend
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{editingSpend ? "Edit Spend" : "Add Spend"}</DialogTitle>
+              <DialogTitle>{editingSpend ? "Edit Spend" : "Add New Spend"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Product *</Label>
-                <Select value={product} onValueChange={setProduct}>
+                <Label htmlFor="product">Product *</Label>
+                <Select value={formData.product} onValueChange={(value) => handleChange("product", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
+                    <SelectValue placeholder="Pilih product" />
                   </SelectTrigger>
                   <SelectContent>
-                    {products.map((p: any) => (
-                      <SelectItem key={p.name} value={p.name}>
-                        {p.name}
+                    {products.map((product: any) => (
+                      <SelectItem key={product.id} value={product.name}>
+                        {product.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Platform *</Label>
-                <Select value={platform} onValueChange={setPlatform}>
+                <Label htmlFor="jenisPlatform">Jenis Platform *</Label>
+                <Select value={formData.jenisPlatform} onValueChange={(value) => handleChange("jenisPlatform", value)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select platform" />
+                    <SelectValue placeholder="Pilih platform" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PLATFORMS.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
+                    {PLATFORM_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Amount (RM) *</Label>
+                <Label htmlFor="jenisClosing">Jenis Closing *</Label>
+                <Select value={formData.jenisClosing} onValueChange={(value) => handleChange("jenisClosing", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih jenis closing" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JENIS_CLOSING_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalSpend">Total Spend (RM) *</Label>
                 <Input
+                  id="totalSpend"
                   type="number"
                   step="0.01"
-                  value={totalSpend}
-                  onChange={(e) => setTotalSpend(e.target.value)}
                   placeholder="0.00"
+                  value={formData.totalSpend}
+                  onChange={(e) => handleChange("totalSpend", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Date *</Label>
+                <Label htmlFor="tarikhSpend">Tarikh Spend *</Label>
                 <Input
+                  id="tarikhSpend"
                   type="date"
-                  value={tarikhSpend}
-                  onChange={(e) => setTarikhSpend(e.target.value)}
+                  value={formData.tarikhSpend}
+                  onChange={(e) => handleChange("tarikhSpend", e.target.value)}
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Cancel
+              <DialogFooter className="gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsDialogOpen(false);
+                    handleCloseDialog();
+                  }}
+                >
+                  Batal
                 </Button>
                 <Button type="submit" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : editingSpend ? (
-                    "Update"
-                  ) : (
-                    "Add"
-                  )}
+                  {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {editingSpend ? "Kemaskini" : "Tambah"}
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-6 h-6 text-red-500" />
-              <div>
-                <p className="text-lg font-bold">RM {stats.total.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground">Total Spend</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        {PLATFORMS.map((platform) => (
-          <Card key={platform}>
-            <CardContent className="p-4">
-              <p className="text-lg font-bold">
-                RM {(stats.byPlatform[platform] || 0).toFixed(2)}
-              </p>
-              <p className="text-xs text-muted-foreground">{platform}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Stats Cards - Total Spend + Platform Totals */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-green-500" />
+            <span className="text-xs uppercase font-medium">Total Spend</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {stats.totalSpend.toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-blue-500" />
+            <span className="text-xs uppercase font-medium">Total Spend FB</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {(stats.platformSpends["Facebook"] || 0).toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-purple-500" />
+            <span className="text-xs uppercase font-medium">Total Spend Database</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {(stats.platformSpends["Database"] || 0).toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-orange-500" />
+            <span className="text-xs uppercase font-medium">Total Spend Google</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {(stats.platformSpends["Google"] || 0).toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-pink-500" />
+            <span className="text-xs uppercase font-medium">Total Spend Tiktok</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {(stats.platformSpends["Tiktok"] || 0).toFixed(2)}</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1">
+            <DollarSign className="w-4 h-4 text-red-500" />
+            <span className="text-xs uppercase font-medium">Total Spend Shopee</span>
+          </div>
+          <p className="text-xl font-bold text-foreground">RM {(stats.platformSpends["Shopee"] || 0).toFixed(2)}</p>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4 items-end">
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
-              />
-            </div>
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Start Date</label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-background" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">End Date</label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-background" />
+          </div>
+          <Button variant="outline" onClick={resetFilters}>
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
+        </div>
+      </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>No</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/50">
+              <TableHead className="w-16">No</TableHead>
+              <TableHead>Tarikh Spend</TableHead>
+              <TableHead className="text-right">Total Spend</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Platform</TableHead>
+              <TableHead>Jenis Closing</TableHead>
+              <TableHead className="w-24">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredSpends.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  Tiada data spend
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredSpends.map((spend: any, idx: number) => (
+                <TableRow key={spend.id} className="hover:bg-muted/30">
+                  <TableCell className="font-medium">{idx + 1}</TableCell>
+                  <TableCell>{spend.tarikh_spend}</TableCell>
+                  <TableCell className="text-right">RM {Number(spend.total_spend || 0).toFixed(2)}</TableCell>
+                  <TableCell>{spend.product}</TableCell>
+                  <TableCell>{spend.jenis_platform}</TableCell>
+                  <TableCell>{spend.jenis_closing || "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditClick(spend)}
+                        className="p-1.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(spend.id)}
+                        className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {spends.length > 0 ? (
-                  spends.map((spend: any, idx: number) => (
-                    <TableRow key={spend.id}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell>{spend.tarikh_spend}</TableCell>
-                      <TableCell>{spend.product}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{spend.jenis_platform}</Badge>
-                      </TableCell>
-                      <TableCell>RM {Number(spend.total_spend || 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(spend)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(spend.id)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No spend records found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Padam Spend?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adakah anda pasti mahu memadam spend ini? Tindakan ini tidak boleh dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Padam
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
