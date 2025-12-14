@@ -693,3 +693,8 @@ CREATE TABLE public.system_settings (
 -- customer_purchases.ninjavan_order_id: Order tracking ID from NinjaVan
 -- customer_purchases.delivery_status: Current delivery status
 -- customer_purchases.tracking_number: Shipping tracking number
+
+-- RLS Policy: Allow marketers to read their branch's NinjaVan config
+-- Marketers need this to create orders via NinjaVan
+-- Policy: "Marketers can view their branch ninjavan config" ON ninjavan_config
+-- Condition: profile_id = profiles.branch_id OR profile_id = user_roles.created_by
