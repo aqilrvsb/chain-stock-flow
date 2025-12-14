@@ -109,8 +109,31 @@ const BranchDashboardView = () => {
 
   // Calculate stats
   const stats = useMemo(() => {
+    // Calculate Branch Sales properly - group StoreHub by invoice using transaction_total
+    const calculateBranchSales = () => {
+      const invoiceTotals = new Map<string, number>();
+
+      filteredBranchOrders.forEach((o: any) => {
+        if (o.platform === "StoreHub") {
+          // StoreHub: use transaction_total grouped by invoice
+          const invoiceNumber = o.storehub_invoice || o.id;
+          if (o.transaction_total && !invoiceTotals.has(invoiceNumber)) {
+            invoiceTotals.set(invoiceNumber, Number(o.transaction_total) || 0);
+          } else if (!o.transaction_total) {
+            const current = invoiceTotals.get(invoiceNumber) || 0;
+            invoiceTotals.set(invoiceNumber, current + (Number(o.total_price) || 0));
+          }
+        } else {
+          // Non-StoreHub: use total_price
+          invoiceTotals.set(o.id, Number(o.total_price) || 0);
+        }
+      });
+
+      return Array.from(invoiceTotals.values()).reduce((sum, v) => sum + v, 0);
+    };
+
     // Total Sales (Branch + Marketer)
-    const branchSales = filteredBranchOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
+    const branchSales = calculateBranchSales();
     const marketerSales = filteredMarketerOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
     const totalSales = branchSales + marketerSales;
 
@@ -123,17 +146,37 @@ const BranchDashboardView = () => {
     const totalOrderCash = allOrders.filter((o: any) => o.payment_method === "Cash").length;
 
     // Branch Sales by Platform
+    // StoreHub uses transaction_total (grouped by invoice), others use total_price
     const branchByPlatform = (platform: string) => {
       const orders = filteredBranchOrders.filter((o: any) => o.platform === platform);
+
+      // For StoreHub, group by invoice and use transaction_total
+      if (platform === "StoreHub") {
+        const invoiceTotals = new Map<string, number>();
+        orders.forEach((o: any) => {
+          const invoiceNumber = o.storehub_invoice || o.id;
+          if (o.transaction_total && !invoiceTotals.has(invoiceNumber)) {
+            invoiceTotals.set(invoiceNumber, Number(o.transaction_total) || 0);
+          } else if (!o.transaction_total) {
+            // Fallback for old data without transaction_total
+            const current = invoiceTotals.get(invoiceNumber) || 0;
+            invoiceTotals.set(invoiceNumber, current + (Number(o.total_price) || 0));
+          }
+        });
+        const sales = Array.from(invoiceTotals.values()).reduce((sum, v) => sum + v, 0);
+        const customerIds = new Set(orders.map((o: any) => o.customer_id));
+        return { sales, customers: customerIds.size };
+      }
+
       const sales = orders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
       const customerIds = new Set(orders.map((o: any) => o.customer_id));
       return { sales, customers: customerIds.size };
     };
 
-    const branchStorehub = branchByPlatform("Storehub");
-    const branchTiktok = branchByPlatform("Tiktok");
-    const branchShopee = branchByPlatform("Shopee");
-    const branchOnline = branchByPlatform("Online");
+    const branchStorehub = branchByPlatform("StoreHub");
+    const branchTiktok = branchByPlatform("Tiktok HQ");
+    const branchShopee = branchByPlatform("Shopee HQ");
+    const branchOnline = branchByPlatform("Online HQ");
 
     // Total Branch Customers
     const branchCustomerIds = new Set(filteredBranchOrders.map((o: any) => o.customer_id));
