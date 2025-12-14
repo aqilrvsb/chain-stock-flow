@@ -46,11 +46,28 @@ const LogisticsReturn = () => {
   // Loading states
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Fetch return orders
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["logistics-return", user?.id, startDate, endDate],
+  // Fetch marketers under this branch
+  const { data: marketers } = useQuery({
+    queryKey: ["branch-marketers-logistics", user?.id],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("branch_id", user?.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch return orders (both HQ orders and Marketer orders)
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["logistics-return", user?.id, startDate, endDate, marketers],
+    queryFn: async () => {
+      const marketerIds = marketers?.map(m => m.id) || [];
+
+      // Query 1: HQ orders (seller_id = branch)
+      let hqQuery = supabase
         .from("customer_purchases")
         .select(`
           *,
@@ -63,15 +80,46 @@ const LogisticsReturn = () => {
         .order("date_return", { ascending: false });
 
       if (startDate) {
-        query = query.gte("date_return", startDate);
+        hqQuery = hqQuery.gte("date_return", startDate);
       }
       if (endDate) {
-        query = query.lte("date_return", endDate);
+        hqQuery = hqQuery.lte("date_return", endDate);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      const { data: hqOrders, error: hqError } = await hqQuery;
+      if (hqError) throw hqError;
+
+      // Query 2: Marketer orders (marketer_id in branch's marketers)
+      let marketerOrders: any[] = [];
+      if (marketerIds.length > 0) {
+        let marketerQuery = supabase
+          .from("customer_purchases")
+          .select(`
+            *,
+            customer:customers(name, phone, address, state, postcode, city),
+            product:products(name, sku)
+          `)
+          .in("marketer_id", marketerIds)
+          .eq("delivery_status", "Return")
+          .order("date_return", { ascending: false });
+
+        if (startDate) {
+          marketerQuery = marketerQuery.gte("date_return", startDate);
+        }
+        if (endDate) {
+          marketerQuery = marketerQuery.lte("date_return", endDate);
+        }
+
+        const { data: mOrders, error: mError } = await marketerQuery;
+        if (mError) throw mError;
+        marketerOrders = mOrders || [];
+      }
+
+      // Combine and sort by date_return descending
+      const allOrders = [...(hqOrders || []), ...marketerOrders];
+      allOrders.sort((a, b) => new Date(b.date_return || b.created_at).getTime() - new Date(a.date_return || a.created_at).getTime());
+
+      return allOrders;
     },
     enabled: !!user?.id,
   });

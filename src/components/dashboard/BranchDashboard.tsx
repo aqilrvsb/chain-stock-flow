@@ -17,6 +17,7 @@ import LogisticsProcessed from "./branch/LogisticsProcessed";
 import LogisticsReturn from "./branch/LogisticsReturn";
 import LogisticsPendingTracking from "./branch/LogisticsPendingTracking";
 import MarketerManagement from "./branch/MarketerManagement";
+import CustomerMarketer from "./branch/CustomerMarketer";
 
 const BranchDashboard = () => {
   const { userProfile } = useAuth();
@@ -36,6 +37,8 @@ const BranchDashboard = () => {
         return <MyAgents />;
       case "customers":
         return <Customers userType="branch" />;
+      case "customer-marketer":
+        return <CustomerMarketer />;
       case "logistics-order":
         return <LogisticsOrder />;
       case "logistics-processed":

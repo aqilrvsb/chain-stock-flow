@@ -624,6 +624,18 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
+                {/* Customer Marketer */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("customer-marketer")}
+                    isActive={activeView === "customer-marketer"}
+                    className="cursor-pointer"
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    {open && <span>Customer Marketer</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
                 {/* Logistics Group - Collapsible */}
                 <Collapsible defaultOpen className="group/collapsible">
                   <SidebarMenuItem>
