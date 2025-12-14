@@ -48,7 +48,11 @@ const FormLabel: React.FC<{ required?: boolean; children: React.ReactNode }> = (
   </label>
 );
 
-const MarketerOrders = () => {
+interface MarketerOrdersProps {
+  onNavigate?: (view: string) => void;
+}
+
+const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -278,9 +282,22 @@ const MarketerOrders = () => {
     }
   };
 
-  // Auto-create lead with yesterday's date
+  // Auto-create lead with yesterday's date (only if not exists)
   const autoCreateLead = async (phoneNumber: string, customerName: string, productName: string): Promise<string | null> => {
     const marketerIdStaff = userProfile?.idstaff || "";
+
+    // Double-check if lead already exists to prevent duplicates
+    const { data: existingLead } = await supabase
+      .from("prospects")
+      .select("id")
+      .eq("marketer_id_staff", marketerIdStaff)
+      .eq("no_telefon", phoneNumber)
+      .maybeSingle();
+
+    if (existingLead) {
+      // Lead already exists, return existing ID
+      return existingLead.id;
+    }
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -464,6 +481,58 @@ const MarketerOrders = () => {
         customerId = newCustomer.id;
       }
 
+      // Upload receipt image if provided (same bucket as master agent)
+      let receiptImageUrl = "";
+      if (receiptFile && showPaymentDetails) {
+        try {
+          const fileExt = receiptFile.name.split(".").pop();
+          const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
+          const filePath = `receipts/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("payment-receipts")
+            .upload(filePath, receiptFile);
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            toast.error("Gagal memuat naik resit. Order tetap disimpan.");
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from("payment-receipts")
+              .getPublicUrl(filePath);
+            receiptImageUrl = publicUrl;
+          }
+        } catch (uploadErr) {
+          console.error("Receipt upload error:", uploadErr);
+          toast.error("Gagal memuat naik resit. Order tetap disimpan.");
+        }
+      }
+
+      // Upload waybill if provided (Shopee/Tiktok)
+      let waybillUrl = "";
+      if (waybillFile && isShopeeOrTiktokPlatform) {
+        try {
+          const fileExt = waybillFile.name.split(".").pop();
+          const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
+          const filePath = `waybills/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("payment-receipts")
+            .upload(filePath, waybillFile);
+
+          if (uploadError) {
+            console.error("Waybill upload error:", uploadError);
+          } else {
+            const { data: { publicUrl } } = supabase.storage
+              .from("payment-receipts")
+              .getPublicUrl(filePath);
+            waybillUrl = publicUrl;
+          }
+        } catch (uploadErr) {
+          console.error("Waybill upload error:", uploadErr);
+        }
+      }
+
       // For COD and CASH orders (non Shopee/Tiktok), call NinjaVan API
       let trackingNumber = isShopeeOrTiktokPlatform ? formData.trackingNumber : "";
 
@@ -537,6 +606,8 @@ const MarketerOrders = () => {
           tarikh_bayaran: showPaymentDetails && tarikhBayaran ? format(tarikhBayaran, "yyyy-MM-dd") : null,
           jenis_bayaran: showPaymentDetails ? formData.jenisBayaran : null,
           bank: showPaymentDetails ? formData.pilihBank : null,
+          receipt_image_url: receiptImageUrl || null,
+          waybill_url: waybillUrl || null,
           platform: "Marketer",
         });
 
@@ -546,7 +617,13 @@ const MarketerOrders = () => {
       queryClient.invalidateQueries({ queryKey: ["marketer-orders"] });
       queryClient.invalidateQueries({ queryKey: ["customer-marketer"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+      queryClient.invalidateQueries({ queryKey: ["marketer-history"] });
       resetForm();
+
+      // Navigate to history page after successful submit
+      if (onNavigate) {
+        onNavigate("history");
+      }
     } catch (error: any) {
       console.error("Error creating order:", error);
       toast.error(error.message || "Gagal menyimpan tempahan. Sila cuba lagi.");

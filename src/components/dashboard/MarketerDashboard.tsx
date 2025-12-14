@@ -19,7 +19,7 @@ const MarketerDashboard = () => {
   const renderView = () => {
     switch (activeView) {
       case "order":
-        return <MarketerOrders />;
+        return <MarketerOrders onNavigate={setActiveView} />;
       case "history":
         return <MarketerHistory />;
       case "leads":
