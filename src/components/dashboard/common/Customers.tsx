@@ -544,6 +544,7 @@ const Customers = ({ userType }: CustomersProps) => {
         }
       });
       console.log(`========== EXPECTED TOTAL: RM ${expectedTotal} ==========`);
+      console.log(`========== TOTAL TRANSACTIONS: ${transactions?.length || 0} ==========`);
 
       if (!transactions || transactions.length === 0) {
         Swal.fire({
@@ -559,11 +560,17 @@ const Customers = ({ userType }: CustomersProps) => {
       let importedCount = 0;
       let skippedCount = 0;
 
+      let skippedCancelled = 0;
+      let skippedDuplicate = 0;
+      let skippedCOD = 0;
+
       // Process each transaction
       for (const transaction of transactions) {
         // Skip cancelled or return transactions
         if (transaction.isCancelled || transaction.transactionType === "Return") {
+          console.log(`SKIPPED (cancelled/return): Invoice ${transaction.invoiceNumber} | RM ${transaction.total}`);
           skippedCount++;
+          skippedCancelled++;
           continue;
         }
 
@@ -642,7 +649,9 @@ const Customers = ({ userType }: CustomersProps) => {
             .eq("remarks", itemRemarks);
 
           if (existingItem && existingItem.length > 0) {
+            console.log(`SKIPPED (duplicate): Invoice ${transaction.invoiceNumber} Item ${itemIndex}`);
             skippedCount++;
+            skippedDuplicate++;
             continue; // Skip this item, already imported
           }
 
@@ -652,7 +661,9 @@ const Customers = ({ userType }: CustomersProps) => {
 
           // Skip products named "COD" - don't import them at all
           if (storehubProductName.toUpperCase() === "COD") {
+            console.log(`SKIPPED (COD product): Invoice ${transaction.invoiceNumber} Item ${itemIndex} | ${storehubProductName}`);
             skippedCount++;
+            skippedCOD++;
             continue;
           }
 
@@ -709,13 +720,21 @@ const Customers = ({ userType }: CustomersProps) => {
 
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
 
+      console.log(`========== SYNC RESULTS ==========`);
+      console.log(`Imported: ${importedCount}`);
+      console.log(`Skipped - Cancelled/Return: ${skippedCancelled}`);
+      console.log(`Skipped - Duplicate: ${skippedDuplicate}`);
+      console.log(`Skipped - COD Product: ${skippedCOD}`);
+      console.log(`Total Skipped: ${skippedCount}`);
+
       Swal.fire({
         icon: "success",
         title: "Sync Complete!",
         html: `
           <p>StoreHub sync completed for ${syncDate}</p>
           <p><strong>Imported:</strong> ${importedCount} items</p>
-          <p><strong>Skipped:</strong> ${skippedCount} (duplicates/cancelled)</p>
+          <p><strong>Skipped:</strong> ${skippedCount}</p>
+          <p style="font-size: 12px; color: #666;">Cancelled: ${skippedCancelled} | Duplicate: ${skippedDuplicate} | COD: ${skippedCOD}</p>
         `,
         confirmButtonText: "OK"
       });
