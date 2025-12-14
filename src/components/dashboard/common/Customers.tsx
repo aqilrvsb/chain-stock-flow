@@ -369,6 +369,13 @@ const Customers = ({ userType }: CustomersProps) => {
         }
       }
 
+      // Map orderFrom to platform
+      let platform = 'Manual';
+      if (data.orderFrom) {
+        // Use orderFrom value directly as platform (Tiktok HQ, Shopee HQ, Online, StoreHub)
+        platform = data.orderFrom;
+      }
+
       // Create customer purchase record
       const { error: purchaseError } = await supabase
         .from('customer_purchases')
@@ -383,7 +390,7 @@ const Customers = ({ userType }: CustomersProps) => {
           closing_type: data.closingType,
           tracking_number: trackingNumber,
           remarks: 'Customer purchase',
-          platform: 'Manual',
+          platform: platform,
           ninjavan_order_id: ninjavanOrderId,
           order_from: data.orderFrom || null,
           attachment_url: attachmentUrl,
@@ -705,7 +712,7 @@ const Customers = ({ userType }: CustomersProps) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Customers</h1>
+          <h1 className="text-3xl font-bold">Customer HQ</h1>
           <p className="text-muted-foreground mt-2">
             Manage your customer purchases and track sales
           </p>
@@ -847,6 +854,12 @@ const Customers = ({ userType }: CustomersProps) => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         purchase.platform === "StoreHub"
                           ? "bg-blue-100 text-blue-800"
+                          : purchase.platform === "Tiktok HQ"
+                          ? "bg-pink-100 text-pink-800"
+                          : purchase.platform === "Shopee HQ"
+                          ? "bg-orange-100 text-orange-800"
+                          : purchase.platform === "Online HQ"
+                          ? "bg-green-100 text-green-800"
                           : "bg-gray-100 text-gray-800"
                       }`}>
                         {purchase.platform || "Manual"}

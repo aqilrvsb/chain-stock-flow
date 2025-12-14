@@ -83,6 +83,7 @@ const ORDER_FROM_OPTIONS = [
   "Tiktok HQ",
   "Shopee HQ",
   "Online HQ",
+  "StoreHub",
 ];
 
 // These sources require manual tracking number and PDF attachment

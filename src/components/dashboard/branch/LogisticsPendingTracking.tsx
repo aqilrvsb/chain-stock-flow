@@ -67,7 +67,7 @@ const LogisticsPendingTracking = () => {
         .eq("seller_id", user?.id)
         .eq("delivery_status", "Shipped")
         .eq("payment_method", "COD")
-        .is("platform", null)
+        .neq("platform", "StoreHub")
         .neq("seo", "Successfull Delivery")
         .order("created_at", { ascending: false });
 

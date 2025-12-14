@@ -62,7 +62,7 @@ const LogisticsProcessed = () => {
         `)
         .eq("seller_id", user?.id)
         .eq("delivery_status", "Shipped")
-        .is("platform", null)
+        .neq("platform", "StoreHub")
         .order("date_processed", { ascending: false });
 
       if (startDate) {
