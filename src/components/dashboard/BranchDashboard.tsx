@@ -1,6 +1,5 @@
 import { useState } from "react";
 import DashboardLayout from "./DashboardLayout";
-import { useAuth } from "@/hooks/useAuth";
 import MasterAgentInventory from "./master-agent/MasterAgentInventory";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
@@ -18,12 +17,10 @@ import LogisticsReturn from "./branch/LogisticsReturn";
 import LogisticsPendingTracking from "./branch/LogisticsPendingTracking";
 import MarketerManagement from "./branch/MarketerManagement";
 import CustomerMarketer from "./branch/CustomerMarketer";
+import BranchDashboardView from "./branch/BranchDashboardView";
 
 const BranchDashboard = () => {
-  const { userProfile } = useAuth();
-  const userName = userProfile?.idstaff || "User";
   const [activeView, setActiveView] = useState("dashboard");
-  // Branch always has Customers enabled - no dependency on HQ settings
 
   const renderView = () => {
     switch (activeView) {
@@ -65,21 +62,11 @@ const BranchDashboard = () => {
         return <MyAnalytics />;
       case "settings":
         return <Settings />;
+      case "profile":
+        return <Settings />; // Reuse Settings for profile for now
       case "dashboard":
       default:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                Welcome back, {userName}!
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Here's an overview of your branch operations and agent network.
-              </p>
-            </div>
-            <MyAnalytics />
-          </div>
-        );
+        return <BranchDashboardView />;
     }
   };
 
