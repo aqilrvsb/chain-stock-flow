@@ -61,7 +61,32 @@ const MarketerOrders = () => {
   const [waybillFile, setWaybillFile] = useState<File | null>(null);
   const [waybillFileName, setWaybillFileName] = useState<string>("");
 
-  const branchId = userProfile?.branch_id;
+  // Fetch branch_id - first try from profile, then fallback to user_roles.created_by
+  const { data: branchId } = useQuery({
+    queryKey: ["marketer-branch-id", user?.id, userProfile?.branch_id],
+    queryFn: async () => {
+      // If profile already has branch_id, use it
+      if (userProfile?.branch_id) {
+        return userProfile.branch_id;
+      }
+
+      // Fallback: get branch_id from user_roles.created_by
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("created_by")
+        .eq("user_id", user?.id)
+        .eq("role", "marketer")
+        .single();
+
+      if (error || !data?.created_by) {
+        console.error("Could not determine branch_id:", error);
+        return null;
+      }
+
+      return data.created_by;
+    },
+    enabled: !!user?.id,
+  });
 
   const [formData, setFormData] = useState({
     namaPelanggan: "",
