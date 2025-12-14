@@ -69,13 +69,14 @@ const Customers = ({ userType }: CustomersProps) => {
           product:products(name, sku)
         `)
         .eq("seller_id", user?.id)
-        .order("created_at", { ascending: false });
+        .order("date_order", { ascending: false, nullsFirst: false });
 
+      // Use date_order for filtering (actual transaction date, not import timestamp)
       if (startDate) {
-        query = query.gte("created_at", startDate + 'T00:00:00.000Z');
+        query = query.gte("date_order", startDate);
       }
       if (endDate) {
-        query = query.lte("created_at", endDate + 'T23:59:59.999Z');
+        query = query.lte("date_order", endDate);
       }
       if (platformFilter !== "all") {
         query = query.eq("platform", platformFilter);
@@ -159,6 +160,7 @@ const Customers = ({ userType }: CustomersProps) => {
           id: p.id,
           invoiceNumber: invoiceNumber,
           created_at: p.created_at,
+          date_order: p.date_order,
           customer: p.customer,
           payment_method: p.payment_method,
           closing_type: p.closing_type,
@@ -183,10 +185,12 @@ const Customers = ({ userType }: CustomersProps) => {
       }
     });
 
-    // Convert to array and sort by date descending
-    return Array.from(grouped.values()).sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    // Convert to array and sort by date_order descending (use created_at as fallback)
+    return Array.from(grouped.values()).sort((a, b) => {
+      const dateA = a.date_order || a.created_at;
+      const dateB = b.date_order || b.created_at;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
   })();
 
   // Count unique transactions (by invoice number from remarks) to match StoreHub
@@ -466,9 +470,10 @@ const Customers = ({ userType }: CustomersProps) => {
     const { value: selectedDate, isConfirmed } = await Swal.fire({
       title: "Select Date to Sync",
       html: `
-        <input type="date" id="sync-date" class="swal2-input" value="${defaultDate}" max="${defaultDate}" style="width: 100%;">
+        <input type="date" id="sync-date" class="swal2-input" value="${defaultDate}" max="${defaultDate}" style="width: 250px;">
         <p style="margin-top: 10px; font-size: 14px; color: #666;">Select the date to sync transactions from StoreHub</p>
       `,
+      width: 400,
       showCancelButton: true,
       confirmButtonText: "Sync",
       cancelButtonText: "Cancel",
@@ -670,6 +675,9 @@ const Customers = ({ userType }: CustomersProps) => {
             }
           }
 
+          // Use the user-selected sync date (the date they picked in the popup)
+          // This is more reliable than extracting from transactionTime which has timezone issues
+
           // Create customer purchase record with storehub_product
           const { error: purchaseError } = await supabase
             .from("customer_purchases")
@@ -687,6 +695,7 @@ const Customers = ({ userType }: CustomersProps) => {
               transaction_total: transaction.total, // Full invoice total from StoreHub
               storehub_invoice: transaction.invoiceNumber, // Invoice number for grouping
               platform: "StoreHub", // Track source platform
+              date_order: syncDate, // Store the user-selected sync date
             } as any);
 
           if (purchaseError) {
@@ -870,7 +879,7 @@ const Customers = ({ userType }: CustomersProps) => {
                   <TableRow key={purchase.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      {format(new Date(purchase.created_at), "dd-MM-yyyy")}
+                      {format(new Date(purchase.date_order || purchase.created_at), "dd-MM-yyyy")}
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -957,7 +966,7 @@ const Customers = ({ userType }: CustomersProps) => {
                     COMPLETED
                   </span>
                   <p className="text-sm text-muted-foreground mt-2">Invoice Date</p>
-                  <p className="font-semibold">{format(new Date(selectedInvoice.created_at), "dd MMMM yyyy")}</p>
+                  <p className="font-semibold">{format(new Date(selectedInvoice.date_order || selectedInvoice.created_at), "dd MMMM yyyy")}</p>
                   <p className="text-sm text-muted-foreground mt-2">Transaction ID</p>
                   <p className="text-xs font-mono">-</p>
                 </div>
