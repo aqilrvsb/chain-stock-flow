@@ -109,13 +109,14 @@ const MarketerOrders = () => {
     trackingNumber: "",
   });
 
-  // Fetch products from branch's stock_in_branch (aggregated by product)
+  // Fetch products - just get all active products for marketer
+  // Note: Inventory quantity check is handled at order submission time
   const { data: branchProducts = [], isLoading: productsLoading } = useQuery({
     queryKey: ["products-for-marketer", branchId],
     queryFn: async () => {
       if (!branchId) return [];
 
-      // Get all active products first
+      // Get all active products
       const { data: products, error: productsError } = await supabase
         .from("products")
         .select("id, name, sku")
@@ -123,59 +124,12 @@ const MarketerOrders = () => {
 
       if (productsError) throw productsError;
 
-      // Get stock_in_branch records for this branch
-      const { data: stockIn, error: stockInError } = await supabase
-        .from("stock_in_branch")
-        .select("product_id, quantity")
-        .eq("branch_id", branchId);
-
-      if (stockInError) throw stockInError;
-
-      // Get stock_out_branch records for this branch (to subtract)
-      const { data: stockOut, error: stockOutError } = await supabase
-        .from("stock_out_branch")
-        .select("product_id, quantity")
-        .eq("branch_id", branchId);
-
-      if (stockOutError) throw stockOutError;
-
-      // Get customer_purchases by branch (sold items to subtract)
-      const { data: purchases, error: purchasesError } = await supabase
-        .from("customer_purchases")
-        .select("product_id, quantity")
-        .eq("seller_id", branchId);
-
-      if (purchasesError) throw purchasesError;
-
-      // Calculate net quantity per product
-      const quantityMap: Record<string, number> = {};
-
-      // Add stock in
-      (stockIn || []).forEach((item: any) => {
-        quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) + item.quantity;
-      });
-
-      // Subtract stock out
-      (stockOut || []).forEach((item: any) => {
-        quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) - item.quantity;
-      });
-
-      // Subtract purchases
-      (purchases || []).forEach((item: any) => {
-        if (item.product_id) {
-          quantityMap[item.product_id] = (quantityMap[item.product_id] || 0) - item.quantity;
-        }
-      });
-
-      // Return products with quantity > 0
-      return (products || [])
-        .filter((p: any) => (quantityMap[p.id] || 0) > 0)
-        .map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          available_quantity: quantityMap[p.id] || 0,
-        }));
+      return (products || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        available_quantity: 0, // Quantity check is done server-side
+      }));
     },
     enabled: !!branchId,
   });
@@ -803,7 +757,7 @@ const MarketerOrders = () => {
                   ) : (
                     branchProducts.map((product: any) => (
                       <SelectItem key={product.id} value={product.name}>
-                        {product.name} ({product.sku}) - Stok: {product.available_quantity}
+                        {product.name} ({product.sku})
                       </SelectItem>
                     ))
                   )}
