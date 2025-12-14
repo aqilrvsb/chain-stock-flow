@@ -84,24 +84,35 @@ const MarketerOrders = () => {
     trackingNumber: "",
   });
 
-  // Fetch all active products (same as Branch StockIn)
+  // Fetch products from branch's inventory (only products with quantity > 0)
   const { data: branchProducts = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["products-for-marketer"],
+    queryKey: ["products-for-marketer", branchId],
     queryFn: async () => {
+      if (!branchId) return [];
+
+      // Get products from branch's inventory with quantity > 0
       const { data, error } = await supabase
-        .from("products")
-        .select("id, name, sku, selling_price")
-        .eq("is_active", true);
+        .from("inventory")
+        .select(`
+          product_id,
+          quantity,
+          product:products(id, name, sku)
+        `)
+        .eq("user_id", branchId)
+        .gt("quantity", 0);
 
       if (error) throw error;
 
-      return (data || []).map((product: any) => ({
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        selling_price: product.selling_price || 0,
-      }));
+      return (data || [])
+        .filter((inv: any) => inv.product)
+        .map((inv: any) => ({
+          id: inv.product.id,
+          name: inv.product.name,
+          sku: inv.product.sku,
+          available_quantity: inv.quantity,
+        }));
     },
+    enabled: !!branchId,
   });
 
   // Fetch NinjaVan config for branch
@@ -737,7 +748,7 @@ const MarketerOrders = () => {
                   ) : (
                     branchProducts.map((product: any) => (
                       <SelectItem key={product.id} value={product.name}>
-                        {product.name} ({product.sku})
+                        {product.name} ({product.sku}) - Stok: {product.available_quantity}
                       </SelectItem>
                     ))
                   )}
