@@ -9,8 +9,9 @@ import { Package, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 const RawMaterialView = () => {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   const { data: rawMaterials, isLoading } = useQuery({
     queryKey: ["raw-material-stock", startDate, endDate],

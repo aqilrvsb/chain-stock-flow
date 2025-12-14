@@ -16,8 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 
 const TransactionAgent = () => {
   const queryClient = useQueryClient();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingRemarks, setEditingRemarks] = useState<{ [key: string]: string }>({});
   const [remarkDialogOpen, setRemarkDialogOpen] = useState<{ [key: string]: boolean }>({});

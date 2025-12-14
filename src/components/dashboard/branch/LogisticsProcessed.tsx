@@ -32,11 +32,12 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100];
 const LogisticsProcessed = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const today = format(new Date(), "yyyy-MM-dd");
 
   // Filter states
   const [search, setSearch] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);

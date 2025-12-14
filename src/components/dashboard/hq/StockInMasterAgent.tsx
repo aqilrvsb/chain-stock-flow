@@ -9,8 +9,9 @@ import { Package, Users, DollarSign, ShoppingCart } from "lucide-react";
 import { format } from "date-fns";
 
 const StockInMasterAgent = () => {
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   const { data: masterAgentStats, isLoading } = useQuery({
     queryKey: ["stock-in-ma", startDate, endDate],

@@ -25,8 +25,9 @@ const ProductManagement = () => {
   const [quantity, setQuantity] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();

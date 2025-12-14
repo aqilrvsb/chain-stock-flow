@@ -15,8 +15,9 @@ import { ShoppingCart, CheckCircle2, XCircle, Clock, Package, DollarSign } from 
 
 const AgentTransactions = () => {
   const { user } = useAuth();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: purchases, isLoading } = useQuery({

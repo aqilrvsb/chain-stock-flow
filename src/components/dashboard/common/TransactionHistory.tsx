@@ -16,8 +16,9 @@ import PaymentDetailsModal from "./PaymentDetailsModal";
 const TransactionHistory = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");
   const [recheckingBills, setRecheckingBills] = useState<Set<string>>(new Set());
   const [paymentDetailsModal, setPaymentDetailsModal] = useState<{

@@ -24,9 +24,10 @@ const MyAnalytics = () => {
   const { user, userRole } = useAuth();
   const { isCustomerSegmentEnabled } = useCustomerSegment();
 
-  // Date filters start as empty
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // Date filters default to today
+  const today = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   const { data: stats, isLoading} = useQuery({
     queryKey: ["my-analytics", user?.id, userRole, startDate, endDate],

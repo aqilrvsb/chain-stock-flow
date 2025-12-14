@@ -26,8 +26,9 @@ const MasterAgentInventory = () => {
   const [description, setDescription] = useState("");
 
   // Date filters for Stock In/Out
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   const { data: products, isLoading} = useQuery({
     queryKey: ["master-agent-inventory", user?.id, startDate, endDate],
