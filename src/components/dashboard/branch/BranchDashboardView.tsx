@@ -140,10 +140,15 @@ const BranchDashboardView = () => {
     // Total Marketer count
     const totalMarketer = marketers.length;
 
-    // Total Order COD (Ninjavan) and Cash (Ninjavan)
-    const allOrders = [...filteredBranchOrders, ...filteredMarketerOrders];
-    const totalOrderCOD = allOrders.filter((o: any) => o.payment_method === "COD").length;
-    const totalOrderCash = allOrders.filter((o: any) => o.payment_method === "Cash").length;
+    // Ninja COD and Cash - separate for Branch (HQ) and Marketer
+    const branchNinjaCOD = filteredBranchOrders.filter((o: any) => o.payment_method === "COD").length;
+    const branchNinjaCash = filteredBranchOrders.filter((o: any) => o.payment_method === "Cash").length;
+    const marketerNinjaCOD = filteredMarketerOrders.filter((o: any) => o.payment_method === "COD").length;
+    const marketerNinjaCash = filteredMarketerOrders.filter((o: any) => o.payment_method === "Cash").length;
+
+    // Total Ninja COD and Cash (combined)
+    const totalNinjaCOD = branchNinjaCOD + marketerNinjaCOD;
+    const totalNinjaCash = branchNinjaCash + marketerNinjaCash;
 
     // Branch Sales by Platform
     // StoreHub uses transaction_total (grouped by invoice), others use total_price
@@ -215,8 +220,12 @@ const BranchDashboardView = () => {
       branchSales,
       marketerSales,
       totalMarketer,
-      totalOrderCOD,
-      totalOrderCash,
+      totalNinjaCOD,
+      totalNinjaCash,
+      branchNinjaCOD,
+      branchNinjaCash,
+      marketerNinjaCOD,
+      marketerNinjaCash,
       totalBranchCustomers,
       branchStorehub: { ...branchStorehub, pct: branchStorehubPct },
       branchTiktok: { ...branchTiktok, pct: branchTiktokPct },
@@ -320,27 +329,27 @@ const BranchDashboardView = () => {
           </CardContent>
         </Card>
 
-        {/* Total Order COD */}
+        {/* Ninja COD */}
         <Card className="border-l-4 border-l-orange-500">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-orange-600 mb-2">
               <Package className="w-5 h-5" />
-              <span className="text-sm font-medium">ORDER COD</span>
+              <span className="text-sm font-medium">NINJA COD</span>
             </div>
-            <p className="text-2xl font-bold">{stats.totalOrderCOD}</p>
-            <p className="text-xs text-muted-foreground mt-1">Ninjavan COD</p>
+            <p className="text-2xl font-bold">{stats.totalNinjaCOD}</p>
+            <p className="text-xs text-muted-foreground mt-1">Total COD orders</p>
           </CardContent>
         </Card>
 
-        {/* Total Order Cash */}
+        {/* Ninja Cash */}
         <Card className="border-l-4 border-l-purple-500">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-purple-600 mb-2">
               <ShoppingCart className="w-5 h-5" />
-              <span className="text-sm font-medium">ORDER CASH</span>
+              <span className="text-sm font-medium">NINJA CASH</span>
             </div>
-            <p className="text-2xl font-bold">{stats.totalOrderCash}</p>
-            <p className="text-xs text-muted-foreground mt-1">Ninjavan Cash</p>
+            <p className="text-2xl font-bold">{stats.totalNinjaCash}</p>
+            <p className="text-xs text-muted-foreground mt-1">Total Cash orders</p>
           </CardContent>
         </Card>
       </div>
@@ -353,7 +362,7 @@ const BranchDashboardView = () => {
           <span className="text-sm text-muted-foreground">({formatCurrency(stats.branchSales)})</span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
           {/* Total Customer Branch */}
           <Card>
             <CardContent className="pt-6">
@@ -363,6 +372,30 @@ const BranchDashboardView = () => {
               </div>
               <p className="text-2xl font-bold">{stats.totalBranchCustomers}</p>
               <p className="text-xs text-muted-foreground mt-1">Branch customers</p>
+            </CardContent>
+          </Card>
+
+          {/* Branch Ninja COD */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-orange-600 mb-2">
+                <Package className="w-5 h-5" />
+                <span className="text-sm font-medium">NINJA COD</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.branchNinjaCOD}</p>
+              <p className="text-xs text-muted-foreground mt-1">COD orders</p>
+            </CardContent>
+          </Card>
+
+          {/* Branch Ninja Cash */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-purple-600 mb-2">
+                <ShoppingCart className="w-5 h-5" />
+                <span className="text-sm font-medium">NINJA CASH</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.branchNinjaCash}</p>
+              <p className="text-xs text-muted-foreground mt-1">Cash orders</p>
             </CardContent>
           </Card>
 
@@ -444,7 +477,7 @@ const BranchDashboardView = () => {
           <span className="text-sm text-muted-foreground">({formatCurrency(stats.marketerSales)})</span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
           {/* Total Customer Marketer */}
           <Card>
             <CardContent className="pt-6">
@@ -454,6 +487,30 @@ const BranchDashboardView = () => {
               </div>
               <p className="text-2xl font-bold">{stats.totalMarketerCustomers}</p>
               <p className="text-xs text-muted-foreground mt-1">Marketer customers</p>
+            </CardContent>
+          </Card>
+
+          {/* Marketer Ninja COD */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-orange-600 mb-2">
+                <Package className="w-5 h-5" />
+                <span className="text-sm font-medium">NINJA COD</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.marketerNinjaCOD}</p>
+              <p className="text-xs text-muted-foreground mt-1">COD orders</p>
+            </CardContent>
+          </Card>
+
+          {/* Marketer Ninja Cash */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-purple-600 mb-2">
+                <ShoppingCart className="w-5 h-5" />
+                <span className="text-sm font-medium">NINJA CASH</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.marketerNinjaCash}</p>
+              <p className="text-xs text-muted-foreground mt-1">Cash orders</p>
             </CardContent>
           </Card>
 
