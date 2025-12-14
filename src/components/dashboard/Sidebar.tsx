@@ -406,17 +406,27 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
               </div>
             )}
           </div>
-          {open && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-              onClick={signOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          )}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => onViewChange("profile")}
+                isActive={activeView === "profile"}
+                className="cursor-pointer"
+              >
+                <User className="h-4 w-4" />
+                {open && <span>Profile</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={signOut}
+                className="cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                {open && <span>Logout</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
 
         <SOPModal
@@ -519,17 +529,27 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
               </div>
             )}
           </div>
-          {open && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-              onClick={signOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          )}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => onViewChange("profile")}
+                isActive={activeView === "profile"}
+                className="cursor-pointer"
+              >
+                <User className="h-4 w-4" />
+                {open && <span>Profile</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={signOut}
+                className="cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                {open && <span>Logout</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
 
         <SOPModal
@@ -838,17 +858,27 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
               </div>
             )}
           </div>
-          {open && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-              onClick={signOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          )}
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => onViewChange("profile")}
+                isActive={activeView === "profile"}
+                className="cursor-pointer"
+              >
+                <User className="h-4 w-4" />
+                {open && <span>Profile</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={signOut}
+                className="cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                {open && <span>Logout</span>}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarFooter>
 
         <SOPModal
@@ -1060,17 +1090,27 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
             </div>
           )}
         </div>
-        {open && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            onClick={signOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
-        )}
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => onViewChange("profile")}
+              isActive={activeView === "profile"}
+              className="cursor-pointer"
+            >
+              <User className="h-4 w-4" />
+              {open && <span>Profile</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={signOut}
+              className="cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              {open && <span>Logout</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
 
       <SOPModal
