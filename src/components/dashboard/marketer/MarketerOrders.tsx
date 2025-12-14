@@ -223,21 +223,11 @@ const MarketerOrders = () => {
 
       const newData = { ...prev, [field]: processedValue };
 
-      // When product is selected, update productId and set default price
+      // When product is selected, update productId
       if (field === "produk") {
         const selectedProduct = branchProducts.find((p: any) => p.name === value);
         if (selectedProduct) {
           newData.productId = selectedProduct.id;
-          // Set default price based on selling_price * quantity
-          newData.hargaJualan = (selectedProduct.selling_price || 0) * prev.quantity;
-        }
-      }
-
-      // When quantity changes, update price
-      if (field === "quantity") {
-        const selectedProduct = branchProducts.find((p: any) => p.id === prev.productId);
-        if (selectedProduct) {
-          newData.hargaJualan = (selectedProduct.selling_price || 0) * (Number(value) || 1);
         }
       }
 
