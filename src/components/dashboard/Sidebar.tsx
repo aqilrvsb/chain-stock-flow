@@ -568,49 +568,13 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 
-                {/* Inventory */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("inventory")}
-                    isActive={activeView === "inventory"}
-                    className="cursor-pointer"
-                  >
-                    <Package className="h-4 w-4" />
-                    {open && <span>Inventory</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {/* Stock In */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("stock-in")}
-                    isActive={activeView === "stock-in"}
-                    className="cursor-pointer"
-                  >
-                    <ArrowLeftToLine className="h-4 w-4" />
-                    {open && <span>Stock In</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {/* Stock Out */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("stock-out")}
-                    isActive={activeView === "stock-out"}
-                    className="cursor-pointer"
-                  >
-                    <ArrowRightFromLine className="h-4 w-4" />
-                    {open && <span>Stock Out</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                {/* Agent Group - Collapsible */}
+                {/* Inventory Group - Collapsible */}
                 <Collapsible defaultOpen className="group/collapsible">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton className="cursor-pointer">
-                        <Users className="h-4 w-4" />
-                        {open && <span>Agent</span>}
+                        <Package className="h-4 w-4" />
+                        {open && <span>Inventory</span>}
                         {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -618,47 +582,29 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                       <SidebarMenuSub>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
-                            onClick={() => onViewChange("agents")}
-                            isActive={activeView === "agents"}
+                            onClick={() => onViewChange("inventory")}
+                            isActive={activeView === "inventory"}
                             className="cursor-pointer"
                           >
-                            <span>My Agents</span>
+                            <span>Product</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
-                            onClick={() => onViewChange("transaction-agent")}
-                            isActive={activeView === "transaction-agent"}
+                            onClick={() => onViewChange("stock-in")}
+                            isActive={activeView === "stock-in"}
                             className="cursor-pointer"
                           >
-                            <span>Transaction Agent</span>
+                            <span>Stock In</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
-                            onClick={() => onViewChange("reward-agent-platinum")}
-                            isActive={activeView === "reward-agent-platinum"}
+                            onClick={() => onViewChange("stock-out")}
+                            isActive={activeView === "stock-out"}
                             className="cursor-pointer"
                           >
-                            <span>Reward Agent Platinum</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => onViewChange("reward-agent-gold")}
-                            isActive={activeView === "reward-agent-gold"}
-                            className="cursor-pointer"
-                          >
-                            <span>Reward Agent Gold</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => onViewChange("reporting-agent")}
-                            isActive={activeView === "reporting-agent"}
-                            className="cursor-pointer"
-                          >
-                            <span>Reporting Agent</span>
+                            <span>Stock Out</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>
@@ -684,7 +630,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton className="cursor-pointer">
                         <Truck className="h-4 w-4" />
-                        {open && <span>Logistics</span>}
+                        {open && <span>Logistic</span>}
                         {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -768,6 +714,68 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                             className="cursor-pointer"
                           >
                             <span>Top 10</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+
+                {/* Agent Group - Collapsible */}
+                <Collapsible defaultOpen className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <Users className="h-4 w-4" />
+                        {open && <span>Agent</span>}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("agents")}
+                            isActive={activeView === "agents"}
+                            className="cursor-pointer"
+                          >
+                            <span>My Agents</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("transaction-agent")}
+                            isActive={activeView === "transaction-agent"}
+                            className="cursor-pointer"
+                          >
+                            <span>Transaction Agent</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reward-agent-platinum")}
+                            isActive={activeView === "reward-agent-platinum"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reward Agent Platinum</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reward-agent-gold")}
+                            isActive={activeView === "reward-agent-gold"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reward Agent Gold</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("reporting-agent")}
+                            isActive={activeView === "reporting-agent"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reporting Agent</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>
