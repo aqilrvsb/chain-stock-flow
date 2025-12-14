@@ -666,7 +666,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                   </SidebarMenuItem>
                 </Collapsible>
 
-                {/* Customers */}
+                {/* Customer HQ */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => onViewChange("customers")}
@@ -674,7 +674,7 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     className="cursor-pointer"
                   >
                     <UserCheck className="h-4 w-4" />
-                    {open && <span>Customers</span>}
+                    {open && <span>Customer HQ</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
 

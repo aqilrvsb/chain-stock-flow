@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2 } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
@@ -22,10 +23,11 @@ const Customers = ({ userType }: CustomersProps) => {
   const queryClient = useQueryClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState("all");
-  const [closingTypeFilter, setClosingTypeFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   // Fetch profile for StoreHub credentials (Branch only)
   const { data: profile } = useQuery({
@@ -57,7 +59,7 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // Fetch customer purchases
   const { data: purchases, isLoading } = useQuery({
-    queryKey: ["customer_purchases", user?.id, startDate, endDate, paymentFilter, closingTypeFilter],
+    queryKey: ["customer_purchases", user?.id, startDate, endDate, platformFilter],
     queryFn: async () => {
       let query = supabase
         .from("customer_purchases")
@@ -75,11 +77,8 @@ const Customers = ({ userType }: CustomersProps) => {
       if (endDate) {
         query = query.lte("created_at", endDate + 'T23:59:59.999Z');
       }
-      if (paymentFilter !== "all") {
-        query = query.eq("payment_method", paymentFilter);
-      }
-      if (closingTypeFilter !== "all") {
-        query = query.eq("closing_type", closingTypeFilter);
+      if (platformFilter !== "all") {
+        query = query.eq("platform", platformFilter);
       }
 
       const { data, error } = await query;
@@ -193,6 +192,16 @@ const Customers = ({ userType }: CustomersProps) => {
   // Count unique transactions (by invoice number from remarks) to match StoreHub
   const totalTransactions = groupedPurchases.length;
 
+  // Platform breakdown stats
+  const platformCounts = {
+    storehub: groupedPurchases.filter(p => p.platform === "StoreHub").length,
+    tiktokHQ: groupedPurchases.filter(p => p.platform === "Tiktok HQ").length,
+    shopeeHQ: groupedPurchases.filter(p => p.platform === "Shopee HQ").length,
+    onlineHQ: groupedPurchases.filter(p => p.platform === "Online HQ").length,
+  };
+
+  const platformPercent = (count: number) => totalTransactions > 0 ? ((count / totalTransactions) * 100).toFixed(1) : "0.0";
+
   const stats = [
     {
       title: "Total Customers",
@@ -218,6 +227,13 @@ const Customers = ({ userType }: CustomersProps) => {
       icon: DollarSign,
       color: "text-green-600",
     },
+  ];
+
+  const platformStats = [
+    { title: "StoreHub", count: platformCounts.storehub, percent: platformPercent(platformCounts.storehub), color: "bg-blue-100 text-blue-800" },
+    { title: "Tiktok HQ", count: platformCounts.tiktokHQ, percent: platformPercent(platformCounts.tiktokHQ), color: "bg-pink-100 text-pink-800" },
+    { title: "Shopee HQ", count: platformCounts.shopeeHQ, percent: platformPercent(platformCounts.shopeeHQ), color: "bg-orange-100 text-orange-800" },
+    { title: "Online HQ", count: platformCounts.onlineHQ, percent: platformPercent(platformCounts.onlineHQ), color: "bg-green-100 text-green-800" },
   ];
 
   // Fetch NinjaVan config for Branch
@@ -756,6 +772,27 @@ const Customers = ({ userType }: CustomersProps) => {
         ))}
       </div>
 
+      {/* Platform Breakdown Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {platformStats.map((platform) => (
+          <Card key={platform.title}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${platform.color}`}>
+                    {platform.title}
+                  </span>
+                  <p className="text-xl font-bold mt-2">{platform.count}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-muted-foreground">{platform.percent}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {/* Main Card with Filters and Table */}
       <Card>
         <CardHeader>
@@ -767,7 +804,7 @@ const Customers = ({ userType }: CustomersProps) => {
             <CardContent className="pt-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Filters</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Start Date</label>
                     <Input
@@ -785,34 +822,18 @@ const Customers = ({ userType }: CustomersProps) => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Payment Method</label>
-                    <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                    <label className="text-sm font-medium mb-2 block">Jenis Platform</label>
+                    <Select value={platformFilter} onValueChange={setPlatformFilter}>
                       <SelectTrigger>
-                        <SelectValue placeholder="All Payment Methods" />
+                        <SelectValue placeholder="All Jenis Platform" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Payment Methods</SelectItem>
-                        <SelectItem value="Online Transfer">Online Transfer</SelectItem>
-                        <SelectItem value="COD">COD</SelectItem>
-                        <SelectItem value="Cash">Cash</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Jenis Closing</label>
-                    <Select value={closingTypeFilter} onValueChange={setClosingTypeFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Jenis Closing" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Jenis Closing</SelectItem>
-                        <SelectItem value="Website">Website</SelectItem>
-                        <SelectItem value="WhatsappBot">WhatsappBot</SelectItem>
-                        <SelectItem value="Call">Call</SelectItem>
+                        <SelectItem value="all">All Jenis Platform</SelectItem>
+                        <SelectItem value="StoreHub">StoreHub</SelectItem>
+                        <SelectItem value="Tiktok HQ">Tiktok HQ</SelectItem>
+                        <SelectItem value="Shopee HQ">Shopee HQ</SelectItem>
+                        <SelectItem value="Online HQ">Online HQ</SelectItem>
                         <SelectItem value="Manual">Manual</SelectItem>
-                        <SelectItem value="Live">Live</SelectItem>
-                        <SelectItem value="Shop">Shop</SelectItem>
-                        <SelectItem value="Walk In">Walk In</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -841,6 +862,7 @@ const Customers = ({ userType }: CustomersProps) => {
                   <TableHead>Unit</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Tracking No.</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -885,6 +907,19 @@ const Customers = ({ userType }: CustomersProps) => {
                     <TableCell>{purchase.total_quantity}</TableCell>
                     <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>{purchase.tracking_number || "-"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedInvoice(purchase);
+                          setInvoiceModalOpen(true);
+                        }}
+                        title="View Invoice"
+                      >
+                        <FileText className="h-4 w-4 text-blue-600" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -902,6 +937,117 @@ const Customers = ({ userType }: CustomersProps) => {
         products={products || []}
         userType={userType}
       />
+
+      {/* Invoice Modal */}
+      <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Invoice Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-6">
+              {/* Invoice Header */}
+              <div className="flex justify-between items-start border-b pb-4">
+                <div>
+                  <h3 className="text-lg font-bold">OliveJardin Hub</h3>
+                  <p className="text-sm text-muted-foreground">Invoice</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {selectedInvoice.invoiceNumber || `INV-${selectedInvoice.id?.slice(0, 8).toUpperCase()}`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(selectedInvoice.created_at), "dd MMM yyyy")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer</p>
+                  <p className="font-medium">{selectedInvoice.customer?.name || "-"}</p>
+                  <p className="text-sm">{selectedInvoice.customer?.phone || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Address</p>
+                  <p className="text-sm">{selectedInvoice.customer?.address || "-"}</p>
+                  <p className="text-sm">{selectedInvoice.customer?.state || "-"}</p>
+                </div>
+              </div>
+
+              {/* Order Details */}
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 text-sm font-medium">Product</th>
+                      <th className="text-center p-3 text-sm font-medium">Qty</th>
+                      <th className="text-right p-3 text-sm font-medium">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedInvoice.products?.map((product: string, idx: number) => (
+                      <tr key={idx} className="border-t">
+                        <td className="p-3 text-sm">{product}</td>
+                        <td className="p-3 text-sm text-center">
+                          {idx === 0 ? selectedInvoice.total_quantity : "-"}
+                        </td>
+                        <td className="p-3 text-sm text-right">
+                          {idx === 0 ? `RM ${Number(selectedInvoice.total_price || 0).toFixed(2)}` : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-muted/30">
+                    <tr className="border-t">
+                      <td colSpan={2} className="p-3 text-sm font-medium text-right">Total</td>
+                      <td className="p-3 text-sm font-bold text-right">
+                        RM {Number(selectedInvoice.total_price || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Payment & Delivery Info */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="font-medium text-muted-foreground">Payment Method</p>
+                  <p>{selectedInvoice.payment_method || "-"}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-muted-foreground">Closing Type</p>
+                  <p>{selectedInvoice.closing_type || "-"}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-muted-foreground">Platform</p>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    selectedInvoice.platform === "StoreHub"
+                      ? "bg-blue-100 text-blue-800"
+                      : selectedInvoice.platform === "Tiktok HQ"
+                      ? "bg-pink-100 text-pink-800"
+                      : selectedInvoice.platform === "Shopee HQ"
+                      ? "bg-orange-100 text-orange-800"
+                      : selectedInvoice.platform === "Online HQ"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {selectedInvoice.platform || "Manual"}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-medium text-muted-foreground">Tracking No.</p>
+                  <p className="font-mono">{selectedInvoice.tracking_number || "-"}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
