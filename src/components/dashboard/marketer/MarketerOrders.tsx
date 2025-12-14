@@ -20,7 +20,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Save, CalendarIcon, Upload, Search, Package } from "lucide-react";
+import { Loader2, Save, CalendarIcon, Upload, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -84,37 +84,24 @@ const MarketerOrders = () => {
     trackingNumber: "",
   });
 
-  // Fetch branch's products from inventory
+  // Fetch all active products (same as Branch StockIn)
   const { data: branchProducts = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["branch-products-for-marketer", branchId],
+    queryKey: ["products-for-marketer"],
     queryFn: async () => {
-      if (!branchId) return [];
-
-      // Get products that branch has in inventory
-      const { data: inventoryData, error } = await supabase
-        .from("inventory")
-        .select(`
-          product_id,
-          quantity,
-          product:products(id, name, sku, selling_price)
-        `)
-        .eq("user_id", branchId)
-        .gt("quantity", 0);
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, selling_price")
+        .eq("is_active", true);
 
       if (error) throw error;
 
-      // Filter and map to product format
-      return (inventoryData || [])
-        .filter((inv: any) => inv.product && inv.quantity > 0)
-        .map((inv: any) => ({
-          id: inv.product.id,
-          name: inv.product.name,
-          sku: inv.product.sku,
-          selling_price: inv.product.selling_price || 0,
-          available_quantity: inv.quantity,
-        }));
+      return (data || []).map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        selling_price: product.selling_price || 0,
+      }));
     },
-    enabled: !!branchId,
   });
 
   // Fetch NinjaVan config for branch
@@ -377,12 +364,7 @@ const MarketerOrders = () => {
       return;
     }
 
-    // Check available quantity
     const selectedProduct = branchProducts.find((p: any) => p.id === formData.productId);
-    if (selectedProduct && formData.quantity > selectedProduct.available_quantity) {
-      toast.error(`Stok tidak mencukupi. Stok tersedia: ${selectedProduct.available_quantity}`);
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -556,9 +538,6 @@ const MarketerOrders = () => {
 
   const isShopeeOrTiktok = formData.jenisPlatform === "Shopee" || formData.jenisPlatform === "Tiktok";
   const showPaymentDetails = formData.caraBayaran === "CASH" && !isShopeeOrTiktok;
-
-  // Get selected product's available quantity
-  const selectedProductQty = branchProducts.find((p: any) => p.id === formData.productId)?.available_quantity || 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -758,13 +737,7 @@ const MarketerOrders = () => {
                   ) : (
                     branchProducts.map((product: any) => (
                       <SelectItem key={product.id} value={product.name}>
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-muted-foreground" />
-                          <span>{product.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            (Stok: {product.available_quantity})
-                          </span>
-                        </div>
+                        {product.name} ({product.sku})
                       </SelectItem>
                     ))
                   )}
@@ -778,17 +751,11 @@ const MarketerOrders = () => {
               <Input
                 type="number"
                 min="1"
-                max={selectedProductQty || 999}
                 placeholder="1"
                 value={formData.quantity}
                 onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 1)}
                 className="bg-background"
               />
-              {formData.productId && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Stok tersedia: {selectedProductQty}
-                </p>
-              )}
             </div>
 
             {/* Harga Jualan */}
