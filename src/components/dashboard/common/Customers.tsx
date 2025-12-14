@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +25,6 @@ const Customers = ({ userType }: CustomersProps) => {
   const [platformFilter, setPlatformFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   // Fetch profile for StoreHub credentials (Branch only)
   const { data: profile } = useQuery({
@@ -955,8 +952,11 @@ const Customers = ({ userType }: CustomersProps) => {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setSelectedInvoice(purchase);
-                          setInvoiceModalOpen(true);
+                          // Navigate to invoice page in new tab
+                          const invoiceId = purchase.invoiceNumber
+                            ? `SH-${purchase.invoiceNumber}`
+                            : purchase.id;
+                          window.open(`/invoice?order=${invoiceId}&type=customer`, '_blank');
                         }}
                         title="View Invoice"
                       >
@@ -980,167 +980,6 @@ const Customers = ({ userType }: CustomersProps) => {
         products={products || []}
         userType={userType}
       />
-
-      {/* Invoice Modal */}
-      <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {selectedInvoice && (
-            <div className="space-y-6 p-2">
-              {/* Header with Company Info and Status */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-bold">OLIVE JARDIN SDN BHD (1579025-U)</h2>
-                  <p className="text-sm text-muted-foreground">No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan</p>
-                  <p className="text-sm text-muted-foreground">Tel: 010-262 8508 / 012-343 8508</p>
-                  <p className="text-sm text-muted-foreground">Email: olivejardin8008@gmail.com</p>
-                  <p className="text-sm text-muted-foreground">Website: olivejardin.com</p>
-                </div>
-                <div className="text-right">
-                  <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-700">
-                    COMPLETED
-                  </span>
-                  <p className="text-sm text-muted-foreground mt-2">Invoice Date</p>
-                  <p className="font-semibold">{format(new Date(selectedInvoice.date_order || selectedInvoice.created_at), "dd MMMM yyyy")}</p>
-                  <p className="text-sm text-muted-foreground mt-2">Transaction ID</p>
-                  <p className="text-xs font-mono">-</p>
-                </div>
-              </div>
-
-              {/* Invoice Title */}
-              <div className="border-t pt-4">
-                <h3 className="text-2xl font-bold">INVOICE</h3>
-                <p className="text-muted-foreground">
-                  Order #{selectedInvoice.invoiceNumber || `ORD-${Date.now()}-${selectedInvoice.id?.slice(0, 6).toUpperCase()}`}
-                </p>
-              </div>
-
-              <hr />
-
-              {/* Bill To and Payment Information */}
-              <div className="grid grid-cols-2 gap-8">
-                {/* BILL TO */}
-                <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">BILL TO</h4>
-                  <div className="border rounded-lg p-4 space-y-2">
-                    <p className="font-bold text-lg">{selectedInvoice.customer?.name?.toUpperCase() || "WALK-IN CUSTOMER"}</p>
-                    <p className="text-sm text-muted-foreground">Phone: {selectedInvoice.customer?.phone || "-"}</p>
-                    <div className="pt-2 border-t mt-2">
-                      <p className="text-xs font-semibold text-muted-foreground">DELIVERY ADDRESS</p>
-                      <p className="text-sm">{selectedInvoice.customer?.address || "-"}</p>
-                      <p className="text-sm">{selectedInvoice.customer?.state || "-"}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* PAYMENT INFORMATION */}
-                <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">PAYMENT INFORMATION</h4>
-                  <div className="border rounded-lg p-4">
-                    <table className="w-full text-sm">
-                      <tbody>
-                        <tr>
-                          <td className="py-1 text-muted-foreground">Payment Method</td>
-                          <td className="py-1 text-right font-medium">{selectedInvoice.payment_method || "-"}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-1 text-muted-foreground">Platform</td>
-                          <td className="py-1 text-right">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              selectedInvoice.platform === "StoreHub"
-                                ? "bg-blue-100 text-blue-800"
-                                : selectedInvoice.platform === "Tiktok HQ"
-                                ? "bg-pink-100 text-pink-800"
-                                : selectedInvoice.platform === "Shopee HQ"
-                                ? "bg-orange-100 text-orange-800"
-                                : selectedInvoice.platform === "Online HQ"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}>
-                              {selectedInvoice.platform || "Manual"}
-                            </span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-1 text-muted-foreground">Closing Type</td>
-                          <td className="py-1 text-right font-medium">{selectedInvoice.closing_type || "-"}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-1 text-muted-foreground">Status</td>
-                          <td className="py-1 text-right">
-                            <span className="text-green-600 font-semibold">COMPLETED</span>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="py-1 text-muted-foreground">Tracking No.</td>
-                          <td className="py-1 text-right font-mono text-xs">{selectedInvoice.tracking_number || "-"}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* ORDER DETAILS */}
-              <div>
-                <h4 className="text-sm font-semibold text-muted-foreground mb-3">ORDER DETAILS</h4>
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left p-3 text-sm font-medium">Product</th>
-                        <th className="text-center p-3 text-sm font-medium">Quantity</th>
-                        <th className="text-right p-3 text-sm font-medium">Unit Price</th>
-                        <th className="text-right p-3 text-sm font-medium">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedInvoice.products?.map((product: string, idx: number) => {
-                        const unitPrice = selectedInvoice.total_quantity > 0
-                          ? Number(selectedInvoice.total_price || 0) / selectedInvoice.total_quantity
-                          : 0;
-                        return (
-                          <tr key={idx} className="border-t">
-                            <td className="p-3">
-                              <p className="font-medium">{product}</p>
-                            </td>
-                            <td className="p-3 text-center">
-                              <span className="px-3 py-1 border rounded">{idx === 0 ? selectedInvoice.total_quantity : "-"}</span>
-                            </td>
-                            <td className="p-3 text-right">
-                              {idx === 0 ? `RM ${unitPrice.toFixed(2)}` : "-"}
-                            </td>
-                            <td className="p-3 text-right font-semibold">
-                              {idx === 0 ? `RM ${Number(selectedInvoice.total_price || 0).toFixed(2)}` : "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Subtotal */}
-              <div className="flex justify-end">
-                <div className="w-64 border rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="p-3 text-muted-foreground">Subtotal</td>
-                        <td className="p-3 text-right font-semibold">RM {Number(selectedInvoice.total_price || 0).toFixed(2)}</td>
-                      </tr>
-                      <tr className="bg-muted/30">
-                        <td className="p-3 font-semibold">Total</td>
-                        <td className="p-3 text-right font-bold text-lg">RM {Number(selectedInvoice.total_price || 0).toFixed(2)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
