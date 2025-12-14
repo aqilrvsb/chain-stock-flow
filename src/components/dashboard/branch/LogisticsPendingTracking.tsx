@@ -197,33 +197,63 @@ const LogisticsPendingTracking = () => {
     }
 
     const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
-    const ordersWithTracking = selectedOrdersList.filter((o: any) => o.tracking_number);
 
-    if (ordersWithTracking.length === 0) {
-      toast.error("Selected orders do not have tracking numbers");
+    // Separate NinjaVan orders and Shopee/Tiktok orders
+    const ninjavanOrders = selectedOrdersList.filter(
+      (o: any) => o.jenis_platform !== "Shopee" && o.jenis_platform !== "Tiktok" && o.tracking_number
+    );
+    const marketplaceOrders = selectedOrdersList.filter(
+      (o: any) => (o.jenis_platform === "Shopee" || o.jenis_platform === "Tiktok") && o.waybill_url
+    );
+
+    if (ninjavanOrders.length === 0 && marketplaceOrders.length === 0) {
+      toast.error("Selected orders do not have waybills to print");
       return;
     }
 
     setIsPrinting(true);
 
     try {
-      const trackingNumbers = ordersWithTracking.map((o: any) => o.tracking_number);
       const { data: session } = await supabase.auth.getSession();
 
-      const response = await supabase.functions.invoke("ninjavan-waybill", {
-        body: { trackingNumbers, profileId: user?.id },
-        headers: { Authorization: `Bearer ${session?.session?.access_token}` },
-      });
+      // Handle NinjaVan orders
+      if (ninjavanOrders.length > 0) {
+        const trackingNumbers = ninjavanOrders.map((o: any) => o.tracking_number);
 
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to fetch waybills");
+        const response = await supabase.functions.invoke("ninjavan-waybill", {
+          body: { trackingNumbers, profileId: user?.id },
+          headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+        });
+
+        if (response.error) {
+          console.error("NinjaVan waybill error:", response.error);
+          toast.error("Failed to fetch NinjaVan waybills");
+        } else if (response.data) {
+          const blob = new Blob([response.data], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+          toast.success(`NinjaVan waybill for ${trackingNumbers.length} order(s) opened`);
+        }
       }
 
-      if (response.data) {
-        const blob = new Blob([response.data], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-        toast.success(`Waybill for ${trackingNumbers.length} order(s) opened`);
+      // Handle Shopee/Tiktok orders (merge waybills)
+      if (marketplaceOrders.length > 0) {
+        const waybillUrls = marketplaceOrders.map((o: any) => o.waybill_url);
+
+        const response = await supabase.functions.invoke("merge-waybills", {
+          body: { waybillUrls },
+          headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+        });
+
+        if (response.error) {
+          console.error("Marketplace waybill error:", response.error);
+          toast.error("Failed to fetch Shopee/Tiktok waybills");
+        } else if (response.data) {
+          const blob = new Blob([response.data], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+          toast.success(`Shopee/Tiktok waybill for ${waybillUrls.length} order(s) opened`);
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to generate waybills");
