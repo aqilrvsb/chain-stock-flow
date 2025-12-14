@@ -472,6 +472,7 @@ CREATE TABLE public.customer_purchases (
   seo text,
   order_from text,
   attachment_url text,
+  alamat text,  -- Full delivery address (used by marketer orders)
   CONSTRAINT customer_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT customer_purchases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT customer_purchases_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),

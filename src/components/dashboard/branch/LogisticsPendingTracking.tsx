@@ -534,7 +534,7 @@ const LogisticsPendingTracking = () => {
                           <td className="p-3">{order.customer?.state || "-"}</td>
                           <td className="p-3">
                             <div className="max-w-xs">
-                              <p className="text-sm truncate">{order.customer?.address || "-"}</p>
+                              <p className="text-sm truncate">{order.alamat || order.customer?.address || "-"}</p>
                               <p className="text-xs text-muted-foreground">
                                 {order.customer?.postcode} {order.customer?.city}
                               </p>
