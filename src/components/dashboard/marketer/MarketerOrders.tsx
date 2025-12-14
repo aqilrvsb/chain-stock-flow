@@ -20,7 +20,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Save, CalendarIcon, Upload, Search } from "lucide-react";
+import { Loader2, Save, CalendarIcon, Upload, Search, Package } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +61,8 @@ const MarketerOrders = () => {
   const [waybillFile, setWaybillFile] = useState<File | null>(null);
   const [waybillFileName, setWaybillFileName] = useState<string>("");
 
+  const branchId = userProfile?.branch_id;
+
   const [formData, setFormData] = useState({
     namaPelanggan: "",
     noPhone: "",
@@ -72,6 +74,8 @@ const MarketerOrders = () => {
     negeri: "",
     alamat: "",
     produk: "",
+    productId: "",
+    quantity: 1,
     hargaJualan: 0,
     caraBayaran: "",
     jenisBayaran: "",
@@ -80,17 +84,53 @@ const MarketerOrders = () => {
     trackingNumber: "",
   });
 
-  // Fetch bundles (products)
-  const { data: bundles = [], isLoading: bundlesLoading } = useQuery({
-    queryKey: ["bundles"],
+  // Fetch branch's products from inventory
+  const { data: branchProducts = [], isLoading: productsLoading } = useQuery({
+    queryKey: ["branch-products-for-marketer", branchId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bundles")
-        .select("*")
-        .eq("is_active", true);
+      if (!branchId) return [];
+
+      // Get products that branch has in inventory
+      const { data: inventoryData, error } = await supabase
+        .from("inventory")
+        .select(`
+          product_id,
+          quantity,
+          product:products(id, name, sku, selling_price)
+        `)
+        .eq("user_id", branchId)
+        .gt("quantity", 0);
+
       if (error) throw error;
-      return data || [];
+
+      // Filter and map to product format
+      return (inventoryData || [])
+        .filter((inv: any) => inv.product && inv.quantity > 0)
+        .map((inv: any) => ({
+          id: inv.product.id,
+          name: inv.product.name,
+          sku: inv.product.sku,
+          selling_price: inv.product.selling_price || 0,
+          available_quantity: inv.quantity,
+        }));
     },
+    enabled: !!branchId,
+  });
+
+  // Fetch NinjaVan config for branch
+  const { data: ninjavanConfig } = useQuery({
+    queryKey: ["ninjavan-config-branch", branchId],
+    queryFn: async () => {
+      if (!branchId) return null;
+      const { data, error } = await (supabase as any)
+        .from("ninjavan_config")
+        .select("*")
+        .eq("profile_id", branchId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!branchId,
   });
 
   // Clear customer type when phone number changes
@@ -156,12 +196,6 @@ const MarketerOrders = () => {
 
       setFormData(prev => ({ ...prev, jenisCustomer: result.type }));
 
-      // Update price based on determined type
-      if (formData.produk) {
-        const newPrice = getMinimumPrice(formData.produk, formData.jenisPlatform, result.type);
-        setFormData(prev => ({ ...prev, hargaJualan: newPrice }));
-      }
-
       let description = "";
       if (result.type === "NP") {
         description = "Lead ditemui - Tarikh sama hari ini (New Prospect)";
@@ -182,54 +216,30 @@ const MarketerOrders = () => {
     }
   };
 
-  // Get minimum price based on platform, customer type and selected bundle
-  const getMinimumPrice = (bundleName: string, platform: string, customerType: string): number => {
-    const bundle = bundles.find((b: any) => b.name === bundleName);
-    if (!bundle) return 0;
-
-    const effectiveType = customerType || determinedCustomerType || "NP";
-
-    if (platform === "Shopee") {
-      if (effectiveType === "NP") return bundle.price_shopee_np || 0;
-      if (effectiveType === "EP") return bundle.price_shopee_ep || 0;
-      if (effectiveType === "EC") return bundle.price_shopee_ec || 0;
-      return bundle.price_shopee_np || 0;
-    } else if (platform === "Tiktok") {
-      if (effectiveType === "NP") return bundle.price_tiktok_np || 0;
-      if (effectiveType === "EP") return bundle.price_tiktok_ep || 0;
-      if (effectiveType === "EC") return bundle.price_tiktok_ec || 0;
-      return bundle.price_tiktok_np || 0;
-    } else {
-      if (effectiveType === "NP") return bundle.price_normal_np || 0;
-      if (effectiveType === "EP") return bundle.price_normal_ep || 0;
-      if (effectiveType === "EC") return bundle.price_normal_ec || 0;
-      return bundle.price_normal_np || 0;
-    }
-  };
-
-  const currentMinPrice = getMinimumPrice(formData.produk, formData.jenisPlatform, formData.jenisCustomer);
-  const isPriceBelowMinimum = formData.hargaJualan > 0 && formData.hargaJualan < currentMinPrice;
-
   const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => {
       let processedValue = value;
-      if (typeof value === "string" && !["jenisPlatform", "jenisClosing", "jenisCustomer", "caraBayaran", "jenisBayaran", "pilihBank", "produk", "negeri"].includes(field)) {
+      if (typeof value === "string" && !["jenisPlatform", "jenisClosing", "jenisCustomer", "caraBayaran", "jenisBayaran", "pilihBank", "produk", "productId", "negeri"].includes(field)) {
         processedValue = value.toUpperCase();
       }
 
       const newData = { ...prev, [field]: processedValue };
 
-      // Auto-populate price when product, platform, or customer type changes
-      if (field === "produk" || field === "jenisPlatform" || field === "jenisCustomer") {
-        const bundleName = field === "produk" ? value as string : prev.produk;
-        const platform = field === "jenisPlatform" ? value as string : prev.jenisPlatform;
-        const customerType = field === "jenisCustomer" ? value as string : prev.jenisCustomer;
+      // When product is selected, update productId and set default price
+      if (field === "produk") {
+        const selectedProduct = branchProducts.find((p: any) => p.name === value);
+        if (selectedProduct) {
+          newData.productId = selectedProduct.id;
+          // Set default price based on selling_price * quantity
+          newData.hargaJualan = (selectedProduct.selling_price || 0) * prev.quantity;
+        }
+      }
 
-        if (bundleName && customerType) {
-          const minPrice = getMinimumPrice(bundleName, platform, customerType);
-          if (field === "produk" || field === "jenisCustomer" || prev.hargaJualan === 0) {
-            newData.hargaJualan = minPrice;
-          }
+      // When quantity changes, update price
+      if (field === "quantity") {
+        const selectedProduct = branchProducts.find((p: any) => p.id === prev.productId);
+        if (selectedProduct) {
+          newData.hargaJualan = (selectedProduct.selling_price || 0) * (Number(value) || 1);
         }
       }
 
@@ -262,10 +272,8 @@ const MarketerOrders = () => {
   };
 
   // Auto-create lead with yesterday's date
-  const autoCreateLead = async (phoneNumber: string, customerName: string, bundleName: string): Promise<string | null> => {
+  const autoCreateLead = async (phoneNumber: string, customerName: string, productName: string): Promise<string | null> => {
     const marketerIdStaff = userProfile?.idstaff || "";
-    const selectedBundle = bundles.find((b: any) => b.name === bundleName);
-    const mainProductName = selectedBundle?.product_name || bundleName;
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -276,7 +284,7 @@ const MarketerOrders = () => {
       .insert({
         nama_prospek: customerName.toUpperCase(),
         no_telefon: phoneNumber,
-        niche: mainProductName,
+        niche: productName,
         jenis_prospek: "EP",
         tarikh_phone_number: yesterdayDate,
         marketer_id_staff: marketerIdStaff,
@@ -307,6 +315,8 @@ const MarketerOrders = () => {
       negeri: "",
       alamat: "",
       produk: "",
+      productId: "",
+      quantity: 1,
       hargaJualan: 0,
       caraBayaran: "",
       jenisBayaran: "",
@@ -329,6 +339,12 @@ const MarketerOrders = () => {
     // Validation
     if (!formData.namaPelanggan || !formData.noPhone || !formData.poskod || !formData.daerah || !formData.negeri || !formData.alamat || !formData.produk || !formData.jenisClosing || !formData.caraBayaran || !formData.jenisCustomer) {
       toast.error("Sila lengkapkan semua medan yang diperlukan.");
+      return;
+    }
+
+    // Validate quantity
+    if (!formData.quantity || formData.quantity < 1) {
+      toast.error("Sila masukkan kuantiti yang sah.");
       return;
     }
 
@@ -355,16 +371,16 @@ const MarketerOrders = () => {
       }
     }
 
-    // Validate minimum price
-    const minPrice = getMinimumPrice(formData.produk, formData.jenisPlatform, formData.jenisCustomer);
-    if (formData.hargaJualan < minPrice) {
-      toast.error(`Harga jualan minimum untuk ${formData.jenisCustomer} (${formData.jenisPlatform || "produk ini"}) adalah RM${minPrice.toFixed(2)}.`);
-      return;
-    }
-
     // Validate phone starts with 6
     if (!formData.noPhone.toString().startsWith("6")) {
       toast.error("No. Telefon mesti bermula dengan 6.");
+      return;
+    }
+
+    // Check available quantity
+    const selectedProduct = branchProducts.find((p: any) => p.id === formData.productId);
+    if (selectedProduct && formData.quantity > selectedProduct.available_quantity) {
+      toast.error(`Stok tidak mencukupi. Stok tersedia: ${selectedProduct.available_quantity}`);
       return;
     }
 
@@ -400,45 +416,135 @@ const MarketerOrders = () => {
           .eq("id", finalLeadId);
       }
 
-      // Get units from selected bundle
-      const bundleUnits = bundles.find((b: any) => b.name === formData.produk)?.units || 1;
+      // Create or get customer (for Branch logistics to work with)
+      let customerId: string | null = null;
 
-      // Create order
+      // Check if customer exists by phone for this branch
+      const { data: existingCustomer } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", formData.noPhone)
+        .eq("created_by", branchId)
+        .maybeSingle();
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        // Update customer address if needed
+        await supabase
+          .from("customers")
+          .update({
+            name: formData.namaPelanggan,
+            address: formData.alamat,
+            postcode: formData.poskod,
+            city: formData.daerah,
+            state: formData.negeri,
+          })
+          .eq("id", customerId);
+      } else {
+        // Create new customer under branch
+        const { data: newCustomer, error: customerError } = await supabase
+          .from("customers")
+          .insert({
+            name: formData.namaPelanggan,
+            phone: formData.noPhone,
+            address: formData.alamat,
+            postcode: formData.poskod,
+            city: formData.daerah,
+            state: formData.negeri,
+            created_by: branchId,
+          })
+          .select("id")
+          .single();
+
+        if (customerError) {
+          console.error("Error creating customer:", customerError);
+          throw new Error("Gagal mencipta rekod pelanggan.");
+        }
+        customerId = newCustomer.id;
+      }
+
+      // For COD and CASH orders (non Shopee/Tiktok), call NinjaVan API
+      let trackingNumber = isShopeeOrTiktokPlatform ? formData.trackingNumber : "";
+
+      if (!isShopeeOrTiktokPlatform && ninjavanConfig && branchId) {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
+            body: {
+              profileId: branchId,
+              customerName: formData.namaPelanggan,
+              phone: formData.noPhone,
+              address: formData.alamat,
+              postcode: formData.poskod,
+              city: formData.daerah,
+              state: formData.negeri,
+              price: formData.hargaJualan,
+              paymentMethod: formData.caraBayaran,
+              productName: formData.produk,
+              quantity: formData.quantity,
+            },
+            headers: {
+              Authorization: `Bearer ${session?.session?.access_token}`,
+            },
+          });
+
+          if (ninjavanResponse.error) {
+            console.error("NinjaVan error:", ninjavanResponse.error);
+            toast.error("NinjaVan order gagal: " + (ninjavanResponse.error.message || "Unknown error"));
+          } else if (ninjavanResponse.data?.success) {
+            trackingNumber = ninjavanResponse.data.trackingNumber;
+            toast.success(`NinjaVan order berjaya! Tracking: ${trackingNumber}`);
+          }
+        } catch (ninjavanError: any) {
+          console.error("NinjaVan API error:", ninjavanError);
+          toast.error("NinjaVan order gagal: " + (ninjavanError.message || "Unknown error"));
+        }
+      }
+
+      // Create order - seller_id is the BRANCH so it appears in Branch logistics
       const { error: orderError } = await supabase
         .from("customer_purchases")
         .insert({
-          seller_id: user?.id,
+          customer_id: customerId,
+          seller_id: branchId, // Branch ID so it appears in Branch logistics
+          product_id: formData.productId,
           marketer_id: user?.id,
           marketer_id_staff: userProfile?.idstaff,
-          marketer_name: formData.namaPelanggan,
+          marketer_name: userProfile?.full_name || userProfile?.idstaff,
           no_phone: formData.noPhone,
           alamat: formData.alamat,
           poskod: formData.poskod,
           bandar: formData.daerah,
           negeri: formData.negeri,
           produk: formData.produk,
-          sku: formData.produk,
-          quantity: bundleUnits,
+          sku: selectedProduct?.sku || formData.produk,
+          quantity: formData.quantity,
+          unit_price: formData.hargaJualan / formData.quantity,
           total_price: formData.hargaJualan,
           profit: formData.hargaJualan,
           kurier,
-          no_tracking: isShopeeOrTiktokPlatform ? formData.trackingNumber : "",
+          tracking_number: trackingNumber,
+          no_tracking: trackingNumber,
           jenis_platform: formData.jenisPlatform,
           jenis_customer: formData.jenisCustomer,
           jenis_closing: formData.jenisClosing,
           cara_bayaran: formData.caraBayaran,
+          payment_method: formData.caraBayaran === "CASH" ? "Online Transfer" : "COD",
           nota_staff: formData.nota,
           delivery_status: "Pending",
           date_order: dateOrder,
           tarikh_bayaran: showPaymentDetails && tarikhBayaran ? format(tarikhBayaran, "yyyy-MM-dd") : null,
           jenis_bayaran: showPaymentDetails ? formData.jenisBayaran : null,
           bank: showPaymentDetails ? formData.pilihBank : null,
+          platform: "Marketer",
         });
 
       if (orderError) throw orderError;
 
       toast.success("Order berjaya disimpan!");
       queryClient.invalidateQueries({ queryKey: ["marketer-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-marketer"] });
+      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
       resetForm();
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -450,6 +556,9 @@ const MarketerOrders = () => {
 
   const isShopeeOrTiktok = formData.jenisPlatform === "Shopee" || formData.jenisPlatform === "Tiktok";
   const showPaymentDetails = formData.caraBayaran === "CASH" && !isShopeeOrTiktok;
+
+  // Get selected product's available quantity
+  const selectedProductQty = branchProducts.find((p: any) => p.id === formData.productId)?.available_quantity || 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -636,23 +745,50 @@ const MarketerOrders = () => {
               <Select
                 value={formData.produk}
                 onValueChange={(value) => handleChange("produk", value)}
-                disabled={bundlesLoading}
+                disabled={productsLoading}
               >
                 <SelectTrigger className="bg-background">
-                  <SelectValue placeholder={bundlesLoading ? "Loading..." : "Pilih Produk"} />
+                  <SelectValue placeholder={productsLoading ? "Loading..." : "Pilih Produk"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {bundlesLoading ? (
-                    <SelectItem value="loading" disabled>Loading bundles...</SelectItem>
-                  ) : bundles.length === 0 ? (
-                    <SelectItem value="empty" disabled>No active bundles available</SelectItem>
+                  {productsLoading ? (
+                    <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                  ) : branchProducts.length === 0 ? (
+                    <SelectItem value="empty" disabled>No products available</SelectItem>
                   ) : (
-                    bundles.map((bundle: any) => (
-                      <SelectItem key={bundle.id} value={bundle.name}>{bundle.name}</SelectItem>
+                    branchProducts.map((product: any) => (
+                      <SelectItem key={product.id} value={product.name}>
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-muted-foreground" />
+                          <span>{product.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            (Stok: {product.available_quantity})
+                          </span>
+                        </div>
+                      </SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Quantity */}
+            <div>
+              <FormLabel required>Kuantiti (Unit)</FormLabel>
+              <Input
+                type="number"
+                min="1"
+                max={selectedProductQty || 999}
+                placeholder="1"
+                value={formData.quantity}
+                onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 1)}
+                className="bg-background"
+              />
+              {formData.productId && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Stok tersedia: {selectedProductQty}
+                </p>
+              )}
             </div>
 
             {/* Harga Jualan */}
@@ -664,14 +800,8 @@ const MarketerOrders = () => {
                 placeholder="0.00"
                 value={formData.hargaJualan || ""}
                 onChange={(e) => handleChange("hargaJualan", parseFloat(e.target.value) || 0)}
-                className={cn("bg-background", isPriceBelowMinimum && "border-red-500 focus-visible:ring-red-500")}
+                className="bg-background"
               />
-              {currentMinPrice > 0 && (
-                <p className={cn("text-xs mt-1", isPriceBelowMinimum ? "text-red-500" : "text-muted-foreground")}>
-                  Harga minimum: RM{currentMinPrice.toFixed(2)}
-                  {isPriceBelowMinimum && " - Harga terlalu rendah!"}
-                </p>
-              )}
             </div>
 
             {/* Cara Bayaran */}
