@@ -543,8 +543,23 @@ const Customers = ({ userType }: CustomersProps) => {
           console.log(`${idx + 1}. ${timeStr} | Invoice: ${t.invoiceNumber} | Total: RM ${t.total} | Items: ${t.items?.length || 0}`);
         }
       });
-      console.log(`========== EXPECTED TOTAL: RM ${expectedTotal} ==========`);
-      console.log(`========== TOTAL TRANSACTIONS: ${transactions?.length || 0} ==========`);
+      // Calculate total excluding cancelled/return transactions
+      let cancelledTotal = 0;
+      sortedTransactions.forEach((t: any) => {
+        if (t.isCancelled || t.transactionType === "Return") {
+          cancelledTotal += Number(t.total) || 0;
+        }
+      });
+      const validTotal = expectedTotal - cancelledTotal;
+      const cancelledCount = sortedTransactions.filter((t: any) => t.isCancelled || t.transactionType === "Return").length;
+
+      console.log(`========== SUMMARY ==========`);
+      console.log(`Total Transactions: ${transactions?.length || 0}`);
+      console.log(`Cancelled/Return: ${cancelledCount} (RM ${cancelledTotal})`);
+      console.log(`Valid Transactions: ${(transactions?.length || 0) - cancelledCount}`);
+      console.log(`Expected Total (all): RM ${expectedTotal}`);
+      console.log(`Expected Total (valid): RM ${validTotal}`);
+      console.log(`=============================`);
 
       if (!transactions || transactions.length === 0) {
         Swal.fire({
