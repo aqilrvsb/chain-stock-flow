@@ -476,6 +476,13 @@ CREATE TABLE public.customer_purchases (
   bandar text,  -- City/district for delivery (used by marketer orders)
   poskod text,  -- Postcode for delivery (used by marketer orders)
   negeri text,  -- State for delivery (used by marketer orders)
+  no_phone text,  -- Customer phone number (used by marketer orders)
+  produk text,  -- Product name (used by marketer orders)
+  sku text,  -- Product SKU (used by marketer orders)
+  kurier text,  -- Courier service name (used by marketer orders)
+  no_tracking text,  -- Tracking number alias (used by marketer orders)
+  cara_bayaran text,  -- Payment method type: CASH or COD (used by marketer orders)
+  nota_staff text,  -- Staff notes (used by marketer orders)
   CONSTRAINT customer_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT customer_purchases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT customer_purchases_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
