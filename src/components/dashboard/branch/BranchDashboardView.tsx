@@ -140,15 +140,28 @@ const BranchDashboardView = () => {
     // Total Marketer count
     const totalMarketer = marketers.length;
 
-    // Ninja COD and Cash - separate for Branch (HQ) and Marketer
-    const branchNinjaCOD = filteredBranchOrders.filter((o: any) => o.payment_method === "COD").length;
-    const branchNinjaCash = filteredBranchOrders.filter((o: any) => o.payment_method === "Cash").length;
-    const marketerNinjaCOD = filteredMarketerOrders.filter((o: any) => o.payment_method === "COD").length;
-    const marketerNinjaCash = filteredMarketerOrders.filter((o: any) => o.payment_method === "Cash").length;
+    // Ninja COD and Cash - separate for Branch (HQ) and Marketer with pending counts
+    const branchCODOrders = filteredBranchOrders.filter((o: any) => o.payment_method === "COD");
+    const branchCashOrders = filteredBranchOrders.filter((o: any) => o.payment_method === "Cash");
+    const marketerCODOrders = filteredMarketerOrders.filter((o: any) => o.payment_method === "COD");
+    const marketerCashOrders = filteredMarketerOrders.filter((o: any) => o.payment_method === "Cash");
+
+    const branchNinjaCOD = branchCODOrders.length;
+    const branchNinjaCash = branchCashOrders.length;
+    const marketerNinjaCOD = marketerCODOrders.length;
+    const marketerNinjaCash = marketerCashOrders.length;
+
+    // Pending status counts
+    const branchNinjaCODPending = branchCODOrders.filter((o: any) => o.delivery_status === "Pending").length;
+    const branchNinjaCashPending = branchCashOrders.filter((o: any) => o.delivery_status === "Pending").length;
+    const marketerNinjaCODPending = marketerCODOrders.filter((o: any) => o.delivery_status === "Pending").length;
+    const marketerNinjaCashPending = marketerCashOrders.filter((o: any) => o.delivery_status === "Pending").length;
 
     // Total Ninja COD and Cash (combined)
     const totalNinjaCOD = branchNinjaCOD + marketerNinjaCOD;
     const totalNinjaCash = branchNinjaCash + marketerNinjaCash;
+    const totalNinjaCODPending = branchNinjaCODPending + marketerNinjaCODPending;
+    const totalNinjaCashPending = branchNinjaCashPending + marketerNinjaCashPending;
 
     // Branch Sales by Platform
     // StoreHub uses transaction_total (grouped by invoice), others use total_price
@@ -222,10 +235,16 @@ const BranchDashboardView = () => {
       totalMarketer,
       totalNinjaCOD,
       totalNinjaCash,
+      totalNinjaCODPending,
+      totalNinjaCashPending,
       branchNinjaCOD,
       branchNinjaCash,
+      branchNinjaCODPending,
+      branchNinjaCashPending,
       marketerNinjaCOD,
       marketerNinjaCash,
+      marketerNinjaCODPending,
+      marketerNinjaCashPending,
       totalBranchCustomers,
       branchStorehub: { ...branchStorehub, pct: branchStorehubPct },
       branchTiktok: { ...branchTiktok, pct: branchTiktokPct },
@@ -337,7 +356,9 @@ const BranchDashboardView = () => {
               <span className="text-sm font-medium">NINJA COD</span>
             </div>
             <p className="text-2xl font-bold">{stats.totalNinjaCOD}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total COD orders</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-yellow-600 font-medium">{stats.totalNinjaCODPending} pending</span>
+            </p>
           </CardContent>
         </Card>
 
@@ -349,7 +370,9 @@ const BranchDashboardView = () => {
               <span className="text-sm font-medium">NINJA CASH</span>
             </div>
             <p className="text-2xl font-bold">{stats.totalNinjaCash}</p>
-            <p className="text-xs text-muted-foreground mt-1">Total Cash orders</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-yellow-600 font-medium">{stats.totalNinjaCashPending} pending</span>
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -383,7 +406,9 @@ const BranchDashboardView = () => {
                 <span className="text-sm font-medium">NINJA COD</span>
               </div>
               <p className="text-2xl font-bold">{stats.branchNinjaCOD}</p>
-              <p className="text-xs text-muted-foreground mt-1">COD orders</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="text-yellow-600 font-medium">{stats.branchNinjaCODPending} pending</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -395,7 +420,9 @@ const BranchDashboardView = () => {
                 <span className="text-sm font-medium">NINJA CASH</span>
               </div>
               <p className="text-2xl font-bold">{stats.branchNinjaCash}</p>
-              <p className="text-xs text-muted-foreground mt-1">Cash orders</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="text-yellow-600 font-medium">{stats.branchNinjaCashPending} pending</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -498,7 +525,9 @@ const BranchDashboardView = () => {
                 <span className="text-sm font-medium">NINJA COD</span>
               </div>
               <p className="text-2xl font-bold">{stats.marketerNinjaCOD}</p>
-              <p className="text-xs text-muted-foreground mt-1">COD orders</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="text-yellow-600 font-medium">{stats.marketerNinjaCODPending} pending</span>
+              </p>
             </CardContent>
           </Card>
 
@@ -510,7 +539,9 @@ const BranchDashboardView = () => {
                 <span className="text-sm font-medium">NINJA CASH</span>
               </div>
               <p className="text-2xl font-bold">{stats.marketerNinjaCash}</p>
-              <p className="text-xs text-muted-foreground mt-1">Cash orders</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="text-yellow-600 font-medium">{stats.marketerNinjaCashPending} pending</span>
+              </p>
             </CardContent>
           </Card>
 
