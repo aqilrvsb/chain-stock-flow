@@ -295,7 +295,7 @@ const MarketerOrders = () => {
         jenis_prospek: "EP",
         tarikh_phone_number: yesterdayDate,
         marketer_id_staff: marketerIdStaff,
-        admin_id_staff: "",
+        created_by: user?.id,
         status_closed: "",
         price_closed: 0,
         count_order: 0,
@@ -421,12 +421,11 @@ const MarketerOrders = () => {
       // Create or get customer (for Branch logistics to work with)
       let customerId: string | null = null;
 
-      // Check if customer exists by phone for this branch
+      // Check if customer exists by phone for this marketer or branch
       const { data: existingCustomer } = await supabase
         .from("customers")
         .select("id")
         .eq("phone", formData.noPhone)
-        .eq("created_by", branchId)
         .maybeSingle();
 
       if (existingCustomer) {
@@ -443,7 +442,7 @@ const MarketerOrders = () => {
           })
           .eq("id", customerId);
       } else {
-        // Create new customer under branch
+        // Create new customer under marketer (RLS allows marketer to create with their own ID)
         const { data: newCustomer, error: customerError } = await supabase
           .from("customers")
           .insert({
@@ -453,7 +452,7 @@ const MarketerOrders = () => {
             postcode: formData.poskod,
             city: formData.daerah,
             state: formData.negeri,
-            created_by: branchId,
+            created_by: user?.id,
           })
           .select("id")
           .single();
