@@ -24,6 +24,11 @@ const StockInBranch = () => {
   const [quantity, setQuantity] = useState("");
   const [description, setDescription] = useState("");
 
+  // Date filter for Received Stock History
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
@@ -55,12 +60,11 @@ const StockInBranch = () => {
     enabled: !!user?.id,
   });
 
-  // Get approved stock (stock_in_branch records)
+  // Get approved stock (stock_in_branch records) with date filter
   const { data: approvedStock, isLoading: stockLoading } = useQuery({
-    queryKey: ["stock-in-branch", user?.id],
+    queryKey: ["stock-in-branch", user?.id, startDate, endDate],
     queryFn: async () => {
-      console.log("Fetching stock_in_branch for branch:", user?.id);
-      const { data, error } = await supabase
+      let query = supabase
         .from("stock_in_branch")
         .select(`
           *,
@@ -69,11 +73,19 @@ const StockInBranch = () => {
         .eq("branch_id", user?.id)
         .order("date", { ascending: false });
 
+      if (startDate) {
+        query = query.gte("date", startDate + "T00:00:00.000Z");
+      }
+      if (endDate) {
+        query = query.lte("date", endDate + "T23:59:59.999Z");
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         console.error("Error fetching stock_in_branch:", error);
         throw error;
       }
-      console.log("Stock in branch data:", data);
       return data;
     },
     enabled: !!user?.id,
@@ -242,81 +254,113 @@ const StockInBranch = () => {
         ))}
       </div>
 
-      {/* Pending Requests */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Stock Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p>Loading requests...</p>
-          ) : stockRequests?.length === 0 ? (
-            <p className="text-muted-foreground">No stock requests yet. Click "Request Stock" to get started.</p>
-          ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stockRequests?.map((request) => {
-                    const requestDate = request.requested_at ? new Date(request.requested_at) : null;
-                    const isValidDate = requestDate && !isNaN(requestDate.getTime());
-
-                    return (
-                      <TableRow key={request.id}>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{isValidDate ? format(requestDate, "dd-MM-yyyy") : "-"}</div>
-                            <div className="text-muted-foreground text-xs">
-                              {isValidDate ? format(requestDate, "HH:mm") : ""}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{request.product?.name}</TableCell>
-                        <TableCell>{request.product?.sku}</TableCell>
-                        <TableCell className="font-bold">{request.quantity}</TableCell>
-                        <TableCell>{getStatusBadge(request.status)}</TableCell>
-                        <TableCell>
-                          {request.status === "rejected" && request.rejection_reason ? (
-                            <span className="text-red-600 text-sm">{request.rejection_reason}</span>
-                          ) : (
-                            request.description || "-"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {request.status === "pending" && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleCancel(request.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
+      {/* Pending/Rejected Requests - approved ones show in Received Stock History */}
+      {(() => {
+        const pendingRejectedRequests = stockRequests?.filter(r => r.status === "pending" || r.status === "rejected") || [];
+        return pendingRejectedRequests.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Requests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <p>Loading requests...</p>
+              ) : (
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingRejectedRequests.map((request) => {
+                        const requestDate = request.requested_at ? new Date(request.requested_at) : null;
+                        const isValidDate = requestDate && !isNaN(requestDate.getTime());
+
+                        return (
+                          <TableRow key={request.id}>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{isValidDate ? format(requestDate, "dd-MM-yyyy") : "-"}</div>
+                                <div className="text-muted-foreground text-xs">
+                                  {isValidDate ? format(requestDate, "HH:mm") : ""}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{request.product?.name}</TableCell>
+                            <TableCell>{request.product?.sku}</TableCell>
+                            <TableCell className="font-bold">{request.quantity}</TableCell>
+                            <TableCell>{getStatusBadge(request.status)}</TableCell>
+                            <TableCell>
+                              {request.status === "rejected" && request.rejection_reason ? (
+                                <span className="text-red-600 text-sm">{request.rejection_reason}</span>
+                              ) : (
+                                request.description || "-"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {request.status === "pending" && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleCancel(request.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null;
+      })()}
 
       {/* Received Stock History */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <CardTitle>Received Stock History</CardTitle>
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">From:</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-36"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">To:</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-36"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setStartDate(""); setEndDate(""); }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {stockLoading ? (
