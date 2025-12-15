@@ -286,7 +286,9 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
           price: orderForTracking.hargaJualan,
           paymentMethod: orderForTracking.caraBayaran,
           productName: orderForTracking.produk,
-          quantity: 1,
+          productSku: orderForTracking.sku || orderForTracking.produk,
+          quantity: orderForTracking.quantity || 1,
+          nota: orderForTracking.nota_staff || "",
         },
         headers: {
           Authorization: `Bearer ${session?.session?.access_token}`,
@@ -605,6 +607,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Jenis Customer</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Negeri</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Alamat</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Nota</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">SEO</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Action</th>
               </tr>
@@ -682,6 +685,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{order.negeri || "-"}</td>
                     <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{order.alamat || "-"}</td>
+                    <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{order.nota_staff || "-"}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
@@ -721,7 +725,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={16} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={17} className="px-4 py-12 text-center text-muted-foreground">
                     No orders found.
                   </td>
                 </tr>

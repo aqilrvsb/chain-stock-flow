@@ -153,7 +153,9 @@ async function createNinjavanOrder(
     state: string;
     price: number;
     paymentMethod: string;
-    productName: string;
+    productSku: string;
+    quantity: number;
+    nota: string; // Full WooCommerce product name
     marketerIdStaff: string;
   }
 ): Promise<{ success: boolean; trackingNumber?: string; error?: string }> {
@@ -197,7 +199,8 @@ async function createNinjavanOrder(
 
     // COD amount (only for COD payments)
     const codAmount = orderData.paymentMethod === 'COD' ? Math.round(orderData.price) : 0;
-    const deliveryInstructions = `${orderData.productName} (${orderData.marketerIdStaff}) (${pickupDate})`;
+    // Format: SKU - unit, nota (full WooCommerce product name)
+    const deliveryInstructions = `${orderData.productSku} - ${orderData.quantity}, ${orderData.nota}`;
 
     const ninjavanPayload = {
       service_type: "Parcel",
@@ -299,14 +302,16 @@ async function generateSaleId(supabase: any): Promise<string> {
   return data;
 }
 
-// Format phone number to local format (0xxxxxxxxx)
+// Format phone number to 60xxxxxxxxx format (Malaysian international format)
 function formatPhoneNumber(phone: string): string {
   let formatted = phone.replace(/\D/g, '');
-  if (formatted.startsWith('60')) {
-    formatted = '0' + formatted.substring(2);
+  // If starts with 0, replace with 60
+  if (formatted.startsWith('0')) {
+    formatted = '60' + formatted.substring(1);
   }
-  if (!formatted.startsWith('0')) {
-    formatted = '0' + formatted;
+  // If doesn't start with 60, add 60
+  if (!formatted.startsWith('60')) {
+    formatted = '60' + formatted;
   }
   return formatted;
 }
@@ -339,8 +344,6 @@ function mapState(state: string): string {
 }
 
 serve(async (req) => {
-  const startTime = Date.now();
-
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -362,7 +365,6 @@ serve(async (req) => {
   const signature = req.headers.get('x-wc-webhook-signature') || '';
   const source = req.headers.get('x-wc-webhook-source') || '';
   const topic = req.headers.get('x-wc-webhook-topic') || '';
-  const webhookId = req.headers.get('x-wc-webhook-id') || '';
 
   // Get marketer_id (idstaff like "BRKB-001") from URL query parameter
   const url = new URL(req.url);
@@ -457,18 +459,6 @@ serve(async (req) => {
     console.log('Marketer idstaff:', marketerIdStaff);
     console.log('Full order data:', JSON.stringify(wooOrder).substring(0, 500));
 
-    // Log to webhook_logs immediately for debugging (even before processing)
-    await supabase.from('webhook_logs').insert({
-      webhook_type: 'woocommerce',
-      request_method: req.method,
-      request_body: wooOrder,
-      request_headers: { signature: signature ? 'present' : 'missing', source, topic, webhookId },
-      profile_id: marketerId,
-      response_status: 0, // Mark as "incoming" - will be updated later
-      response_body: { stage: 'received', status: wooOrder.status },
-      processing_time_ms: 0
-    });
-
     // Verify webhook signature using idstaff as secret (no woo_config needed)
     // Marketer sets their idstaff as the webhook secret in WooCommerce
     // Note: Skip verification if no signature provided (for testing)
@@ -482,18 +472,6 @@ serve(async (req) => {
 
       if (!isValidSignature) {
         console.error('Invalid webhook signature');
-        await supabase.from('webhook_logs').insert({
-          webhook_type: 'woocommerce',
-          request_method: req.method,
-          request_body: wooOrder,
-          request_headers: { signature, source, topic, webhookId },
-          profile_id: marketerId,
-          response_status: 401,
-          response_body: { error: 'Invalid signature' },
-          error_message: `Invalid webhook signature - expected secret: ${marketerIdStaff}`,
-          processing_time_ms: Date.now() - startTime
-        });
-
         return new Response(
           JSON.stringify({ error: 'Invalid webhook signature. Use your idstaff as the webhook secret in WooCommerce.' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -549,10 +527,47 @@ serve(async (req) => {
     const state = mapState(shipping.state);
     const postcode = shipping.postcode;
 
-    // Get product info from line items
-    const productNames = wooOrder.line_items.map(item => item.name).join(', ');
+    // Get product info from line items - full WooCommerce product name for nota_staff
+    const wooProductNames = wooOrder.line_items.map(item => item.name).join(', ');
     const totalQuantity = wooOrder.line_items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = parseFloat(wooOrder.total);
+
+    // Get first product from HQ inventory (like marketer dropdown shows)
+    // First get HQ user_id
+    const { data: hqUser } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'hq')
+      .limit(1)
+      .single();
+
+    let productSku = '';
+    let productName = '';
+
+    if (hqUser?.user_id) {
+      // Get first product from HQ inventory
+      const { data: hqInventory } = await supabase
+        .from('inventory')
+        .select('product_id, products(name, sku)')
+        .eq('user_id', hqUser.user_id)
+        .gt('quantity', 0)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (hqInventory?.products) {
+        const product = hqInventory.products as { name: string; sku: string };
+        productSku = product.sku || '';
+        productName = product.name || '';
+      }
+    }
+
+    // Log warning if no product found in HQ inventory
+    if (!productSku || !productName) {
+      console.warn('No product found in HQ inventory, using empty values');
+    }
+
+    console.log('Using product:', { productSku, productName });
 
     // Determine payment method (COD or CASH - online payment)
     // WooCommerce payment methods: 'cod', 'bacs', 'paypal', 'stripe', etc.
@@ -580,7 +595,9 @@ serve(async (req) => {
         state,
         price: totalPrice,
         paymentMethod: caraBayaran,
-        productName: productNames,
+        productSku,
+        quantity: totalQuantity,
+        nota: wooProductNames, // Full WooCommerce product name
         marketerIdStaff
       });
 
@@ -656,8 +673,8 @@ serve(async (req) => {
         poskod: postcode,
         bandar: city,
         negeri: state,
-        produk: productNames,
-        sku: wooOrder.line_items[0]?.sku || productNames,
+        produk: productName, // Default product from database (e.g., "Olive Oil")
+        sku: productSku, // Default product SKU from database (e.g., "OLO")
         quantity: totalQuantity,
         unit_price: totalPrice / totalQuantity,
         total_price: totalPrice,
@@ -671,7 +688,7 @@ serve(async (req) => {
         jenis_closing: 'Website', // Closed via website
         cara_bayaran: caraBayaran,
         payment_method: paymentMethod,
-        nota_staff: `WooCommerce Order #${wooOrder.id}`,
+        nota_staff: wooProductNames, // Full WooCommerce product name (e.g., "PAKEJ TRIAL (1 BOTOL EVOO ZOUITINA)")
         delivery_status: 'Pending',
         date_order: dateOrder,
         // For CASH (online payment), payment is already done
@@ -685,41 +702,11 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error inserting order:', insertError);
-      await supabase.from('webhook_logs').insert({
-        webhook_type: 'woocommerce',
-        request_method: req.method,
-        request_body: wooOrder,
-        request_headers: { signature, source, topic, webhookId },
-        profile_id: marketerId,
-        response_status: 500,
-        response_body: { error: insertError.message },
-        error_message: insertError.message,
-        processing_time_ms: Date.now() - startTime
-      });
-
       return new Response(
         JSON.stringify({ error: 'Failed to create order', details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Log successful webhook
-    await supabase.from('webhook_logs').insert({
-      webhook_type: 'woocommerce',
-      request_method: req.method,
-      request_body: wooOrder,
-      request_headers: { signature, source, topic, webhookId },
-      profile_id: marketerId,
-      order_id: newOrder.id,
-      response_status: 200,
-      response_body: {
-        success: true,
-        order_id: newOrder.id,
-        id_sale: idSale,
-        tracking_number: trackingNumber
-      },
-      processing_time_ms: Date.now() - startTime
-    });
 
     console.log('Order created successfully:', {
       id: newOrder.id,
@@ -742,18 +729,6 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('WooCommerce webhook error:', error);
-
-    await supabase.from('webhook_logs').insert({
-      webhook_type: 'woocommerce',
-      request_method: req.method,
-      request_headers: { signature, source, topic, webhookId },
-      profile_id: marketerId,
-      response_status: 500,
-      response_body: { error: error.message },
-      error_message: error.message,
-      processing_time_ms: Date.now() - startTime
-    });
-
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

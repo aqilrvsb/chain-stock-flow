@@ -115,6 +115,20 @@ serve(async (req) => {
     console.log('NinjaVan cancel response:', cancelResult);
 
     if (!cancelResponse.ok) {
+      // Treat "ORDER_ALREADY_CANCELLED" as success - order is already cancelled, which is what we want
+      if (cancelResult.description === 'ORDER_ALREADY_CANCELLED' ||
+          cancelResult.data?.message === 'Order is already cancelled') {
+        console.log('Order already cancelled - treating as success');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadyCancelled: true,
+            message: 'Order was already cancelled'
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
         JSON.stringify({
           error: cancelResult.message || 'Failed to cancel NinjaVan order',

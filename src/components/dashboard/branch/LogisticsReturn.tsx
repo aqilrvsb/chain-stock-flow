@@ -430,6 +430,7 @@ const LogisticsReturn = () => {
                       <th className="p-3 text-left">Tracking</th>
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
+                      <th className="p-3 text-left">Nota</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -466,11 +467,14 @@ const LogisticsReturn = () => {
                               </p>
                             </div>
                           </td>
+                          <td className="p-3">
+                            <p className="text-sm truncate max-w-xs">{order.nota_staff || "-"}</p>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={14} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={15} className="text-center py-12 text-muted-foreground">
                           No return orders found.
                         </td>
                       </tr>

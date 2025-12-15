@@ -17,7 +17,9 @@ interface OrderData {
   price: number;
   paymentMethod: string;
   productName: string;
+  productSku?: string; // Product SKU for delivery instructions
   quantity: number;
+  nota?: string; // Staff notes for delivery instructions
   idSale?: string; // Optional sale ID for tracking (max 9 chars)
   marketerIdStaff?: string; // Optional marketer ID for delivery instructions
 }
@@ -147,9 +149,10 @@ serve(async (req) => {
     // COD amount (only for COD payments)
     const codAmount = orderData.paymentMethod === 'COD' ? Math.round(orderData.price) : 0;
 
-    // Delivery instructions (include marketer ID if available, like marketerpro-suite)
-    const marketerInfo = orderData.marketerIdStaff ? ` (${orderData.marketerIdStaff})` : '';
-    const deliveryInstructions = `${orderData.productName}${marketerInfo} (${pickupDate})`;
+    // Delivery instructions format: SKU - unit, nota
+    const sku = orderData.productSku || orderData.productName;
+    const nota = orderData.nota || '';
+    const deliveryInstructions = `${sku} - ${orderData.quantity}, ${nota}`.trim();
 
     // Create order payload
     const ninjavanPayload = {
