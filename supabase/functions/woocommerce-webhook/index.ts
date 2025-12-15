@@ -193,9 +193,13 @@ async function createNinjavanOrder(
       address2 = orderData.address.substring(100, 200);
     }
 
-    const today = new Date();
-    const pickupDate = today.toISOString().split('T')[0];
-    const deliveryDate = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Calculate dates in Malaysia timezone (UTC+8)
+    const nowUTC = new Date();
+    const malaysiaOffset = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+    const malaysiaTime = new Date(nowUTC.getTime() + malaysiaOffset);
+    const pickupDate = malaysiaTime.toISOString().split('T')[0];
+    const deliveryTime = new Date(malaysiaTime.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const deliveryDate = deliveryTime.toISOString().split('T')[0];
 
     // COD amount (only for COD payments)
     const codAmount = orderData.paymentMethod === 'COD' ? Math.round(orderData.price) : 0;
