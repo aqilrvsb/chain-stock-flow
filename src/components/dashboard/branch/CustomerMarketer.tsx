@@ -46,11 +46,7 @@ const CustomerMarketer = () => {
 
       let query = supabase
         .from("customer_purchases")
-        .select(`
-          *,
-          customer:customers(name, phone, address, state),
-          product:products(name, sku)
-        `)
+        .select("*")
         .in("marketer_id", marketerIds)
         .order("date_order", { ascending: false, nullsFirst: false });
 
@@ -76,7 +72,7 @@ const CustomerMarketer = () => {
 
   // Calculate statistics - exclude products named "COD" from stats
   const filteredPurchases = purchases?.filter(p => {
-    const productName = p.product?.name || p.storehub_product || "";
+    const productName = p.produk || p.storehub_product || "";
     return !productName.toUpperCase().includes("COD");
   }) || [];
 
@@ -291,19 +287,19 @@ const CustomerMarketer = () => {
                         {purchase.jenis_platform || "-"}
                       </span>
                     </TableCell>
-                    <TableCell>{purchase.customer?.name || "-"}</TableCell>
-                    <TableCell>{purchase.customer?.phone || "-"}</TableCell>
+                    <TableCell>{purchase.marketer_name || "-"}</TableCell>
+                    <TableCell>{purchase.no_phone || "-"}</TableCell>
                     <TableCell>
                       <span className="text-sm">
-                        {purchase.customer?.address || "-"}
+                        {purchase.alamat || "-"}
                       </span>
                     </TableCell>
-                    <TableCell>{purchase.customer?.state || "-"}</TableCell>
-                    <TableCell>{purchase.payment_method || "-"}</TableCell>
-                    <TableCell>{purchase.jenis_closing || purchase.closing_type || "-"}</TableCell>
+                    <TableCell>{purchase.negeri || "-"}</TableCell>
+                    <TableCell>{purchase.cara_bayaran || purchase.payment_method || "-"}</TableCell>
+                    <TableCell>{purchase.jenis_closing || "-"}</TableCell>
                     <TableCell>
                       <span className="text-sm">
-                        {purchase.product?.name || purchase.storehub_product || "-"}
+                        {purchase.produk || purchase.storehub_product || "-"}
                       </span>
                     </TableCell>
                     <TableCell>{purchase.quantity || 0}</TableCell>
