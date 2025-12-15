@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,9 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, TrendingUp, CheckCircle, XCircle, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Package, TrendingUp, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 interface FilteredStock {
   productId: string;
@@ -25,7 +23,6 @@ interface OrderStock {
 
 const BranchProductManagement = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -34,25 +31,36 @@ const BranchProductManagement = () => {
   const [allTimeOrderStocks, setAllTimeOrderStocks] = useState<OrderStock[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    baseCost: "",
-  });
-
-  // Fetch all products
+  // Fetch products that have stock_in_branch records for this branch
   const { data: products, isLoading } = useQuery({
-    queryKey: ["branch-products"],
+    queryKey: ["branch-products-with-stock", user?.id],
     queryFn: async () => {
+      // First get distinct product_ids from stock_in_branch for this branch
+      const { data: stockInData, error: stockInError } = await supabase
+        .from("stock_in_branch")
+        .select("product_id")
+        .eq("branch_id", user?.id);
+
+      if (stockInError) throw stockInError;
+
+      // Get unique product IDs
+      const productIds = [...new Set(stockInData?.map(s => s.product_id) || [])];
+
+      if (productIds.length === 0) {
+        return [];
+      }
+
+      // Fetch products with those IDs
       const { data, error } = await supabase
         .from("products")
         .select("*")
+        .in("id", productIds)
         .order("created_at", { ascending: false });
+
       if (error) throw error;
       return data || [];
     },
+    enabled: !!user?.id,
   });
 
   // Fetch bundles to map product names to product IDs
@@ -368,102 +376,6 @@ const BranchProductManagement = () => {
     }, 0),
   };
 
-  // Add product mutation
-  const addProduct = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("products").insert({
-        name: formData.name,
-        sku: formData.sku,
-        base_cost: parseFloat(formData.baseCost) || 0,
-        is_active: true,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branch-products"] });
-      toast.success("Product added successfully");
-      resetForm();
-      setIsDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast.error("Failed to add product: " + error.message);
-    },
-  });
-
-  // Update product mutation
-  const updateProduct = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: formData.name,
-          sku: formData.sku,
-          base_cost: parseFloat(formData.baseCost) || 0,
-        })
-        .eq("id", editingProduct?.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branch-products"] });
-      toast.success("Product updated successfully");
-      resetForm();
-      setIsDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast.error("Failed to update product: " + error.message);
-    },
-  });
-
-  // Delete product mutation
-  const deleteProduct = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["branch-products"] });
-      toast.success("Product deleted successfully");
-    },
-    onError: (error: any) => {
-      toast.error("Failed to delete product: " + error.message);
-    },
-  });
-
-  const resetForm = () => {
-    setFormData({ name: "", sku: "", baseCost: "" });
-    setEditingProduct(null);
-  };
-
-  const handleEdit = (product: any) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      sku: product.sku || "",
-      baseCost: product.base_cost?.toString() || "0",
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      deleteProduct.mutate(id);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingProduct) {
-      updateProduct.mutate();
-    } else {
-      addProduct.mutate();
-    }
-  };
-
-  const openNewDialog = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -626,60 +538,6 @@ const BranchProductManagement = () => {
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-lg">Inventory Management</h3>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={openNewDialog}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Product
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingProduct ? "Edit Product" : "Add New Product"}
-                  </DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Product Name</Label>
-                      <Input
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>SKU</Label>
-                      <Input
-                        value={formData.sku}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sku: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Base Cost</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.baseCost}
-                      onChange={(e) =>
-                        setFormData({ ...formData, baseCost: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    {editingProduct ? "Update Product" : "Create Product"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
           </div>
 
           <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -694,7 +552,6 @@ const BranchProductManagement = () => {
                   <TableHead>Stock Out</TableHead>
                   <TableHead>Processed Out</TableHead>
                   <TableHead>Quantity</TableHead>
-                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -719,31 +576,12 @@ const BranchProductManagement = () => {
                       <TableCell className="font-bold">
                         {getQuantity(product.id).toLocaleString()}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(product)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(product.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      No products found. Add your first product.
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No products with stock received yet.
                     </TableCell>
                   </TableRow>
                 )}
