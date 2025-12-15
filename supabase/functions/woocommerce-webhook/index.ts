@@ -532,39 +532,32 @@ serve(async (req) => {
     const totalQuantity = wooOrder.line_items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = parseFloat(wooOrder.total);
 
-    // Get first product from HQ inventory (like marketer dropdown shows)
-    // First get HQ user_id
-    const { data: hqUser } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'hq')
-      .limit(1)
-      .single();
-
+    // Get first product from Branch inventory (branchId)
+    // This is where the marketer gets their products from
     let productSku = '';
     let productName = '';
 
-    if (hqUser?.user_id) {
-      // Get first product from HQ inventory
-      const { data: hqInventory } = await supabase
+    if (branchId) {
+      // Get first product from Branch inventory
+      const { data: branchInventory } = await supabase
         .from('inventory')
         .select('product_id, products(name, sku)')
-        .eq('user_id', hqUser.user_id)
+        .eq('user_id', branchId)
         .gt('quantity', 0)
         .order('created_at', { ascending: true })
         .limit(1)
         .single();
 
-      if (hqInventory?.products) {
-        const product = hqInventory.products as { name: string; sku: string };
+      if (branchInventory?.products) {
+        const product = branchInventory.products as { name: string; sku: string };
         productSku = product.sku || '';
         productName = product.name || '';
       }
     }
 
-    // Log warning if no product found in HQ inventory
+    // Log warning if no product found in Branch inventory
     if (!productSku || !productName) {
-      console.warn('No product found in HQ inventory, using empty values');
+      console.warn('No product found in Branch inventory, using empty values. branchId:', branchId);
     }
 
     console.log('Using product:', { productSku, productName });
