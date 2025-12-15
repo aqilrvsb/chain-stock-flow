@@ -48,11 +48,38 @@ const FormLabel: React.FC<{ required?: boolean; children: React.ReactNode }> = (
   </label>
 );
 
-interface MarketerOrdersProps {
-  onNavigate?: (view: string) => void;
+interface EditOrderData {
+  id: string;
+  marketer_name: string;
+  no_phone: string;
+  jenis_platform: string;
+  jenis_closing: string;
+  jenis_customer: string;
+  poskod: string;
+  bandar: string;
+  negeri: string;
+  alamat: string;
+  produk: string;
+  total_price: number;
+  cara_bayaran: string;
+  jenis_bayaran: string;
+  bank: string;
+  nota_staff: string;
+  tracking_number: string;
+  tarikh_bayaran: string;
+  receipt_image_url: string;
+  waybill_url: string;
+  product_id: string;
+  customer_id: string;
 }
 
-const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
+interface MarketerOrdersProps {
+  onNavigate?: (view: string) => void;
+  editOrder?: EditOrderData | null;
+  onCancelEdit?: () => void;
+}
+
+const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersProps) => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,6 +91,8 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
   const [leadInfo, setLeadInfo] = useState<{ id?: string; isNewLead?: boolean; countOrder?: number } | null>(null);
   const [waybillFile, setWaybillFile] = useState<File | null>(null);
   const [waybillFileName, setWaybillFileName] = useState<string>("");
+
+  const isEditMode = !!editOrder;
 
   // Fetch branch_id - first try from profile, then fallback to user_roles.created_by
   const { data: branchId } = useQuery({
@@ -112,6 +141,40 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
     nota: "",
     trackingNumber: "",
   });
+
+  // Pre-fill form in edit mode
+  useEffect(() => {
+    if (editOrder) {
+      setFormData({
+        namaPelanggan: editOrder.marketer_name || "",
+        noPhone: editOrder.no_phone || "",
+        jenisPlatform: editOrder.jenis_platform || "",
+        jenisClosing: editOrder.jenis_closing || "",
+        jenisCustomer: editOrder.jenis_customer || "",
+        poskod: editOrder.poskod || "",
+        daerah: editOrder.bandar || "",
+        negeri: editOrder.negeri || "",
+        alamat: editOrder.alamat || "",
+        produk: editOrder.produk || "",
+        productId: editOrder.product_id || "",
+        quantity: 1,
+        hargaJualan: editOrder.total_price || 0,
+        caraBayaran: editOrder.cara_bayaran || "",
+        jenisBayaran: editOrder.jenis_bayaran || "",
+        pilihBank: editOrder.bank || "",
+        nota: editOrder.nota_staff || "",
+        trackingNumber: editOrder.tracking_number || "",
+      });
+      // Set customer type
+      if (editOrder.jenis_customer) {
+        setDeterminedCustomerType(editOrder.jenis_customer as "NP" | "EP" | "EC");
+      }
+      // Set tarikh bayaran if exists
+      if (editOrder.tarikh_bayaran) {
+        setTarikhBayaran(new Date(editOrder.tarikh_bayaran));
+      }
+    }
+  }, [editOrder]);
 
   // Fetch products - just get all active products for marketer
   // Note: Inventory quantity check is handled at order submission time
@@ -577,58 +640,143 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
         }
       }
 
-      // Create order - seller_id is the BRANCH so it appears in Branch logistics
-      const { error: orderError } = await supabase
-        .from("customer_purchases")
-        .insert({
-          customer_id: customerId,
-          seller_id: branchId, // Branch ID so it appears in Branch logistics
-          product_id: formData.productId,
-          marketer_id: user?.id,
-          marketer_id_staff: userProfile?.idstaff,
-          marketer_name: userProfile?.full_name || userProfile?.idstaff,
-          no_phone: formData.noPhone,
-          alamat: formData.alamat,
-          poskod: formData.poskod,
-          bandar: formData.daerah,
-          negeri: formData.negeri,
-          produk: formData.produk,
-          sku: selectedProduct?.sku || formData.produk,
-          quantity: formData.quantity,
-          unit_price: formData.hargaJualan / formData.quantity,
-          total_price: formData.hargaJualan,
-          profit: formData.hargaJualan,
-          kurier,
-          tracking_number: trackingNumber,
-          no_tracking: trackingNumber,
-          jenis_platform: formData.jenisPlatform,
-          jenis_customer: formData.jenisCustomer,
-          jenis_closing: formData.jenisClosing,
-          cara_bayaran: formData.caraBayaran,
-          payment_method: formData.caraBayaran === "CASH" ? "Online Transfer" : "COD",
-          nota_staff: formData.nota,
-          delivery_status: "Pending",
-          date_order: dateOrder,
-          tarikh_bayaran: showPaymentDetails && tarikhBayaran ? format(tarikhBayaran, "yyyy-MM-dd") : null,
-          jenis_bayaran: showPaymentDetails ? formData.jenisBayaran : null,
-          bank: showPaymentDetails ? formData.pilihBank : null,
-          receipt_image_url: receiptImageUrl || null,
-          waybill_url: waybillUrl || null,
-          platform: "Marketer",
-        });
+      // Handle Edit Mode vs Create Mode
+      if (isEditMode && editOrder) {
+        // In edit mode, cancel old NinjaVan if it was a NinjaVan order and has tracking
+        const wasNinjavanOrder = editOrder.jenis_platform !== "Shopee" && editOrder.jenis_platform !== "Tiktok";
+        if (wasNinjavanOrder && editOrder.tracking_number && branchId) {
+          try {
+            await supabase.functions.invoke("ninjavan-cancel", {
+              body: { trackingNumber: editOrder.tracking_number, profileId: branchId },
+            });
+          } catch (err) {
+            console.error("Cancel old NinjaVan order failed:", err);
+          }
+        }
 
-      if (orderError) throw orderError;
+        // Delete old receipt image if new one is uploaded
+        if (receiptFile && editOrder.receipt_image_url) {
+          try {
+            const urlParts = editOrder.receipt_image_url.split("/storage/v1/object/public/payment-receipts/");
+            if (urlParts.length > 1) {
+              await supabase.storage.from("payment-receipts").remove([urlParts[1]]);
+            }
+          } catch (err) {
+            console.error("Delete old receipt error:", err);
+          }
+        }
 
-      toast.success("Order berjaya disimpan!");
-      queryClient.invalidateQueries({ queryKey: ["marketer-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["customer-marketer"] });
-      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
-      queryClient.invalidateQueries({ queryKey: ["marketer-history"] });
-      resetForm();
+        // Delete old waybill if new one is uploaded
+        if (waybillFile && editOrder.waybill_url) {
+          try {
+            const urlParts = editOrder.waybill_url.split("/storage/v1/object/public/payment-receipts/");
+            if (urlParts.length > 1) {
+              await supabase.storage.from("payment-receipts").remove([urlParts[1]]);
+            }
+          } catch (err) {
+            console.error("Delete old waybill error:", err);
+          }
+        }
 
-      // Navigate to history page after successful submit
-      if (onNavigate) {
-        onNavigate("history");
+        // Update existing order
+        const { error: updateError } = await supabase
+          .from("customer_purchases")
+          .update({
+            marketer_name: formData.namaPelanggan,
+            no_phone: formData.noPhone,
+            alamat: formData.alamat,
+            poskod: formData.poskod,
+            bandar: formData.daerah,
+            negeri: formData.negeri,
+            produk: formData.produk,
+            product_id: formData.productId || null,
+            sku: selectedProduct?.sku || formData.produk,
+            quantity: formData.quantity,
+            unit_price: formData.hargaJualan / formData.quantity,
+            total_price: formData.hargaJualan,
+            profit: formData.hargaJualan,
+            kurier,
+            tracking_number: trackingNumber || editOrder.tracking_number,
+            no_tracking: trackingNumber || editOrder.tracking_number,
+            jenis_platform: formData.jenisPlatform,
+            jenis_customer: formData.jenisCustomer,
+            jenis_closing: formData.jenisClosing,
+            cara_bayaran: formData.caraBayaran,
+            payment_method: formData.caraBayaran === "CASH" ? "Online Transfer" : "COD",
+            nota_staff: formData.nota,
+            tarikh_bayaran: showPaymentDetails && tarikhBayaran ? format(tarikhBayaran, "yyyy-MM-dd") : null,
+            jenis_bayaran: showPaymentDetails ? formData.jenisBayaran : null,
+            bank: showPaymentDetails ? formData.pilihBank : null,
+            receipt_image_url: receiptImageUrl || editOrder.receipt_image_url || null,
+            waybill_url: waybillUrl || editOrder.waybill_url || null,
+          })
+          .eq("id", editOrder.id);
+
+        if (updateError) throw updateError;
+
+        toast.success("Order berjaya dikemaskini!");
+        queryClient.invalidateQueries({ queryKey: ["marketer-history"] });
+
+        // Go back to history
+        if (onCancelEdit) {
+          onCancelEdit();
+        } else if (onNavigate) {
+          onNavigate("history");
+        }
+      } else {
+        // Create new order - seller_id is the BRANCH so it appears in Branch logistics
+        const { error: orderError } = await supabase
+          .from("customer_purchases")
+          .insert({
+            customer_id: customerId,
+            seller_id: branchId, // Branch ID so it appears in Branch logistics
+            product_id: formData.productId,
+            marketer_id: user?.id,
+            marketer_id_staff: userProfile?.idstaff,
+            marketer_name: formData.namaPelanggan,
+            no_phone: formData.noPhone,
+            alamat: formData.alamat,
+            poskod: formData.poskod,
+            bandar: formData.daerah,
+            negeri: formData.negeri,
+            produk: formData.produk,
+            sku: selectedProduct?.sku || formData.produk,
+            quantity: formData.quantity,
+            unit_price: formData.hargaJualan / formData.quantity,
+            total_price: formData.hargaJualan,
+            profit: formData.hargaJualan,
+            kurier,
+            tracking_number: trackingNumber,
+            no_tracking: trackingNumber,
+            jenis_platform: formData.jenisPlatform,
+            jenis_customer: formData.jenisCustomer,
+            jenis_closing: formData.jenisClosing,
+            cara_bayaran: formData.caraBayaran,
+            payment_method: formData.caraBayaran === "CASH" ? "Online Transfer" : "COD",
+            nota_staff: formData.nota,
+            delivery_status: "Pending",
+            date_order: dateOrder,
+            tarikh_bayaran: showPaymentDetails && tarikhBayaran ? format(tarikhBayaran, "yyyy-MM-dd") : null,
+            jenis_bayaran: showPaymentDetails ? formData.jenisBayaran : null,
+            bank: showPaymentDetails ? formData.pilihBank : null,
+            receipt_image_url: receiptImageUrl || null,
+            waybill_url: waybillUrl || null,
+            platform: "Marketer",
+          });
+
+        if (orderError) throw orderError;
+
+        toast.success("Order berjaya disimpan!");
+        queryClient.invalidateQueries({ queryKey: ["marketer-orders"] });
+        queryClient.invalidateQueries({ queryKey: ["customer-marketer"] });
+        queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+        queryClient.invalidateQueries({ queryKey: ["marketer-history"] });
+        resetForm();
+
+        // Navigate to history page after successful submit
+        if (onNavigate) {
+          onNavigate("history");
+        }
       }
     } catch (error: any) {
       console.error("Error creating order:", error);
@@ -644,13 +792,20 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          Tempahan Baru
-        </h1>
-        <p className="text-muted-foreground">
-          Isi butiran untuk membuat tempahan baru
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isEditMode ? "Edit Tempahan" : "Tempahan Baru"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isEditMode ? "Kemaskini butiran tempahan" : "Isi butiran untuk membuat tempahan baru"}
+          </p>
+        </div>
+        {isEditMode && onCancelEdit && (
+          <Button type="button" variant="outline" onClick={onCancelEdit}>
+            Batal Edit
+          </Button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

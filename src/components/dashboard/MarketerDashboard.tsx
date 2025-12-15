@@ -15,13 +15,33 @@ const MarketerDashboard = () => {
   const { userProfile } = useAuth();
   const userName = userProfile?.idstaff || userProfile?.full_name || "Marketer";
   const [activeView, setActiveView] = useState("dashboard");
+  const [editOrderData, setEditOrderData] = useState<any>(null);
+
+  const handleEditOrder = (order: any) => {
+    setEditOrderData(order);
+    setActiveView("order");
+  };
+
+  const handleCancelEdit = () => {
+    setEditOrderData(null);
+    setActiveView("history");
+  };
 
   const renderView = () => {
     switch (activeView) {
       case "order":
-        return <MarketerOrders onNavigate={setActiveView} />;
+        return (
+          <MarketerOrders
+            onNavigate={(view) => {
+              setEditOrderData(null);
+              setActiveView(view);
+            }}
+            editOrder={editOrderData}
+            onCancelEdit={handleCancelEdit}
+          />
+        );
       case "history":
-        return <MarketerHistory />;
+        return <MarketerHistory onEditOrder={handleEditOrder} />;
       case "leads":
         return <MarketerLeads />;
       case "spend":

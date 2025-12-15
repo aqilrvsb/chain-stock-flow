@@ -65,7 +65,11 @@ interface OrderForTracking {
   hargaJualan: number;
 }
 
-const MarketerHistory = () => {
+interface MarketerHistoryProps {
+  onEditOrder?: (order: any) => void;
+}
+
+const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -225,9 +229,11 @@ const MarketerHistory = () => {
   };
 
   const handleEditClick = (order: any) => {
-    // Navigate to order form with order data in state for editing
-    // For now, show toast as edit functionality needs order form integration
-    toast.info("Edit order coming soon");
+    if (onEditOrder) {
+      onEditOrder(order);
+    } else {
+      toast.info("Edit order tidak tersedia");
+    }
   };
 
   const handleDeleteClick = (order: any) => {
@@ -346,6 +352,34 @@ const MarketerHistory = () => {
         } catch (err) {
           console.error("Cancel API call failed:", err);
         }
+      }
+
+      // Delete files from Supabase storage if they exist
+      const deleteFromStorage = async (url: string, bucket: string) => {
+        try {
+          // Extract file path from URL
+          // URL format: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file
+          const urlParts = url.split(`/storage/v1/object/public/${bucket}/`);
+          if (urlParts.length > 1) {
+            const filePath = urlParts[1];
+            const { error } = await supabase.storage.from(bucket).remove([filePath]);
+            if (error) {
+              console.error(`Failed to delete from ${bucket}:`, error);
+            }
+          }
+        } catch (err) {
+          console.error("Storage delete error:", err);
+        }
+      };
+
+      // Delete receipt image if exists
+      if (orderToDelete.receiptImageUrl) {
+        await deleteFromStorage(orderToDelete.receiptImageUrl, "payment-receipts");
+      }
+
+      // Delete waybill if exists
+      if (orderToDelete.waybillUrl) {
+        await deleteFromStorage(orderToDelete.waybillUrl, "payment-receipts");
       }
 
       // Delete the order from database
