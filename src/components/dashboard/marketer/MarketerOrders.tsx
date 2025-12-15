@@ -539,6 +539,10 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
       if (!isShopeeOrTiktokPlatform && ninjavanConfig && branchId) {
         try {
           const { data: session } = await supabase.auth.getSession();
+          // Generate short sale ID for NinjaVan (max 9 chars)
+          const ts = Date.now().toString().slice(-5);
+          const idSale = `OJ${ts}`;
+
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
             body: {
               profileId: branchId,
@@ -552,6 +556,8 @@ const MarketerOrders = ({ onNavigate }: MarketerOrdersProps) => {
               paymentMethod: formData.caraBayaran,
               productName: formData.produk,
               quantity: formData.quantity,
+              idSale: idSale,
+              marketerIdStaff: userProfile?.idstaff || "",
             },
             headers: {
               Authorization: `Bearer ${session?.session?.access_token}`,

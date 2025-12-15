@@ -18,6 +18,8 @@ interface OrderData {
   paymentMethod: string;
   productName: string;
   quantity: number;
+  idSale?: string; // Optional sale ID for tracking (max 9 chars)
+  marketerIdStaff?: string; // Optional marketer ID for delivery instructions
 }
 
 serve(async (req) => {
@@ -118,8 +120,16 @@ serve(async (req) => {
       }
     }
 
-    // Generate unique tracking ID based on timestamp
-    const trackingId = `OJ${Date.now().toString(36).toUpperCase()}`;
+    // Generate unique tracking ID (max 9 chars for NinjaVan API)
+    // Use idSale if provided, otherwise generate short ID
+    let trackingId: string;
+    if (orderData.idSale && orderData.idSale.length <= 9) {
+      trackingId = orderData.idSale;
+    } else {
+      // Generate short ID: OJ + 5 digit sequence (e.g., "OJ12345" = 7 chars)
+      const ts = Date.now().toString().slice(-5);
+      trackingId = `OJ${ts}`;
+    }
 
     // Prepare address (split if > 100 chars)
     let address1 = orderData.address;
@@ -137,8 +147,9 @@ serve(async (req) => {
     // COD amount (only for COD payments)
     const codAmount = orderData.paymentMethod === 'COD' ? Math.round(orderData.price) : 0;
 
-    // Delivery instructions
-    const deliveryInstructions = `${orderData.productName} x${orderData.quantity} (${pickupDate})`;
+    // Delivery instructions (include marketer ID if available, like marketerpro-suite)
+    const marketerInfo = orderData.marketerIdStaff ? ` (${orderData.marketerIdStaff})` : '';
+    const deliveryInstructions = `${orderData.productName}${marketerInfo} (${pickupDate})`;
 
     // Create order payload
     const ninjavanPayload = {
