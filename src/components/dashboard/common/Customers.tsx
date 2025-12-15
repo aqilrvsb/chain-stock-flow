@@ -62,12 +62,9 @@ const Customers = ({ userType }: CustomersProps) => {
     queryFn: async () => {
       let query = supabase
         .from("customer_purchases")
-        .select(`
-          *,
-          customer:customers(name, phone, address, state),
-          product:products(name, sku)
-        `)
+        .select("*")
         .eq("seller_id", user?.id)
+        .is("marketer_id", null) // Only show direct branch orders (not from marketers)
         .order("date_order", { ascending: false, nullsFirst: false });
 
       // Use date_order for filtering (actual transaction date, not import timestamp)
@@ -89,7 +86,7 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // Calculate statistics - exclude products named "COD" from stats
   const filteredPurchases = purchases?.filter(p => {
-    const productName = p.product?.name || p.storehub_product || "";
+    const productName = p.produk || p.storehub_product || "";
     return !productName.toUpperCase().includes("COD");
   }) || [];
   const totalCustomers = new Set(filteredPurchases.map(p => p.customer_id)).size || 0;
@@ -110,7 +107,7 @@ const Customers = ({ userType }: CustomersProps) => {
       }
     } else if (!invoiceNumber) {
       // Manual entry - use total_price and unique ID
-      const productName = p.product?.name || p.storehub_product || "";
+      const productName = p.produk || p.storehub_product || "";
       if (!productName.toUpperCase().includes("COD")) {
         invoiceTotals.set(p.id, Number(p.total_price) || 0);
       }
@@ -148,7 +145,7 @@ const Customers = ({ userType }: CustomersProps) => {
       const invoiceNumber = p.storehub_invoice || (invoiceMatch ? invoiceMatch[1] : null);
 
       // Skip COD products
-      const productName = p.product?.name || p.storehub_product || "";
+      const productName = p.produk || p.storehub_product || "";
       if (productName.toUpperCase().includes("COD")) return;
 
       const key = invoiceNumber || p.id; // Use invoice for StoreHub, or purchase ID for manual
@@ -160,9 +157,13 @@ const Customers = ({ userType }: CustomersProps) => {
           invoiceNumber: invoiceNumber,
           created_at: p.created_at,
           date_order: p.date_order,
-          customer: p.customer,
-          payment_method: p.payment_method,
-          closing_type: p.closing_type,
+          // Use direct columns (marketer_name is customer name, no_phone, alamat, negeri)
+          customerName: p.marketer_name || "-",
+          customerPhone: p.no_phone || "-",
+          customerAddress: p.alamat || "-",
+          customerState: p.negeri || "-",
+          payment_method: p.cara_bayaran || p.payment_method,
+          closing_type: p.jenis_closing || p.closing_type,
           tracking_number: p.tracking_number,
           platform: p.platform || "Manual",
           // For StoreHub: use transaction_total, for manual: use total_price
@@ -933,14 +934,14 @@ const Customers = ({ userType }: CustomersProps) => {
                         {purchase.platform || "Manual"}
                       </span>
                     </TableCell>
-                    <TableCell>{purchase.customer?.name || "-"}</TableCell>
-                    <TableCell>{purchase.customer?.phone || "-"}</TableCell>
+                    <TableCell>{purchase.customerName || "-"}</TableCell>
+                    <TableCell>{purchase.customerPhone || "-"}</TableCell>
                     <TableCell>
                       <span className="text-sm">
-                        {purchase.customer?.address || "-"}
+                        {purchase.customerAddress || "-"}
                       </span>
                     </TableCell>
-                    <TableCell>{purchase.customer?.state || "-"}</TableCell>
+                    <TableCell>{purchase.customerState || "-"}</TableCell>
                     <TableCell>{purchase.payment_method}</TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>
