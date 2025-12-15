@@ -584,7 +584,7 @@ const LogisticsOrder = () => {
                             />
                           </td>
                           <td className="p-3">{(currentPage - 1) * pageSize + index + 1}</td>
-                          <td className="p-3">{format(new Date(order.created_at), "dd-MM-yyyy")}</td>
+                          <td className="p-3">{order.date_order || "-"}</td>
                           <td className="p-3 font-mono text-xs">{order.marketer_id_staff || "-"}</td>
                           <td className="p-3">{order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>

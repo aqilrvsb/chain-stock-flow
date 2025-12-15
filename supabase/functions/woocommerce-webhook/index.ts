@@ -320,6 +320,32 @@ function formatPhoneNumber(phone: string): string {
   return formatted;
 }
 
+// Parse WooCommerce SKU format: "ZP250-6" -> { sku: "ZP250", quantity: 6 }
+// The format is: ACTUALSKU-QUANTITY
+function parseWooCommerceSku(wooSku: string): { sku: string; quantity: number } {
+  if (!wooSku) {
+    return { sku: '', quantity: 1 };
+  }
+
+  // Split by last hyphen to handle SKUs that might contain hyphens
+  const lastHyphenIndex = wooSku.lastIndexOf('-');
+  if (lastHyphenIndex === -1) {
+    return { sku: wooSku, quantity: 1 };
+  }
+
+  const potentialQuantity = wooSku.substring(lastHyphenIndex + 1);
+  const quantity = parseInt(potentialQuantity, 10);
+
+  // If the part after hyphen is a valid number, use it as quantity
+  if (!isNaN(quantity) && quantity > 0) {
+    const sku = wooSku.substring(0, lastHyphenIndex);
+    return { sku, quantity };
+  }
+
+  // Otherwise, treat the whole thing as SKU with quantity 1
+  return { sku: wooSku, quantity: 1 };
+}
+
 // Map Malaysian state names
 function mapState(state: string): string {
   const stateMap: Record<string, string> = {
@@ -533,38 +559,47 @@ serve(async (req) => {
 
     // Get product info from line items - full WooCommerce product name for nota_staff
     const wooProductNames = wooOrder.line_items.map(item => item.name).join(', ');
-    const totalQuantity = wooOrder.line_items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = parseFloat(wooOrder.total);
 
-    // Get first product from Branch inventory (branchId)
-    // This is where the marketer gets their products from
-    let productSku = '';
+    // Parse WooCommerce SKU format: "ZP250-6" -> { sku: "ZP250", quantity: 6 }
+    // Use first line item's SKU to determine product and quantity
+    const firstLineItem = wooOrder.line_items[0];
+    const wooSku = firstLineItem?.sku || '';
+    const { sku: actualSku, quantity: skuQuantity } = parseWooCommerceSku(wooSku);
+
+    console.log('Parsed WooCommerce SKU:', { wooSku, actualSku, skuQuantity });
+
+    // Look up product by actual SKU in database
+    let productSku = actualSku;
     let productName = '';
+    let productId = '';
+    let totalQuantity = skuQuantity;
 
-    if (branchId) {
-      // Get first product from Branch inventory
-      const { data: branchInventory } = await supabase
-        .from('inventory')
-        .select('product_id, products(name, sku)')
-        .eq('user_id', branchId)
-        .gt('quantity', 0)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single();
+    if (actualSku) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .eq('sku', actualSku)
+        .maybeSingle();
 
-      if (branchInventory?.products) {
-        const product = branchInventory.products as { name: string; sku: string };
-        productSku = product.sku || '';
-        productName = product.name || '';
+      if (productData) {
+        productId = productData.id;
+        productSku = productData.sku;
+        productName = productData.name;
+        console.log('Product found by SKU:', { productId, productSku, productName });
+      } else {
+        console.warn('Product not found for SKU:', actualSku);
+        // Use WooCommerce product name as fallback
+        productName = firstLineItem?.name || '';
       }
+    } else {
+      // No SKU provided, fallback to WooCommerce quantity
+      totalQuantity = wooOrder.line_items.reduce((sum, item) => sum + item.quantity, 0);
+      productName = firstLineItem?.name || '';
+      console.warn('No SKU in WooCommerce order, using line item quantity:', totalQuantity);
     }
 
-    // Log warning if no product found in Branch inventory
-    if (!productSku || !productName) {
-      console.warn('No product found in Branch inventory, using empty values. branchId:', branchId);
-    }
-
-    console.log('Using product:', { productSku, productName });
+    console.log('Using product:', { productSku, productName, totalQuantity });
 
     // Determine payment method (COD or CASH - online payment)
     // WooCommerce payment methods: 'cod', 'bacs', 'paypal', 'stripe', etc.

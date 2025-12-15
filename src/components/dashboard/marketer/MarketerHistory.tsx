@@ -44,6 +44,7 @@ import {
   Pencil,
   Trash2,
   Car,
+  FileText,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
@@ -608,6 +609,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Negeri</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Alamat</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Nota</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Waybill</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">SEO</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Action</th>
               </tr>
@@ -687,6 +689,21 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                     <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{order.alamat || "-"}</td>
                     <td className="px-4 py-3 text-sm text-foreground max-w-xs truncate">{order.nota_staff || "-"}</td>
                     <td className="px-4 py-3">
+                      {order.waybill_url && (order.jenis_platform === "Tiktok" || order.jenis_platform === "Shopee") ? (
+                        <a
+                          href={order.waybill_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors inline-flex"
+                          title="View Waybill"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                           order.seo === "Successfull Delivery"
@@ -725,7 +742,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={17} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={18} className="px-4 py-12 text-center text-muted-foreground">
                     No orders found.
                   </td>
                 </tr>
