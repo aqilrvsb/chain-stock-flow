@@ -696,6 +696,43 @@ const Customers = ({ userType }: CustomersProps) => {
             continue;
           }
 
+          // Try to match StoreHub product name with local products table
+          // Use case-insensitive partial match (product name contains storehub name or vice versa)
+          const matchedProduct = products?.find((p) => {
+            const localName = p.name.toLowerCase();
+            const storehubName = storehubProductName.toLowerCase();
+            return localName.includes(storehubName) || storehubName.includes(localName);
+          });
+
+          let matchedProductId: string | null = null;
+          let matchedSku: string | null = null;
+          const itemQuantity = item.quantity || 1;
+
+          if (matchedProduct) {
+            matchedProductId = matchedProduct.id;
+            matchedSku = matchedProduct.sku;
+            console.log(`MATCHED: StoreHub "${storehubProductName}" -> Local "${matchedProduct.name}" (SKU: ${matchedSku})`);
+
+            // Deduct inventory for matched product
+            const { data: inventoryData } = await supabase
+              .from('inventory')
+              .select('quantity')
+              .eq('user_id', user?.id)
+              .eq('product_id', matchedProductId)
+              .single();
+
+            if (inventoryData) {
+              const newQuantity = Math.max(0, inventoryData.quantity - itemQuantity);
+              await supabase
+                .from('inventory')
+                .update({ quantity: newQuantity })
+                .eq('user_id', user?.id)
+                .eq('product_id', matchedProductId);
+              console.log(`INVENTORY: Deducted ${itemQuantity} from ${matchedProduct.name}. New qty: ${newQuantity}`);
+            }
+          } else {
+            console.log(`NO MATCH: StoreHub "${storehubProductName}" - no local product found`);
+          }
 
           // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
           let paymentMethod = "Cash";
@@ -724,10 +761,12 @@ const Customers = ({ userType }: CustomersProps) => {
             .insert({
               customer_id: customerId,
               seller_id: user?.id,
-              product_id: null, // No local product match needed
+              product_id: matchedProductId, // Link to local product if matched
+              sku: matchedSku, // SKU from matched product
+              produk: matchedProduct?.name || null, // Local product name if matched
               storehub_product: storehubProductName, // Store StoreHub product name
-              quantity: item.quantity || 1,
-              unit_price: item.unitPrice || item.subTotal / (item.quantity || 1),
+              quantity: itemQuantity,
+              unit_price: item.unitPrice || item.subTotal / itemQuantity,
               total_price: item.total || item.subTotal,
               payment_method: paymentMethod,
               closing_type: "Walk In", // StoreHub transactions are Walk In
@@ -750,6 +789,7 @@ const Customers = ({ userType }: CustomersProps) => {
       }
 
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
 
       console.log(`========== SYNC RESULTS ==========`);
       console.log(`Imported: ${importedCount}`);
