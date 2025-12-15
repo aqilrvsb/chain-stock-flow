@@ -718,7 +718,7 @@ serve(async (req) => {
         id_sale: idSale,
         tracking_number: trackingNumber,
         no_tracking: trackingNumber,
-        jenis_platform: 'Website', // WooCommerce = Website platform
+        jenis_platform: 'Facebook', // WooCommerce orders come from Facebook ads
         jenis_customer: 'NP', // Default to new prospect
         jenis_closing: 'Website', // Closed via website
         cara_bayaran: caraBayaran,
