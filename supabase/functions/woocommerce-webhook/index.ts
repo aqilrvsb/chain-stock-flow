@@ -364,16 +364,34 @@ serve(async (req) => {
   const topic = req.headers.get('x-wc-webhook-topic') || '';
   const webhookId = req.headers.get('x-wc-webhook-id') || '';
 
-  // Get marketer_id from URL query parameter
+  // Get marketer_id (idstaff like "BRKB-001") from URL query parameter
   const url = new URL(req.url);
-  const marketerId = url.searchParams.get('marketer_id');
+  const marketerIdStaffParam = url.searchParams.get('marketer_id');
 
-  if (!marketerId) {
+  if (!marketerIdStaffParam) {
     return new Response(
-      JSON.stringify({ error: 'marketer_id is required as query parameter' }),
+      JSON.stringify({ error: 'marketer_id (idstaff) is required as query parameter' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+
+  // Look up the marketer by idstaff to get UUID
+  const { data: marketerLookup, error: lookupError } = await supabase
+    .from('profiles')
+    .select('id, idstaff, full_name, branch_id')
+    .eq('idstaff', marketerIdStaffParam)
+    .single();
+
+  if (lookupError || !marketerLookup) {
+    return new Response(
+      JSON.stringify({ error: `Marketer not found with idstaff: ${marketerIdStaffParam}` }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const marketerId = marketerLookup.id; // UUID
+  const marketerIdStaff = marketerLookup.idstaff;
+  const branchId = marketerLookup.branch_id;
 
   try {
     // Get raw body for signature verification
@@ -394,7 +412,8 @@ serve(async (req) => {
       source,
       orderId: wooOrder.id,
       status: wooOrder.status,
-      marketerId
+      marketerId,
+      marketerIdStaff
     });
 
     // Get marketer's woo_config for signature verification
@@ -455,23 +474,6 @@ serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Get marketer profile info
-    const { data: marketerProfile } = await supabase
-      .from('profiles')
-      .select('idstaff, full_name, branch_id')
-      .eq('id', marketerId)
-      .single();
-
-    if (!marketerProfile) {
-      return new Response(
-        JSON.stringify({ error: 'Marketer profile not found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const marketerIdStaff = marketerProfile.idstaff || 'WOO';
-    const branchId = marketerProfile.branch_id;
 
     // Use shipping address if available, otherwise billing
     const shipping = wooOrder.shipping.address_1 ? wooOrder.shipping : wooOrder.billing;
