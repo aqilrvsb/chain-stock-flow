@@ -714,7 +714,7 @@ serve(async (req) => {
         unit_price: totalPrice / totalQuantity,
         total_price: totalPrice,
         profit: totalPrice,
-        kurier: 'Ninjavan',
+        kurier: isCOD ? 'Ninja COD' : 'Ninja CASH',
         id_sale: idSale,
         tracking_number: trackingNumber,
         no_tracking: trackingNumber,
@@ -729,7 +729,8 @@ serve(async (req) => {
         // For CASH (online payment), payment is already done
         tarikh_bayaran: !isCOD ? dateOrder : null,
         jenis_bayaran: !isCOD ? 'FPX' : null,
-        platform: 'WooCommerce',
+        platform: 'Marketer',
+        product_id: productId || null, // Link to product from SKU lookup
         woo_order_id: wooOrder.id // Store WooCommerce order ID for reference
       })
       .select()
