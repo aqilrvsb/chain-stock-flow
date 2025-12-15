@@ -64,10 +64,10 @@ const ProductManagement = () => {
           const { data: stockInData } = await stockInQuery;
           const stockIn = stockInData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Stock Out from stock_out_hq table
+          // Stock Out from stock_out_hq table - get with recipient_type for breakdown
           let stockOutHQQuery = supabase
             .from("stock_out_hq")
-            .select("quantity")
+            .select("quantity, recipient_type")
             .eq("product_id", product.id);
 
           if (startDate) {
@@ -78,10 +78,16 @@ const ProductManagement = () => {
           }
 
           const { data: stockOutHQData } = await stockOutHQQuery;
-          const stockOutHQ = stockOutHQData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Pending orders (success) quantity - exclude HQ manual transfers (billplz_bill_id = 'HQ')
-          // because those are already counted in stock_out_hq
+          // Calculate Stock Out by category from stock_out_hq
+          const stockOutMA = stockOutHQData?.filter(item => item.recipient_type === 'master_agent')
+            .reduce((sum, item) => sum + item.quantity, 0) || 0;
+          const stockOutBranch = stockOutHQData?.filter(item => item.recipient_type === 'branch')
+            .reduce((sum, item) => sum + item.quantity, 0) || 0;
+          const stockOutOthers = stockOutHQData?.filter(item => !item.recipient_type)
+            .reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+          // MA Purchases via Billplz (completed orders, exclude HQ manual transfers)
           let pendingOrdersQuery = supabase
             .from("pending_orders")
             .select("quantity")
@@ -97,10 +103,13 @@ const ProductManagement = () => {
           }
 
           const { data: pendingOrdersData } = await pendingOrdersQuery;
-          const pendingOrdersQty = pendingOrdersData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+          const maPurchases = pendingOrdersData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Total Stock Out = Stock Out HQ + Pending Orders (success)
-          const totalStockOut = stockOutHQ + pendingOrdersQty;
+          // Total Stock Out MA = MA Purchases (Billplz) + Stock Out MA (manual)
+          const totalStockOutMA = maPurchases + stockOutMA;
+
+          // Total Stock Out = MA + Branch + Others
+          const totalStockOut = totalStockOutMA + stockOutBranch + stockOutOthers;
 
           // Get current inventory quantity (source of truth - updated by Stock In/Out and Billplz)
           const currentQuantity = product.inventory?.[0]?.quantity || 0;
@@ -108,7 +117,10 @@ const ProductManagement = () => {
           return {
             ...product,
             stockIn,
-            stockOut: totalStockOut,
+            stockOutMA: totalStockOutMA,
+            stockOutBranch,
+            stockOutOthers,
+            totalStockOut,
             currentQuantity,
           };
         })
@@ -336,17 +348,21 @@ const ProductManagement = () => {
   // Total Quantity from inventory table (source of truth - already deducted by Stock Out and Billplz)
   const totalQuantity = products?.reduce((sum, p) => sum + (p.currentQuantity || 0), 0) || 0;
   const totalStockIn = products?.reduce((sum, p) => sum + (p.stockIn || 0), 0) || 0;
-  const totalStockOut = products?.reduce((sum, p) => sum + (p.stockOut || 0), 0) || 0;
+  const sumStockOutMA = products?.reduce((sum, p) => sum + (p.stockOutMA || 0), 0) || 0;
+  const sumStockOutBranch = products?.reduce((sum, p) => sum + (p.stockOutBranch || 0), 0) || 0;
+  const sumStockOutOthers = products?.reduce((sum, p) => sum + (p.stockOutOthers || 0), 0) || 0;
+  const sumTotalStockOut = products?.reduce((sum, p) => sum + (p.totalStockOut || 0), 0) || 0;
   const totalActive = products?.filter(p => p.is_active).length || 0;
   const totalInactive = totalProducts - totalActive;
 
   const summaryStats = [
     { title: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600" },
     { title: "Total Quantity", value: totalQuantity, icon: TrendingUp, color: "text-purple-600" },
-    { title: "Active Products", value: totalActive, icon: CheckCircle, color: "text-green-600" },
-    { title: "Inactive Products", value: totalInactive, icon: XCircle, color: "text-orange-600" },
-    { title: "Stock In", value: totalStockIn, icon: TrendingUp, color: "text-emerald-600" },
-    { title: "Stock Out", value: totalStockOut, icon: TrendingDown, color: "text-red-600" },
+    { title: "Total Stock In", value: totalStockIn, icon: TrendingUp, color: "text-emerald-600" },
+    { title: "Stock Out MA", value: sumStockOutMA, icon: TrendingDown, color: "text-orange-600" },
+    { title: "Stock Out Branch", value: sumStockOutBranch, icon: TrendingDown, color: "text-yellow-600" },
+    { title: "Stock Out Others", value: sumStockOutOthers, icon: TrendingDown, color: "text-gray-600" },
+    { title: "Total Stock Out", value: sumTotalStockOut, icon: TrendingDown, color: "text-red-600" },
   ];
 
   return (
@@ -532,8 +548,11 @@ const ProductManagement = () => {
                 <TableHead>SKU</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Base Cost</TableHead>
-              <TableHead>Stock In</TableHead>
-              <TableHead>Stock Out</TableHead>
+              <TableHead>Total Stock In</TableHead>
+              <TableHead className="text-orange-600">Stock Out MA</TableHead>
+              <TableHead className="text-yellow-600">Stock Out Branch</TableHead>
+              <TableHead className="text-gray-600">Stock Out Others</TableHead>
+              <TableHead className="text-red-600">Total Stock Out</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
@@ -547,7 +566,10 @@ const ProductManagement = () => {
                   <TableCell>{product.name}</TableCell>
                   <TableCell>RM {product.base_cost}</TableCell>
                   <TableCell>{product.stockIn || 0}</TableCell>
-                  <TableCell>{product.stockOut || 0}</TableCell>
+                  <TableCell className="text-orange-600">{product.stockOutMA || 0}</TableCell>
+                  <TableCell className="text-yellow-600">{product.stockOutBranch || 0}</TableCell>
+                  <TableCell className="text-gray-600">{product.stockOutOthers || 0}</TableCell>
+                  <TableCell className="text-red-600 font-medium">{product.totalStockOut || 0}</TableCell>
                   <TableCell className="font-medium">{product.currentQuantity || 0}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
