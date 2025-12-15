@@ -34,7 +34,7 @@ const BranchProductManagement = () => {
   const [allTimeStocks, setAllTimeStocks] = useState<FilteredStock[]>([]);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
 
-  // Fetch products that have stock_in_branch records for this branch
+  // Fetch products that have stock_in_branch records for this branch, with inventory quantity
   const { data: products, isLoading } = useQuery({
     queryKey: ["branch-products-with-stock", user?.id],
     queryFn: async () => {
@@ -61,7 +61,27 @@ const BranchProductManagement = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+
+      // Fetch inventory quantities for this branch
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from("inventory")
+        .select("product_id, quantity")
+        .eq("user_id", user?.id)
+        .in("product_id", productIds);
+
+      if (inventoryError) {
+        console.error("Error fetching inventory:", inventoryError);
+      }
+
+      // Map inventory quantities to products
+      const inventoryMap = new Map(
+        (inventoryData || []).map(inv => [inv.product_id, inv.quantity])
+      );
+
+      return (data || []).map(product => ({
+        ...product,
+        currentQuantity: inventoryMap.get(product.id) || 0,
+      }));
     },
     enabled: !!user?.id,
   });
@@ -457,32 +477,22 @@ const BranchProductManagement = () => {
     return getTotalStockOutAgent(productId) + getStockOutMarketer(productId) + getStockOutOthers(productId);
   };
 
-  // Calculate Quantity: Total Stock In + Return In - Total Stock Out (ALL TIME)
+  // Get Quantity from inventory table (source of truth - like HQ)
   const getQuantity = (productId: string) => {
-    // Use all-time data for quantity
-    const allTimeStock = allTimeStocks.find(f => f.productId === productId);
-    const stockIn = allTimeStock?.stockIn || 0;
-    const stockOutAgent = allTimeStock?.stockOutAgent || 0;
-    const stockOutOthers = allTimeStock?.stockOutOthers || 0;
-
-    const allTimeReturn = allTimeOrderStocks.find(f => f.productId === productId);
-    const returnIn = allTimeReturn?.returnIn || 0;
-    const stockOutMarketer = allTimeReturn?.stockOutMarketer || 0;
-    const agentPurchases = allTimeReturn?.agentPurchases || 0;
-
-    // Total Stock Out Agent = stock_out_branch to agents + agent purchases
-    const totalStockOutAgent = stockOutAgent + agentPurchases;
-    const totalStockOut = totalStockOutAgent + stockOutMarketer + stockOutOthers;
-    return stockIn + returnIn - totalStockOut;
+    const product = products?.find(p => p.id === productId);
+    return product?.currentQuantity || 0;
   };
 
   // Stats calculation
   const stockOutAgentFromBranch = (hasDateFilter ? filteredStocks : allTimeStocks).reduce((sum, f) => sum + f.stockOutAgent, 0);
   const agentPurchasesTotal = (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + (f.agentPurchases || 0), 0);
 
+  // Total Quantity from inventory table (source of truth - not affected by date filter)
+  const totalQuantity = (products || []).reduce((sum, p) => sum + (p.currentQuantity || 0), 0);
+
   const stats = {
     totalProducts: products?.length || 0,
-    totalQuantity: (products || []).reduce((sum, p) => sum + getQuantity(p.id), 0),
+    totalQuantity,
     totalStockIn: (hasDateFilter ? filteredStocks : allTimeStocks).reduce((sum, f) => sum + f.stockIn, 0),
     returnIn: (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + f.returnIn, 0),
     stockOutAgent: stockOutAgentFromBranch + agentPurchasesTotal, // Stock Out Agent + Agent Purchases
@@ -614,7 +624,7 @@ const BranchProductManagement = () => {
       {/* Date Filters */}
       <Card className="border-dashed">
         <CardContent className="p-4">
-          <h3 className="font-semibold mb-4">Date Filters (Stock In/Out only)</h3>
+          <h3 className="font-semibold mb-4">Date Filters (Stock In/Out only - Quantity not affected)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date</Label>
