@@ -712,24 +712,8 @@ const Customers = ({ userType }: CustomersProps) => {
             matchedProductId = matchedProduct.id;
             matchedSku = matchedProduct.sku;
             console.log(`MATCHED: StoreHub "${storehubProductName}" -> Local "${matchedProduct.name}" (SKU: ${matchedSku})`);
-
-            // Deduct inventory for matched product
-            const { data: inventoryData } = await supabase
-              .from('inventory')
-              .select('quantity')
-              .eq('user_id', user?.id)
-              .eq('product_id', matchedProductId)
-              .single();
-
-            if (inventoryData) {
-              const newQuantity = Math.max(0, inventoryData.quantity - itemQuantity);
-              await supabase
-                .from('inventory')
-                .update({ quantity: newQuantity })
-                .eq('user_id', user?.id)
-                .eq('product_id', matchedProductId);
-              console.log(`INVENTORY: Deducted ${itemQuantity} from ${matchedProduct.name}. New qty: ${newQuantity}`);
-            }
+            // Note: Inventory deduction is handled automatically by database trigger
+            // when customer_purchases record is inserted with delivery_status = 'Shipped'
           } else {
             console.log(`NO MATCH: StoreHub "${storehubProductName}" - no local product found`);
           }
