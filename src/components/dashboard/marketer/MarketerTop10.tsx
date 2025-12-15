@@ -229,7 +229,7 @@ const MarketerTop10: React.FC = () => {
       </div>
 
       {/* Date Filter */}
-      <div className="bg-card rounded-xl border p-4 shadow-sm">
+      <div className="stat-card">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="w-5 h-5" />
@@ -262,7 +262,7 @@ const MarketerTop10: React.FC = () => {
 
       {/* Top 3 Podium */}
       {top3.length > 0 && (
-        <div className="bg-card rounded-xl border p-6 shadow-sm">
+        <div className="form-section">
           <h2 className="text-lg font-semibold text-foreground mb-6 flex items-center gap-2">
             <Trophy className="w-5 h-5 text-primary" />
             Top Performers
@@ -357,7 +357,7 @@ const MarketerTop10: React.FC = () => {
       )}
 
       {/* Rankings Table */}
-      <div className="bg-card rounded-xl border p-6 shadow-sm">
+      <div className="form-section">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <h2 className="text-lg font-semibold text-foreground">Full Rankings</h2>
           <div className="relative w-full md:w-64">
@@ -372,36 +372,36 @@ const MarketerTop10: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="data-table">
             <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left p-3 font-semibold">NO</th>
-                <th className="text-left p-3 font-semibold">ID STAFF</th>
-                <th className="text-left p-3 font-semibold">NAME</th>
-                <th className="text-right p-3 font-semibold">SPEND</th>
-                <th className="text-right p-3 font-semibold">TOTAL SALES</th>
-                <th className="text-right p-3 font-semibold">RETURN</th>
-                <th className="text-right p-3 font-semibold">ROAS</th>
-                <th className="text-right p-3 font-semibold text-green-600">Customer NP</th>
-                <th className="text-right p-3 font-semibold text-purple-600">Customer EP</th>
-                <th className="text-right p-3 font-semibold text-amber-600">Customer EC</th>
-                <th className="text-right p-3 font-semibold text-blue-600">Platform FB</th>
-                <th className="text-right p-3 font-semibold text-pink-600">Platform TIKTOK</th>
-                <th className="text-right p-3 font-semibold text-orange-600">Platform SHOPEE</th>
-                <th className="text-right p-3 font-semibold text-red-600">Platform GOOGLE</th>
-                <th className="text-right p-3 font-semibold text-cyan-600">Platform DATABASE</th>
-                <th className="text-right p-3 font-semibold text-slate-600">Closing MANUAL</th>
-                <th className="text-right p-3 font-semibold text-emerald-600">Closing WA BOT</th>
-                <th className="text-right p-3 font-semibold text-violet-600">Closing WEBSITE</th>
-                <th className="text-right p-3 font-semibold text-sky-600">Closing CALL</th>
-                <th className="text-right p-3 font-semibold text-rose-600">Closing LIVE</th>
-                <th className="text-right p-3 font-semibold text-orange-500">SHOP</th>
+              <tr>
+                <th>NO</th>
+                <th>ID STAFF</th>
+                <th>NAME</th>
+                <th className="text-right">SPEND</th>
+                <th className="text-right">TOTAL SALES</th>
+                <th className="text-right">RETURN</th>
+                <th className="text-right">ROAS</th>
+                <th className="text-right text-green-600">Customer NP</th>
+                <th className="text-right text-purple-600">Customer EP</th>
+                <th className="text-right text-amber-600">Customer EC</th>
+                <th className="text-right text-blue-600">Platform FB</th>
+                <th className="text-right text-pink-600">Platform TIKTOK</th>
+                <th className="text-right text-orange-600">Platform SHOPEE</th>
+                <th className="text-right text-red-600">Platform GOOGLE</th>
+                <th className="text-right text-cyan-600">Platform DATABASE</th>
+                <th className="text-right text-slate-600">Closing MANUAL</th>
+                <th className="text-right text-emerald-600">Closing WA BOT</th>
+                <th className="text-right text-violet-600">Closing WEBSITE</th>
+                <th className="text-right text-sky-600">Closing CALL</th>
+                <th className="text-right text-rose-600">Closing LIVE</th>
+                <th className="text-right text-orange-500">SHOP</th>
               </tr>
             </thead>
             <tbody>
               {filteredStats.slice(0, 10).map((stat) => (
-                <tr key={stat.idStaff} className="border-b hover:bg-muted/30 transition-colors">
-                  <td className="p-3">
+                <tr key={stat.idStaff}>
+                  <td>
                     <div className="flex items-center gap-2">
                       {stat.rank === 1 && <Trophy className="w-4 h-4 text-amber-500" />}
                       {stat.rank === 2 && <Medal className="w-4 h-4 text-slate-400" />}
@@ -409,26 +409,26 @@ const MarketerTop10: React.FC = () => {
                       <span className={stat.rank <= 3 ? 'font-bold' : ''}>{stat.rank}</span>
                     </div>
                   </td>
-                  <td className="p-3 font-medium">{stat.idStaff}</td>
-                  <td className="p-3">{stat.name}</td>
-                  <td className="p-3 text-right">{formatNumber(stat.spend)}</td>
-                  <td className="p-3 text-right font-semibold text-primary">{formatNumber(stat.totalSales)}</td>
-                  <td className="p-3 text-right text-destructive">{formatNumber(stat.returns)}</td>
-                  <td className="p-3 text-right">{formatNumber(stat.roas)}</td>
-                  <td className="p-3 text-right text-green-600">{stat.customerNP}</td>
-                  <td className="p-3 text-right text-purple-600">{stat.customerEP}</td>
-                  <td className="p-3 text-right text-amber-600">{stat.customerEC}</td>
-                  <td className="p-3 text-right text-blue-600">{stat.platformFB}</td>
-                  <td className="p-3 text-right text-pink-600">{stat.platformTiktok}</td>
-                  <td className="p-3 text-right text-orange-600">{stat.platformShopee}</td>
-                  <td className="p-3 text-right text-red-600">{stat.platformGoogle}</td>
-                  <td className="p-3 text-right text-cyan-600">{stat.platformDatabase}</td>
-                  <td className="p-3 text-right text-slate-600">{stat.closingManual}</td>
-                  <td className="p-3 text-right text-emerald-600">{stat.closingWaBot}</td>
-                  <td className="p-3 text-right text-violet-600">{stat.closingWebsite}</td>
-                  <td className="p-3 text-right text-sky-600">{stat.closingCall}</td>
-                  <td className="p-3 text-right text-rose-600">{stat.closingLive}</td>
-                  <td className="p-3 text-right text-orange-500">{stat.closingShop}</td>
+                  <td className="font-medium">{stat.idStaff}</td>
+                  <td>{stat.name}</td>
+                  <td className="text-right">{formatNumber(stat.spend)}</td>
+                  <td className="text-right font-semibold text-primary">{formatNumber(stat.totalSales)}</td>
+                  <td className="text-right text-destructive">{formatNumber(stat.returns)}</td>
+                  <td className="text-right">{formatNumber(stat.roas)}</td>
+                  <td className="text-right text-green-600">{stat.customerNP}</td>
+                  <td className="text-right text-purple-600">{stat.customerEP}</td>
+                  <td className="text-right text-amber-600">{stat.customerEC}</td>
+                  <td className="text-right text-blue-600">{stat.platformFB}</td>
+                  <td className="text-right text-pink-600">{stat.platformTiktok}</td>
+                  <td className="text-right text-orange-600">{stat.platformShopee}</td>
+                  <td className="text-right text-red-600">{stat.platformGoogle}</td>
+                  <td className="text-right text-cyan-600">{stat.platformDatabase}</td>
+                  <td className="text-right text-slate-600">{stat.closingManual}</td>
+                  <td className="text-right text-emerald-600">{stat.closingWaBot}</td>
+                  <td className="text-right text-violet-600">{stat.closingWebsite}</td>
+                  <td className="text-right text-sky-600">{stat.closingCall}</td>
+                  <td className="text-right text-rose-600">{stat.closingLive}</td>
+                  <td className="text-right text-orange-500">{stat.closingShop}</td>
                 </tr>
               ))}
               {filteredStats.length === 0 && (

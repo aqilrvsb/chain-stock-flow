@@ -78,3 +78,53 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Stat card styles - matching marketerpro-suite */
+  .stat-card {
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm transition-all duration-200 hover:shadow-md;
+  }
+
+  .stat-card-highlight {
+    @apply bg-primary text-primary-foreground rounded-xl p-5 shadow-md;
+  }
+
+  .stat-label {
+    @apply flex items-center gap-2 text-xs font-semibold uppercase tracking-wide mb-2;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold;
+  }
+
+  /* Form section styles */
+  .form-section {
+    @apply bg-card rounded-xl p-6 shadow-sm border border-border;
+  }
+
+  .filter-section {
+    @apply bg-card rounded-xl p-6 shadow-sm border border-border;
+  }
+
+  /* Data table styles - matching marketerpro-suite */
+  .data-table {
+    @apply w-full text-sm;
+  }
+
+  .data-table th {
+    @apply bg-muted/50 px-4 py-3 text-left font-semibold text-muted-foreground uppercase text-xs tracking-wide border-b border-border;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 border-b border-border/50;
+  }
+
+  .data-table tr:hover td {
+    @apply bg-muted/30;
+  }
+
+  /* Status badge */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+}
