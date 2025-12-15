@@ -365,7 +365,7 @@ const Customers = ({ userType }: CustomersProps) => {
               price: data.price,
               paymentMethod: data.paymentMethod,
               productName: productName,
-              productSku: selectedProduct?.sku || productName,
+              productSku: selectedProduct?.sku,
               quantity: data.quantity,
               nota: "", // No nota field in customer purchase form
             },

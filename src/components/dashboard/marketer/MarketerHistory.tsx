@@ -286,7 +286,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
           price: orderForTracking.hargaJualan,
           paymentMethod: orderForTracking.caraBayaran,
           productName: orderForTracking.produk,
-          productSku: orderForTracking.sku || orderForTracking.produk,
+          productSku: orderForTracking.sku,
           quantity: orderForTracking.quantity || 1,
           nota: orderForTracking.nota_staff || "",
         },
