@@ -524,7 +524,6 @@ const LogisticsProcessed = () => {
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
                       <th className="p-3 text-left">Nota</th>
-                      <th className="p-3 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -564,24 +563,11 @@ const LogisticsProcessed = () => {
                           <td className="p-3">
                             <p className="text-sm truncate max-w-xs">{order.nota_staff || "-"}</p>
                           </td>
-                          <td className="p-3">
-                            {order.tracking_number && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleCancelOrder(order.tracking_number, order.id)}
-                                disabled={isCancelling}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Cancel
-                              </Button>
-                            )}
-                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={16} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={15} className="text-center py-12 text-muted-foreground">
                           No shipped orders found.
                         </td>
                       </tr>

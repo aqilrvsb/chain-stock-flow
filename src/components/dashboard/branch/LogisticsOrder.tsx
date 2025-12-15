@@ -484,7 +484,6 @@ const LogisticsOrder = () => {
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
                       <th className="p-3 text-left">Nota</th>
-                      <th className="p-3 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -524,16 +523,11 @@ const LogisticsOrder = () => {
                           <td className="p-3">
                             <p className="text-sm truncate max-w-xs">{order.nota_staff || "-"}</p>
                           </td>
-                          <td className="p-3">
-                            <Button size="sm" onClick={() => handleProcessOrder(order.id)}>
-                              Process
-                            </Button>
-                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={16} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={15} className="text-center py-12 text-muted-foreground">
                           No pending orders found.
                         </td>
                       </tr>
