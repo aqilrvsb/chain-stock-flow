@@ -1,48 +1,11 @@
 -- =====================================================
--- Migration: Add WooCommerce Configuration Table
+-- Migration: Add WooCommerce Webhook Support
 -- Date: 2025-12-15
--- Description: Store marketer WooCommerce webhook settings
+-- Description: Add webhook logs and woo_order_id column
+-- Note: No woo_config table needed - idstaff is used as webhook secret
 -- =====================================================
 
--- Create woo_config table to store WooCommerce webhook settings per marketer
-CREATE TABLE IF NOT EXISTS public.woo_config (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  webhook_secret TEXT NOT NULL, -- Secret key for verifying webhook signatures
-  store_url TEXT, -- WooCommerce store URL (optional, for reference)
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(profile_id)
-);
-
--- Enable RLS
-ALTER TABLE public.woo_config ENABLE ROW LEVEL SECURITY;
-
--- RLS policies
-CREATE POLICY "Users can view their own woo_config" ON public.woo_config
-  FOR SELECT USING (profile_id = auth.uid());
-
-CREATE POLICY "Users can insert their own woo_config" ON public.woo_config
-  FOR INSERT WITH CHECK (profile_id = auth.uid());
-
-CREATE POLICY "Users can update their own woo_config" ON public.woo_config
-  FOR UPDATE USING (profile_id = auth.uid());
-
-CREATE POLICY "Users can delete their own woo_config" ON public.woo_config
-  FOR DELETE USING (profile_id = auth.uid());
-
--- Branch can view woo_config of their marketers
-CREATE POLICY "Branch can view marketers woo_config" ON public.woo_config
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = woo_config.profile_id
-      AND p.branch_id = auth.uid()
-    )
-  );
-
--- Add webhook_logs table to track all webhook requests
+-- Add webhook_logs table to track all webhook requests (for debugging)
 CREATE TABLE IF NOT EXISTS public.webhook_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   webhook_type TEXT NOT NULL, -- 'woocommerce', 'ninjavan', etc.
@@ -62,7 +25,6 @@ CREATE TABLE IF NOT EXISTS public.webhook_logs (
 -- Enable RLS on webhook_logs
 ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
 
--- Only allow service role to insert (from edge functions)
 -- Users can view their own logs
 CREATE POLICY "Users can view their own webhook_logs" ON public.webhook_logs
   FOR SELECT USING (profile_id = auth.uid());
@@ -71,13 +33,11 @@ CREATE POLICY "Users can view their own webhook_logs" ON public.webhook_logs
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_profile_id ON public.webhook_logs(profile_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_webhook_type ON public.webhook_logs(webhook_type);
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_created_at ON public.webhook_logs(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_woo_config_profile_id ON public.woo_config(profile_id);
 
 -- Add woo_order_id column to customer_purchases for tracking WooCommerce orders
 ALTER TABLE public.customer_purchases ADD COLUMN IF NOT EXISTS woo_order_id INTEGER;
 CREATE INDEX IF NOT EXISTS idx_customer_purchases_woo_order_id ON public.customer_purchases(woo_order_id);
 
 -- Comment on tables
-COMMENT ON TABLE public.woo_config IS 'WooCommerce webhook configuration per marketer';
 COMMENT ON TABLE public.webhook_logs IS 'Log all webhook requests for debugging';
 COMMENT ON COLUMN public.customer_purchases.woo_order_id IS 'WooCommerce order ID for orders created via webhook';
