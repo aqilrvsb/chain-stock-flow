@@ -55,10 +55,10 @@ const ProductManagement = () => {
             .eq("product_id", product.id);
 
           if (startDate) {
-            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: stockInData } = await stockInQuery;
@@ -71,10 +71,10 @@ const ProductManagement = () => {
             .eq("product_id", product.id);
 
           if (startDate) {
-            stockOutHQQuery = stockOutHQQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            stockOutHQQuery = stockOutHQQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            stockOutHQQuery = stockOutHQQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            stockOutHQQuery = stockOutHQQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: stockOutHQData } = await stockOutHQQuery;
@@ -96,10 +96,10 @@ const ProductManagement = () => {
             .neq("billplz_bill_id", "HQ");
 
           if (startDate) {
-            pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: pendingOrdersData } = await pendingOrdersQuery;

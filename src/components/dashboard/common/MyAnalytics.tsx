@@ -50,10 +50,10 @@ const MyAnalytics = () => {
           .eq("buyer_id", user?.id);
 
         if (startDate) {
-          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
         }
         if (endDate) {
-          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
         }
 
         const { data: purchases } = await purchasesQuery;
@@ -73,10 +73,10 @@ const MyAnalytics = () => {
           .eq("master_agent_id", user?.id);
 
         if (startDate) {
-          agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
         }
         if (endDate) {
-          agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
         }
 
         const { data: agentSales } = await agentSalesQuery;
@@ -129,10 +129,10 @@ const MyAnalytics = () => {
           .eq("seller_id", user?.id);
 
         if (startDate) {
-          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
         }
         if (endDate) {
-          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
         }
 
         const { data: customerPurchases } = await customerPurchasesQuery;
@@ -204,10 +204,10 @@ const MyAnalytics = () => {
           .eq("agent_id", user?.id);
 
         if (startDate) {
-          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          purchasesQuery = purchasesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
         }
         if (endDate) {
-          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          purchasesQuery = purchasesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
         }
 
         const { data: purchases } = await purchasesQuery;
@@ -230,10 +230,10 @@ const MyAnalytics = () => {
           .eq("seller_id", user?.id);
 
         if (startDate) {
-          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+          customerPurchasesQuery = customerPurchasesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
         }
         if (endDate) {
-          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+          customerPurchasesQuery = customerPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
         }
 
         const { data: customerPurchases } = await customerPurchasesQuery;

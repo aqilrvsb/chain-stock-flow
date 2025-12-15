@@ -46,10 +46,10 @@ const TransactionHistory = () => {
         .order("created_at", { ascending: false});
 
       if (startDate) {
-        query = query.gte("created_at", startDate + 'T00:00:00.000Z');
+        query = query.gte("created_at", startDate + 'T00:00:00+08:00');
       }
       if (endDate) {
-        query = query.lte("created_at", endDate + 'T23:59:59.999Z');
+        query = query.lte("created_at", endDate + 'T23:59:59.999+08:00');
       }
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);

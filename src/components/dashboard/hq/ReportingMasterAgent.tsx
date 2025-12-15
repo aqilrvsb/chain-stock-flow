@@ -55,10 +55,10 @@ const ReportingMasterAgent = () => {
             .eq("status", "completed");
 
           if (startDate) {
-            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: stockInData } = await stockInQuery;
@@ -72,10 +72,10 @@ const ReportingMasterAgent = () => {
             .eq("status", "completed");
 
           if (startDate) {
-            agentStockOutQuery = agentStockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            agentStockOutQuery = agentStockOutQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            agentStockOutQuery = agentStockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            agentStockOutQuery = agentStockOutQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: agentStockOutData } = await agentStockOutQuery;
@@ -88,10 +88,10 @@ const ReportingMasterAgent = () => {
             .eq("seller_id", ma.id);
 
           if (startDate) {
-            customerStockOutQuery = customerStockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            customerStockOutQuery = customerStockOutQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            customerStockOutQuery = customerStockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            customerStockOutQuery = customerStockOutQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: customerStockOutData } = await customerStockOutQuery;
@@ -105,10 +105,10 @@ const ReportingMasterAgent = () => {
             .eq("status", "completed");
 
           if (startDate) {
-            purchaseQuery = purchaseQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            purchaseQuery = purchaseQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            purchaseQuery = purchaseQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            purchaseQuery = purchaseQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: purchaseData } = await purchaseQuery;
@@ -122,10 +122,10 @@ const ReportingMasterAgent = () => {
             .eq("status", "completed");
 
           if (startDate) {
-            agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            agentSalesQuery = agentSalesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            agentSalesQuery = agentSalesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: agentSalesData } = await agentSalesQuery;
@@ -156,10 +156,10 @@ const ReportingMasterAgent = () => {
             .eq("seller_id", ma.id);
 
           if (startDate) {
-            customerSalesQuery = customerSalesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+            customerSalesQuery = customerSalesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
           }
           if (endDate) {
-            customerSalesQuery = customerSalesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+            customerSalesQuery = customerSalesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
           }
 
           const { data: customerSalesData } = await customerSalesQuery;

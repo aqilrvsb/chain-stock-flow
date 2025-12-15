@@ -37,7 +37,7 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100];
 const LogisticsOrder = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
 
   // Filter states
   const [search, setSearch] = useState("");
@@ -89,10 +89,10 @@ const LogisticsOrder = () => {
         .order("created_at", { ascending: false });
 
       if (startDate) {
-        hqQuery = hqQuery.gte("created_at", startDate + "T00:00:00.000Z");
+        hqQuery = hqQuery.gte("date_order", startDate);
       }
       if (endDate) {
-        hqQuery = hqQuery.lte("created_at", endDate + "T23:59:59.999Z");
+        hqQuery = hqQuery.lte("date_order", endDate);
       }
 
       const { data: hqOrders, error: hqError } = await hqQuery;
@@ -113,10 +113,10 @@ const LogisticsOrder = () => {
           .order("created_at", { ascending: false });
 
         if (startDate) {
-          marketerQuery = marketerQuery.gte("created_at", startDate + "T00:00:00.000Z");
+          marketerQuery = marketerQuery.gte("date_order", startDate);
         }
         if (endDate) {
-          marketerQuery = marketerQuery.lte("created_at", endDate + "T23:59:59.999Z");
+          marketerQuery = marketerQuery.lte("date_order", endDate);
         }
 
         const { data: mOrders, error: mError } = await marketerQuery;

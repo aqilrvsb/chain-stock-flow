@@ -75,10 +75,10 @@ const StockInBranch = () => {
         .order("date", { ascending: false });
 
       if (startDate) {
-        query = query.gte("date", startDate + "T00:00:00.000Z");
+        query = query.gte("date", startDate + "T00:00:00+08:00");
       }
       if (endDate) {
-        query = query.lte("date", endDate + "T23:59:59.999Z");
+        query = query.lte("date", endDate + "T23:59:59.999+08:00");
       }
 
       const { data, error } = await query;

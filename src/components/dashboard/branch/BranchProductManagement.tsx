@@ -275,10 +275,10 @@ const BranchProductManagement = () => {
           .eq("branch_id", user.id);
 
         if (startDate) {
-          stockInQuery = stockInQuery.gte("date", startDate + "T00:00:00.000Z");
+          stockInQuery = stockInQuery.gte("date", startDate + "T00:00:00+08:00");
         }
         if (endDate) {
-          stockInQuery = stockInQuery.lte("date", endDate + "T23:59:59.999Z");
+          stockInQuery = stockInQuery.lte("date", endDate + "T23:59:59.999+08:00");
         }
 
         const { data: stockInData, error: stockInError } = await stockInQuery;
@@ -291,10 +291,10 @@ const BranchProductManagement = () => {
           .eq("branch_id", user.id);
 
         if (startDate) {
-          stockOutQuery = stockOutQuery.gte("date", startDate + "T00:00:00.000Z");
+          stockOutQuery = stockOutQuery.gte("date", startDate + "T00:00:00+08:00");
         }
         if (endDate) {
-          stockOutQuery = stockOutQuery.lte("date", endDate + "T23:59:59.999Z");
+          stockOutQuery = stockOutQuery.lte("date", endDate + "T23:59:59.999+08:00");
         }
 
         const { data: stockOutData, error: stockOutError } = await stockOutQuery;
@@ -372,10 +372,10 @@ const BranchProductManagement = () => {
           .in("buyer_id", agents || []);
 
         if (startDate) {
-          agentPurchaseQuery = agentPurchaseQuery.gte("created_at", startDate + "T00:00:00.000Z");
+          agentPurchaseQuery = agentPurchaseQuery.gte("created_at", startDate + "T00:00:00+08:00");
         }
         if (endDate) {
-          agentPurchaseQuery = agentPurchaseQuery.lte("created_at", endDate + "T23:59:59.999Z");
+          agentPurchaseQuery = agentPurchaseQuery.lte("created_at", endDate + "T23:59:59.999+08:00");
         }
 
         const { data: agentPurchaseData, error: agentPurchaseError } = await agentPurchaseQuery;

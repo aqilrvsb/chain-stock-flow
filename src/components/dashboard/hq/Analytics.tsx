@@ -40,10 +40,10 @@ const Analytics = () => {
         .select("quantity");
 
       if (startDate) {
-        stockInQuery = stockInQuery.gte("date", startDate + 'T00:00:00.000Z');
+        stockInQuery = stockInQuery.gte("date", startDate + 'T00:00:00+08:00');
       }
       if (endDate) {
-        stockInQuery = stockInQuery.lte("date", endDate + 'T23:59:59.999Z');
+        stockInQuery = stockInQuery.lte("date", endDate + 'T23:59:59.999+08:00');
       }
 
       const { data: stockInData } = await stockInQuery;
@@ -57,10 +57,10 @@ const Analytics = () => {
         .eq("status", "completed");
 
       if (startDate) {
-        pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00+08:00');
       }
       if (endDate) {
-        pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        pendingOrdersQuery = pendingOrdersQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
       }
 
       const { data: pendingOrders } = await pendingOrdersQuery;
@@ -74,10 +74,10 @@ const Analytics = () => {
         .select("quantity");
 
       if (startDate) {
-        stockOutQuery = stockOutQuery.gte("date", startDate + 'T00:00:00.000Z');
+        stockOutQuery = stockOutQuery.gte("date", startDate + 'T00:00:00+08:00');
       }
       if (endDate) {
-        stockOutQuery = stockOutQuery.lte("date", endDate + 'T23:59:59.999Z');
+        stockOutQuery = stockOutQuery.lte("date", endDate + 'T23:59:59.999+08:00');
       }
 
       const { data: stockOutData } = await stockOutQuery;
@@ -92,10 +92,10 @@ const Analytics = () => {
         .eq("status", "completed");
 
       if (startDate) {
-        agentPurchasesQuery = agentPurchasesQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+        agentPurchasesQuery = agentPurchasesQuery.gte("created_at", startDate + 'T00:00:00+08:00');
       }
       if (endDate) {
-        agentPurchasesQuery = agentPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+        agentPurchasesQuery = agentPurchasesQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
       }
 
       const { data: agentPurchases } = await agentPurchasesQuery;

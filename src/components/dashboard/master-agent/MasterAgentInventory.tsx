@@ -68,10 +68,10 @@ const MasterAgentInventory = () => {
               .eq("product_id", product.id);
 
             if (startDate) {
-              stockInBranchQuery = stockInBranchQuery.gte("date", startDate + 'T00:00:00.000Z');
+              stockInBranchQuery = stockInBranchQuery.gte("date", startDate + 'T00:00:00+08:00');
             }
             if (endDate) {
-              stockInBranchQuery = stockInBranchQuery.lte("date", endDate + 'T23:59:59.999Z');
+              stockInBranchQuery = stockInBranchQuery.lte("date", endDate + 'T23:59:59.999+08:00');
             }
 
             const { data: stockInBranchData } = await stockInBranchQuery;
@@ -85,10 +85,10 @@ const MasterAgentInventory = () => {
               .eq("product_id", product.id);
 
             if (startDate) {
-              stockOutBranchQuery = stockOutBranchQuery.gte("date", startDate + 'T00:00:00.000Z');
+              stockOutBranchQuery = stockOutBranchQuery.gte("date", startDate + 'T00:00:00+08:00');
             }
             if (endDate) {
-              stockOutBranchQuery = stockOutBranchQuery.lte("date", endDate + 'T23:59:59.999Z');
+              stockOutBranchQuery = stockOutBranchQuery.lte("date", endDate + 'T23:59:59.999+08:00');
             }
 
             const { data: stockOutBranchData } = await stockOutBranchQuery;
@@ -103,10 +103,10 @@ const MasterAgentInventory = () => {
               .eq("status", "completed");
 
             if (startDate) {
-              stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+              stockInQuery = stockInQuery.gte("created_at", startDate + 'T00:00:00+08:00');
             }
             if (endDate) {
-              stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+              stockInQuery = stockInQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
             }
 
             const { data: stockInData } = await stockInQuery;
@@ -121,10 +121,10 @@ const MasterAgentInventory = () => {
               .eq("status", "completed");
 
             if (startDate) {
-              stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00.000Z');
+              stockOutQuery = stockOutQuery.gte("created_at", startDate + 'T00:00:00+08:00');
             }
             if (endDate) {
-              stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999Z');
+              stockOutQuery = stockOutQuery.lte("created_at", endDate + 'T23:59:59.999+08:00');
             }
 
             const { data: stockOutData } = await stockOutQuery;
