@@ -157,10 +157,11 @@ serve(async (req) => {
     // COD amount (only for COD payments)
     const codAmount = orderData.paymentMethod === 'COD' ? Math.round(orderData.price) : 0;
 
-    // Delivery instructions format: SKU - unit, nota
+    // Delivery instructions format: SKU - unit, id_staff, nota
     const sku = orderData.productSku || orderData.productName;
+    const idStaff = orderData.marketerIdStaff || '';
     const nota = orderData.nota || '';
-    const deliveryInstructions = `${sku} - ${orderData.quantity}, ${nota}`.trim();
+    const deliveryInstructions = `${sku} - ${orderData.quantity}, ${idStaff}, ${nota}`.trim();
 
     // Create order payload
     const ninjavanPayload = {
