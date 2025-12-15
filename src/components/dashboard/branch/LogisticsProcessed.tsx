@@ -607,6 +607,7 @@ const LogisticsProcessed = () => {
                       <th className="p-3 text-left">Qty</th>
                       <th className="p-3 text-left">Total</th>
                       <th className="p-3 text-left">Payment</th>
+                      <th className="p-3 text-left">Platform</th>
                       <th className="p-3 text-left">Tracking</th>
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
@@ -637,6 +638,18 @@ const LogisticsProcessed = () => {
                               {order.payment_method}
                             </span>
                           </td>
+                          <td className="p-3">
+                            <span className={
+                              order.jenis_platform === "Tiktok" ? "text-pink-600 font-medium" :
+                              order.jenis_platform === "Shopee" ? "text-orange-500 font-medium" :
+                              order.jenis_platform === "Facebook" ? "text-blue-600 font-medium" :
+                              order.jenis_platform === "Google" ? "text-green-600 font-medium" :
+                              order.jenis_platform === "Database" ? "text-purple-600 font-medium" :
+                              "text-gray-600"
+                            }>
+                              {order.jenis_platform || "-"}
+                            </span>
+                          </td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
                           <td className="p-3">{order.customer?.state || "-"}</td>
                           <td className="p-3">
@@ -654,7 +667,7 @@ const LogisticsProcessed = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={15} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={16} className="text-center py-12 text-muted-foreground">
                           No shipped orders found.
                         </td>
                       </tr>
