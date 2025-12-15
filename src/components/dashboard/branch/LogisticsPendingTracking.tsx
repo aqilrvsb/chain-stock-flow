@@ -51,6 +51,11 @@ const LogisticsPendingTracking = () => {
   const [bulkTrackingList, setBulkTrackingList] = useState("");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
+  // Individual update states
+  const [individualStatus, setIndividualStatus] = useState<"Success" | "Return">("Success");
+  const [individualDate, setIndividualDate] = useState("");
+  const [isIndividualUpdating, setIsIndividualUpdating] = useState(false);
+
   // Loading states
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -279,6 +284,7 @@ const LogisticsPendingTracking = () => {
 
       toast.success("COD payment marked as received");
       queryClient.invalidateQueries({ queryKey: ["logistics-pending-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-products-with-stock"] });
     } catch (error: any) {
       toast.error(error.message || "Failed to update order");
     }
@@ -347,10 +353,69 @@ const LogisticsPendingTracking = () => {
       setBulkDate("");
       queryClient.invalidateQueries({ queryKey: ["logistics-pending-tracking"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-return"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-products-with-stock"] });
     } catch (error: any) {
       toast.error(error.message || "Failed to update orders");
     } finally {
       setIsBulkUpdating(false);
+    }
+  };
+
+  // Individual update by selected orders (checkbox selection)
+  const handleIndividualUpdate = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Please select orders to update");
+      return;
+    }
+    if (!individualDate) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    const ordersToUpdate = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+    if (ordersToUpdate.length === 0) {
+      toast.error("No orders selected");
+      return;
+    }
+
+    setIsIndividualUpdating(true);
+
+    try {
+      let updateData: any;
+      if (individualStatus === "Success") {
+        updateData = {
+          seo: "Successfull Delivery",
+          tarikh_bayaran: individualDate,
+          delivery_status: "Shipped",
+        };
+      } else {
+        updateData = {
+          seo: "Return",
+          date_return: individualDate,
+          delivery_status: "Return",
+        };
+      }
+
+      const updatePromises = ordersToUpdate.map((order: any) =>
+        supabase
+          .from("customer_purchases")
+          .update(updateData)
+          .eq("id", order.id)
+      );
+
+      await Promise.all(updatePromises);
+
+      toast.success(`${ordersToUpdate.length} order(s) updated to ${individualStatus}`);
+      setSelectedOrders(new Set());
+      setIndividualDate("");
+      queryClient.invalidateQueries({ queryKey: ["logistics-pending-tracking"] });
+      queryClient.invalidateQueries({ queryKey: ["logistics-return"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-products-with-stock"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update orders");
+    } finally {
+      setIsIndividualUpdating(false);
     }
   };
 
@@ -447,6 +512,50 @@ const LogisticsPendingTracking = () => {
                 Update Orders
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Individual Update by Selection */}
+      <Card>
+        <CardContent className="pt-6">
+          <h3 className="font-semibold mb-4">Update by Selection</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Select orders from the table below using checkboxes, then update them here
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1 sm:flex-none">
+              <Label>Selected Orders</Label>
+              <div className="text-2xl font-bold text-primary">{selectedOrders.size}</div>
+            </div>
+            <div className="w-full sm:w-40">
+              <Label>Status</Label>
+              <Select value={individualStatus} onValueChange={(v) => setIndividualStatus(v as "Success" | "Return")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Success">Success</SelectItem>
+                  <SelectItem value="Return">Return</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-40">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={individualDate}
+                onChange={(e) => setIndividualDate(e.target.value)}
+              />
+            </div>
+            <Button
+              onClick={handleIndividualUpdate}
+              disabled={isIndividualUpdating || selectedOrders.size === 0}
+              className="w-full sm:w-auto"
+            >
+              {isIndividualUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Update Selected ({selectedOrders.size})
+            </Button>
           </div>
         </CardContent>
       </Card>
