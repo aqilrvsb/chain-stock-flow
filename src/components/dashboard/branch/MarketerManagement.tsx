@@ -24,7 +24,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Plus, Loader2, Eye, EyeOff } from "lucide-react";
+import { Users, Plus, Loader2, Eye, EyeOff, Trash2 } from "lucide-react";
+import Swal from "sweetalert2";
 
 const MarketerManagement = () => {
   const { user } = useAuth();
@@ -114,6 +115,93 @@ const MarketerManagement = () => {
       toast.error("Failed to update status");
     },
   });
+
+  // Delete marketer and all transactions
+  const deleteMarketer = async (marketerId: string, marketerName: string) => {
+    const result = await Swal.fire({
+      title: "Delete Marketer?",
+      html: `
+        <p>Are you sure you want to delete <strong>${marketerName}</strong>?</p>
+        <p class="text-red-600 mt-2">This will also delete ALL their transactions (orders, customers, etc.)</p>
+        <p class="text-sm text-gray-500 mt-2">This action cannot be undone.</p>
+      `,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete everything",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      // Show loading
+      Swal.fire({
+        title: "Deleting...",
+        text: "Please wait while we delete the marketer and all transactions",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      // 1. Delete customer_purchases (transactions) where marketer_id = marketerId
+      const { error: purchasesError } = await supabase
+        .from("customer_purchases")
+        .delete()
+        .eq("marketer_id", marketerId);
+
+      if (purchasesError) {
+        console.error("Error deleting purchases:", purchasesError);
+        // Continue anyway - might not have any purchases
+      }
+
+      // 2. Delete customers created by this marketer
+      const { error: customersError } = await supabase
+        .from("customers")
+        .delete()
+        .eq("created_by", marketerId);
+
+      if (customersError) {
+        console.error("Error deleting customers:", customersError);
+        // Continue anyway
+      }
+
+      // 3. Delete the marketer profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", marketerId);
+
+      if (profileError) throw profileError;
+
+      // 4. Delete the auth user using edge function
+      const { error: authError } = await supabase.functions.invoke("delete-user", {
+        body: { userId: marketerId },
+      });
+
+      if (authError) {
+        console.error("Error deleting auth user:", authError);
+        // Profile already deleted, so show partial success
+      }
+
+      await Swal.fire({
+        title: "Deleted!",
+        text: "Marketer and all transactions have been deleted.",
+        icon: "success",
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["branch-marketers"] });
+    } catch (error: any) {
+      console.error("Delete error:", error);
+      Swal.fire({
+        title: "Error",
+        text: error.message || "Failed to delete marketer",
+        icon: "error",
+      });
+    }
+  };
 
   const resetForm = () => {
     setIdStaff("");
@@ -256,7 +344,8 @@ const MarketerManagement = () => {
                   <TableHead>Full Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Registered</TableHead>
-                  <TableHead className="text-right">Active</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,7 +365,7 @@ const MarketerManagement = () => {
                     <TableCell>
                       {new Date(marketer.created_at).toLocaleDateString()}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <Switch
                         checked={marketer.is_active}
                         onCheckedChange={(checked) =>
@@ -286,6 +375,15 @@ const MarketerManagement = () => {
                           })
                         }
                       />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteMarketer(marketer.id, marketer.full_name || marketer.idstaff)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

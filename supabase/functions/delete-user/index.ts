@@ -52,9 +52,9 @@ Deno.serve(async (req) => {
 
     const userRole = roleData?.role
 
-    // Only HQ and Master Agent can delete users
-    if (userRole !== 'hq' && userRole !== 'master_agent') {
-      console.error('Authorization error - user is not HQ or Master Agent')
+    // Only HQ, Master Agent, and Branch can delete users
+    if (userRole !== 'hq' && userRole !== 'master_agent' && userRole !== 'branch') {
+      console.error('Authorization error - user is not HQ, Master Agent, or Branch')
       throw new Error('Unauthorized to delete users')
     }
 
@@ -103,6 +103,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Additional check: Branch can only delete their own marketers
+    if (userRole === 'branch') {
+      // Check if target user has branch_id = this branch
+      const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
+        .from('profiles')
+        .select('branch_id')
+        .eq('id', userId)
+        .single()
+
+      if (targetProfileError) {
+        console.error('Error checking target profile:', targetProfileError)
+        throw new Error('Error verifying marketer')
+      }
+
+      if (targetProfile.branch_id !== user.id) {
+        console.error('Branch attempting to delete marketer not under their management')
+        throw new Error('You can only delete your own marketers')
+      }
+    }
+
     console.log('Deleting user and all related records:', userId)
 
     // Delete all related records before deleting the user
@@ -132,11 +152,11 @@ Deno.serve(async (req) => {
     }
     console.log('Deleted agent_purchases for user:', userId)
 
-    // 3. Delete from customer_purchases (seller_id)
+    // 3. Delete from customer_purchases (seller_id or marketer_id)
     const { error: customerPurchasesError } = await supabaseAdmin
       .from('customer_purchases')
       .delete()
-      .eq('seller_id', userId)
+      .or(`seller_id.eq.${userId},marketer_id.eq.${userId}`)
 
     if (customerPurchasesError) {
       console.error('Error deleting customer purchases:', customerPurchasesError)
