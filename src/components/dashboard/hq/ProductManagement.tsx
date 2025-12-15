@@ -327,13 +327,12 @@ const ProductManagement = () => {
 
   // Calculate summary stats
   const totalProducts = products?.length || 0;
-  const totalQuantity = products?.reduce((sum, p) =>
-    sum + (p.inventory?.reduce((invSum: number, inv: any) => invSum + inv.quantity, 0) || 0), 0
-  ) || 0;
-  const totalActive = products?.filter(p => p.is_active).length || 0;
-  const totalInactive = totalProducts - totalActive;
+  // Total Quantity = Stock In - Stock Out (calculated, not from inventory table)
   const totalStockIn = products?.reduce((sum, p) => sum + (p.stockIn || 0), 0) || 0;
   const totalStockOut = products?.reduce((sum, p) => sum + (p.stockOut || 0), 0) || 0;
+  const totalQuantity = totalStockIn - totalStockOut;
+  const totalActive = products?.filter(p => p.is_active).length || 0;
+  const totalInactive = totalProducts - totalActive;
 
   const summaryStats = [
     { title: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600" },
@@ -536,7 +535,8 @@ const ProductManagement = () => {
             </TableHeader>
             <TableBody>
               {products?.map((product) => {
-                const totalQuantity = product.inventory?.reduce((sum: number, inv: any) => sum + inv.quantity, 0) || 0;
+                // Quantity = Stock In - Stock Out
+                const calculatedQuantity = (product.stockIn || 0) - (product.stockOut || 0);
 
                 return (
                   <TableRow key={product.id}>
@@ -545,7 +545,7 @@ const ProductManagement = () => {
                   <TableCell>RM {product.base_cost}</TableCell>
                   <TableCell>{product.stockIn || 0}</TableCell>
                   <TableCell>{product.stockOut || 0}</TableCell>
-                  <TableCell className="font-medium">{totalQuantity}</TableCell>
+                  <TableCell className="font-medium">{calculatedQuantity}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
