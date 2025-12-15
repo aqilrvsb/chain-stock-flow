@@ -396,14 +396,35 @@ serve(async (req) => {
   try {
     // Get raw body for signature verification
     const rawBody = await req.text();
+
+    // Handle empty body (ping test from WooCommerce)
+    if (!rawBody || rawBody.trim() === '') {
+      console.log('WooCommerce ping test received - returning success');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Webhook endpoint is active' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let wooOrder: WooOrder;
 
     try {
       wooOrder = JSON.parse(rawBody);
     } catch {
+      // If not valid JSON, might be a ping test
+      console.log('Non-JSON body received, treating as ping test');
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: true, message: 'Webhook endpoint is active' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle WooCommerce webhook ping/test (webhook_id in body means it's a test)
+    if (wooOrder && typeof wooOrder === 'object' && 'webhook_id' in wooOrder) {
+      console.log('WooCommerce webhook ping/test received:', wooOrder);
+      return new Response(
+        JSON.stringify({ success: true, message: 'Webhook test successful' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -418,24 +439,36 @@ serve(async (req) => {
 
     // Verify webhook signature using idstaff as secret (no woo_config needed)
     // Marketer sets their idstaff as the webhook secret in WooCommerce
-    if (signature && !verifyWebhookSignature(rawBody, signature, marketerIdStaff)) {
-      console.error('Invalid webhook signature');
-      await supabase.from('webhook_logs').insert({
-        webhook_type: 'woocommerce',
-        request_method: req.method,
-        request_body: wooOrder,
-        request_headers: { signature, source, topic, webhookId },
-        profile_id: marketerId,
-        response_status: 401,
-        response_body: { error: 'Invalid signature' },
-        error_message: 'Invalid webhook signature - expected idstaff as secret',
-        processing_time_ms: Date.now() - startTime
+    // Note: Skip verification if no signature provided (for testing)
+    if (signature) {
+      const isValidSignature = verifyWebhookSignature(rawBody, signature, marketerIdStaff);
+      console.log('Signature verification:', {
+        provided: signature.substring(0, 20) + '...',
+        secret: marketerIdStaff,
+        valid: isValidSignature
       });
 
-      return new Response(
-        JSON.stringify({ error: 'Invalid webhook signature. Use your idstaff as the webhook secret in WooCommerce.' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (!isValidSignature) {
+        console.error('Invalid webhook signature');
+        await supabase.from('webhook_logs').insert({
+          webhook_type: 'woocommerce',
+          request_method: req.method,
+          request_body: wooOrder,
+          request_headers: { signature, source, topic, webhookId },
+          profile_id: marketerId,
+          response_status: 401,
+          response_body: { error: 'Invalid signature' },
+          error_message: `Invalid webhook signature - expected secret: ${marketerIdStaff}`,
+          processing_time_ms: Date.now() - startTime
+        });
+
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature. Use your idstaff as the webhook secret in WooCommerce.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      console.log('No signature provided - skipping verification');
     }
 
     // Only process orders with status 'processing' (payment confirmed)
