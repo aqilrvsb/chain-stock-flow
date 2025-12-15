@@ -13,10 +13,11 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ShoppingCart, CheckCircle2, XCircle, Clock, Package, MessageSquare, DollarSign } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const TransactionAgent = () => {
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");

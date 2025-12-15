@@ -574,7 +574,10 @@ serve(async (req) => {
 
     // Generate Sale ID
     const idSale = await generateSaleId(supabase);
-    const dateOrder = new Date().toISOString().split('T')[0];
+    // Use Malaysia timezone (UTC+8) for dateOrder
+    const nowUTCForDate = new Date();
+    const malaysiaTimeForDate = new Date(nowUTCForDate.getTime() + (8 * 60 * 60 * 1000));
+    const dateOrder = malaysiaTimeForDate.toISOString().split('T')[0];
 
     // Create NinjaVan order for COD and CASH (Website platform)
     let trackingNumber = '';

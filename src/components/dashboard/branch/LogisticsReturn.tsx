@@ -28,6 +28,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
 const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
@@ -36,7 +37,7 @@ const PAGE_SIZE_OPTIONS = [10, 50, 100];
 const LogisticsReturn = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
 
   // Filter states
   const [search, setSearch] = useState("");

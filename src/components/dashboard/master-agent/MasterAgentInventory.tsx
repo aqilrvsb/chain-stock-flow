@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Package, TrendingUp, Minus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const MasterAgentInventory = () => {
   const { user, userRole } = useAuth();
@@ -22,11 +23,11 @@ const MasterAgentInventory = () => {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [stockDate, setStockDate] = useState(getMalaysiaDate());
   const [description, setDescription] = useState("");
 
   // Date filters for Stock In/Out
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
 
@@ -282,7 +283,7 @@ const MasterAgentInventory = () => {
       setSelectedProduct("");
       setSelectedAgent("");
       setQuantity("");
-      setStockDate(format(new Date(), "yyyy-MM-dd"));
+      setStockDate(getMalaysiaDate());
       setDescription("");
     },
     onError: (error: any) => {

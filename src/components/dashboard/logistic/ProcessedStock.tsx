@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Package, Plus, Calendar, CheckCircle, XCircle, AlertTriangle, Loader, PackageCheck, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const ProcessedStock = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -27,7 +28,7 @@ const ProcessedStock = () => {
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("");
   const [status, setStatus] = useState("");
-  const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [stockDate, setStockDate] = useState(getMalaysiaDate());
   const [description, setDescription] = useState("");
 
   const { data: products } = useQuery({
@@ -89,7 +90,7 @@ const ProcessedStock = () => {
       setSelectedProduct("");
       setQuantity("");
       setStatus("");
-      setStockDate(format(new Date(), "yyyy-MM-dd"));
+      setStockDate(getMalaysiaDate());
       setDescription("");
     },
     onError: (error: any) => {
@@ -147,7 +148,7 @@ const ProcessedStock = () => {
     setSelectedProduct("");
     setQuantity("");
     setStatus("");
-    setStockDate(format(new Date(), "yyyy-MM-dd"));
+    setStockDate(getMalaysiaDate());
     setDescription("");
     setEditingItem(null);
   };
@@ -157,7 +158,7 @@ const ProcessedStock = () => {
     setSelectedProduct(item.product_id);
     setQuantity(item.quantity.toString());
     setStatus(item.status);
-    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : getMalaysiaDate());
     setDescription(item.description || "");
     setIsEditDialogOpen(true);
   };

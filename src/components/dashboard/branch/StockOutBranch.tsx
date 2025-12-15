@@ -13,11 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Package, Minus, Calendar, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const StockOutBranch = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -26,7 +27,7 @@ const StockOutBranch = () => {
 
   const [selectedProduct, setSelectedProduct] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [stockDate, setStockDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [stockDate, setStockDate] = useState(getMalaysiaDate());
   const [description, setDescription] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("");
 
@@ -226,7 +227,7 @@ const StockOutBranch = () => {
   const resetForm = () => {
     setSelectedProduct("");
     setQuantity("");
-    setStockDate(format(new Date(), "yyyy-MM-dd"));
+    setStockDate(getMalaysiaDate());
     setDescription("");
     setSelectedAgent("");
     setEditingItem(null);
@@ -236,7 +237,7 @@ const StockOutBranch = () => {
     setEditingItem(item);
     setSelectedProduct(item.product_id);
     setQuantity(item.quantity.toString());
-    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setStockDate(item.date ? format(new Date(item.date), "yyyy-MM-dd") : getMalaysiaDate());
     setDescription(item.description || "");
     setIsEditDialogOpen(true);
   };

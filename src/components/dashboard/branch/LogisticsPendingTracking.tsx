@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { getMalaysiaDate } from "@/lib/utils";
 import {
   Package,
   Clock,
@@ -278,7 +279,7 @@ const LogisticsPendingTracking = () => {
 
   // Mark single order as COD received
   const handleCODReceived = async (orderId: string) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getMalaysiaDate();
     try {
       await supabase
         .from("customer_purchases")

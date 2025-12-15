@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Calendar, Clock, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const StockInBranch = () => {
   const { user } = useAuth();
@@ -25,7 +26,7 @@ const StockInBranch = () => {
   const [description, setDescription] = useState("");
 
   // Date filter for Received Stock History
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 

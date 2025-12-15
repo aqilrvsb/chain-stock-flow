@@ -14,9 +14,10 @@ import { DollarSign, CheckCircle2, XCircle, Clock, ShoppingCart, FileText, Exter
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import PaymentDetailsModal from "../common/PaymentDetailsModal";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const TransactionManagement = () => {
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");

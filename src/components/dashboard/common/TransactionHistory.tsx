@@ -12,11 +12,12 @@ import { format } from "date-fns";
 import { CheckCircle2, XCircle, Clock, ShoppingCart, RefreshCw, Receipt, Package, DollarSign } from "lucide-react";
 import Swal from "sweetalert2";
 import PaymentDetailsModal from "./PaymentDetailsModal";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const TransactionHistory = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");

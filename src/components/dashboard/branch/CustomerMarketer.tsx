@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns";
 import { Users, ShoppingCart, DollarSign, Package, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const CustomerMarketer = () => {
   const { user } = useAuth();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [platformFilter, setPlatformFilter] = useState("all");

@@ -15,11 +15,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, Minus, Calendar, Pencil, Trash2, Clock, CheckCircle, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const StockOutHQ = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -386,7 +387,7 @@ const StockOutHQ = () => {
         throw new Error(`Insufficient HQ inventory. Available: ${existing.quantity}, Requested: ${request.quantity}`);
       }
 
-      const today = format(new Date(), "yyyy-MM-dd");
+      const todayDate = getMalaysiaDate();
 
       // Insert stock out record for HQ
       const { data: stockOutRecord, error: stockOutError } = await supabase
@@ -395,7 +396,7 @@ const StockOutHQ = () => {
           user_id: user?.id,
           product_id: request.product_id,
           quantity: request.quantity,
-          date: today,
+          date: todayDate,
           description: `Approved request from Branch - ${request.description || "No notes"}`,
           recipient_id: request.branch_id,
           recipient_type: "branch",

@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Package, Users, DollarSign, ShoppingCart } from "lucide-react";
 import { format } from "date-fns";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const StockOutMasterAgent = () => {
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
 

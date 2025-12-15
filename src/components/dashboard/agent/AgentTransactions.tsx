@@ -12,10 +12,11 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ShoppingCart, CheckCircle2, XCircle, Clock, Package, DollarSign } from "lucide-react";
+import { getMalaysiaDate } from "@/lib/utils";
 
 const AgentTransactions = () => {
   const { user } = useAuth();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [statusFilter, setStatusFilter] = useState("all");

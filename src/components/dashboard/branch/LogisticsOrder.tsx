@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { getMalaysiaDate } from "@/lib/utils";
 import {
   Package,
   Truck,
@@ -233,7 +234,7 @@ const LogisticsOrder = () => {
     }
 
     setIsShipping(true);
-    const today = new Date().toISOString().split("T")[0];
+    const today = getMalaysiaDate();
 
     try {
       const updatePromises = Array.from(selectedOrders).map((orderId) =>
@@ -335,7 +336,7 @@ const LogisticsOrder = () => {
 
   // Process single order
   const handleProcessOrder = async (orderId: string) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getMalaysiaDate();
     try {
       await supabase
         .from("customer_purchases")

@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, Save, CalendarIcon, Upload, Search } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, getMalaysiaDate, getMalaysiaYesterday } from "@/lib/utils";
 
 const NEGERI_OPTIONS = [
   "Johor", "Kedah", "Kelantan", "Kuala Lumpur", "Labuan", "Melaka",
@@ -227,7 +227,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
   // Check lead by phone number and determine NP/EP/EC
   const checkLeadAndDetermineType = async (phoneNumber: string): Promise<{ type: "NP" | "EP" | "EC"; leadId?: string; isNewLead?: boolean; countOrder?: number }> => {
     const marketerIdStaff = userProfile?.idstaff || "";
-    const today = new Date().toISOString().split("T")[0];
+    const today = getMalaysiaDate();
 
     // Search for existing lead by phone number for this marketer
     const { data: existingLead } = await supabase
@@ -362,9 +362,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
       return existingLead.id;
     }
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayDate = yesterday.toISOString().split("T")[0];
+    const yesterdayDate = getMalaysiaYesterday();
 
     const { data, error } = await supabase
       .from("prospects")
@@ -468,7 +466,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
 
     setIsSubmitting(true);
 
-    const dateOrder = new Date().toISOString().split("T")[0];
+    const dateOrder = getMalaysiaDate();
 
     // Set kurier based on platform and cara bayaran
     let kurier = "";

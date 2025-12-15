@@ -12,6 +12,7 @@ import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, Fil
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
+import { getMalaysiaDate } from "@/lib/utils";
 
 interface CustomersProps {
   userType: "master_agent" | "agent" | "branch";
@@ -20,7 +21,7 @@ interface CustomersProps {
 const Customers = ({ userType }: CustomersProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [platformFilter, setPlatformFilter] = useState("all");
