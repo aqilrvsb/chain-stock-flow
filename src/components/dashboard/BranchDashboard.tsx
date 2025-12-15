@@ -18,6 +18,7 @@ import LogisticsPendingTracking from "./branch/LogisticsPendingTracking";
 import MarketerManagement from "./branch/MarketerManagement";
 import CustomerMarketer from "./branch/CustomerMarketer";
 import BranchDashboardView from "./branch/BranchDashboardView";
+import MarketerTop10 from "./marketer/MarketerTop10";
 
 const BranchDashboard = () => {
   const [activeView, setActiveView] = useState("dashboard");
@@ -46,10 +47,8 @@ const BranchDashboard = () => {
         return <LogisticsPendingTracking />;
       case "marketer-management":
         return <MarketerManagement />;
-      case "marketer-reporting":
-        return <div className="text-center py-12 text-muted-foreground">Marketer Reporting - Coming Soon</div>;
       case "marketer-top10":
-        return <div className="text-center py-12 text-muted-foreground">Marketer Top 10 - Coming Soon</div>;
+        return <MarketerTop10 />;
       case "transaction-agent":
         return <TransactionAgent />;
       case "reward-agent-platinum":
