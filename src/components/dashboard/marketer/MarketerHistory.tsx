@@ -605,6 +605,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Cara Bayaran</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Delivery Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Jenis Platform</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Jenis Closing</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Jenis Customer</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Negeri</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Alamat</th>
@@ -670,6 +671,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{order.jenis_platform || "-"}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{order.jenis_closing || "-"}</td>
                     <td className="px-4 py-3 text-sm">
                       <span
                         className={`font-medium ${
@@ -742,7 +744,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={18} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={19} className="px-4 py-12 text-center text-muted-foreground">
                     No orders found.
                   </td>
                 </tr>
