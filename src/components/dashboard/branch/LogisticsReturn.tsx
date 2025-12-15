@@ -115,11 +115,14 @@ const LogisticsReturn = () => {
         marketerOrders = mOrders || [];
       }
 
-      // Combine and sort by date_return descending
+      // Combine and deduplicate by ID (same order might match both queries if seller_id = branch AND marketer_id in branch's marketers)
       const allOrders = [...(hqOrders || []), ...marketerOrders];
-      allOrders.sort((a, b) => new Date(b.date_return || b.created_at).getTime() - new Date(a.date_return || a.created_at).getTime());
+      const uniqueOrders = allOrders.filter((order, index, self) =>
+        index === self.findIndex((o) => o.id === order.id)
+      );
+      uniqueOrders.sort((a, b) => new Date(b.date_return || b.created_at).getTime() - new Date(a.date_return || a.created_at).getTime());
 
-      return allOrders;
+      return uniqueOrders;
     },
     enabled: !!user?.id,
   });
@@ -416,6 +419,8 @@ const LogisticsReturn = () => {
                       </th>
                       <th className="p-3 text-left">No</th>
                       <th className="p-3 text-left">Date Return</th>
+                      <th className="p-3 text-left">ID Marketer</th>
+                      <th className="p-3 text-left">Marketer</th>
                       <th className="p-3 text-left">Customer</th>
                       <th className="p-3 text-left">Phone</th>
                       <th className="p-3 text-left">Product</th>
@@ -439,8 +444,10 @@ const LogisticsReturn = () => {
                           </td>
                           <td className="p-3">{(currentPage - 1) * pageSize + index + 1}</td>
                           <td className="p-3">{order.date_return || "-"}</td>
-                          <td className="p-3">{order.customer?.name || "-"}</td>
-                          <td className="p-3">{order.customer?.phone || "-"}</td>
+                          <td className="p-3 font-mono text-xs">{order.marketer_id_staff || "-"}</td>
+                          <td className="p-3">{order.marketer_name || "-"}</td>
+                          <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
+                          <td className="p-3">{order.customer?.phone || order.no_phone || "-"}</td>
                           <td className="p-3">{order.product?.name || order.storehub_product || "-"}</td>
                           <td className="p-3">{order.quantity}</td>
                           <td className="p-3">RM {Number(order.total_price || 0).toFixed(2)}</td>
@@ -463,7 +470,7 @@ const LogisticsReturn = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={12} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={14} className="text-center py-12 text-muted-foreground">
                           No return orders found.
                         </td>
                       </tr>
