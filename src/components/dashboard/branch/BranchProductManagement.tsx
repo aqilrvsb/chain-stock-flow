@@ -13,14 +13,15 @@ interface FilteredStock {
   productId: string;
   stockIn: number;
   stockOutAgent: number;
-  stockOutOthers: number;
+  stockOutBranch: number; // stock_out_branch without agent
 }
 
 interface OrderStock {
   productId: string;
   returnIn: number;
-  stockOutMarketer: number; // delivery_status = 'Shipped'
+  stockOutMarketer: number; // delivery_status = 'Shipped' to marketers
   agentPurchases: number; // purchases by agents (buyer_id is an agent)
+  branchCustomerShipped: number; // Branch customer orders with delivery_status = 'Shipped' (non-agent, no marketer)
 }
 
 const BranchProductManagement = () => {
@@ -141,22 +142,23 @@ const BranchProductManagement = () => {
           .eq("branch_id", user.id);
 
         // Aggregate stock movements by product
-        const stockMap = new Map<string, { stockIn: number; stockOutAgent: number; stockOutOthers: number }>();
+        const stockMap = new Map<string, { stockIn: number; stockOutAgent: number; stockOutBranch: number }>();
 
         (stockInData || []).forEach((movement: any) => {
-          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutOthers: 0 };
+          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutBranch: 0 };
           existing.stockIn += movement.quantity;
           stockMap.set(movement.product_id, existing);
         });
 
         (stockOutData || []).forEach((movement: any) => {
-          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutOthers: 0 };
+          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutBranch: 0 };
           // Check if recipient is an agent
           const isAgent = movement.recipient_id && agents?.includes(movement.recipient_id);
           if (isAgent) {
             existing.stockOutAgent += movement.quantity;
           } else {
-            existing.stockOutOthers += movement.quantity;
+            // Stock Out Branch = stock_out_branch without agent recipient
+            existing.stockOutBranch += movement.quantity;
           }
           stockMap.set(movement.product_id, existing);
         });
@@ -165,7 +167,7 @@ const BranchProductManagement = () => {
           productId,
           stockIn: stocks.stockIn,
           stockOutAgent: stocks.stockOutAgent,
-          stockOutOthers: stocks.stockOutOthers,
+          stockOutBranch: stocks.stockOutBranch,
         }));
         setAllTimeStocks(allTimeStockResult);
 
@@ -176,10 +178,10 @@ const BranchProductManagement = () => {
           .eq("seller_id", user.id)
           .eq("delivery_status", "Return");
 
-        // Fetch Shipped orders (delivery_status = 'Shipped') for this branch - Stock Out Marketer
+        // Fetch ALL Shipped orders (delivery_status = 'Shipped') for this branch with marketer_id and buyer_id
         const { data: shippedData } = await supabase
           .from("customer_purchases")
-          .select("produk, sku, quantity, product_id")
+          .select("produk, sku, quantity, product_id, marketer_id, buyer_id")
           .eq("seller_id", user.id)
           .eq("delivery_status", "Shipped");
 
@@ -191,7 +193,7 @@ const BranchProductManagement = () => {
           .in("buyer_id", agents || []);
 
         // Aggregate by product_id
-        const orderMap = new Map<string, { returnIn: number; stockOutMarketer: number; agentPurchases: number }>();
+        const orderMap = new Map<string, { returnIn: number; stockOutMarketer: number; agentPurchases: number; branchCustomerShipped: number }>();
 
         (returnData || []).forEach((order: any) => {
           let productId = order.product_id;
@@ -199,33 +201,42 @@ const BranchProductManagement = () => {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
             existing.returnIn += order.quantity || 1;
             orderMap.set(productId, existing);
           }
         });
 
+        // Process shipped orders - categorize into Stock Out Marketer vs Branch Customer Shipped
         (shippedData || []).forEach((order: any) => {
           let productId = order.product_id;
           if (!productId) {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
-            existing.stockOutMarketer += order.quantity || 1;
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
+            const isAgent = order.buyer_id && agents?.includes(order.buyer_id);
+
+            if (order.marketer_id) {
+              // Has marketer_id = Stock Out Marketer
+              existing.stockOutMarketer += order.quantity || 1;
+            } else if (!isAgent) {
+              // No marketer_id and not agent = Branch direct customer order (Stock Out Branch)
+              existing.branchCustomerShipped += order.quantity || 1;
+            }
+            // Agent orders will be counted in agentPurchases below
             orderMap.set(productId, existing);
           }
         });
 
-        // Count agent purchases (exclude those already counted as shipped)
+        // Count agent purchases
         (agentPurchaseData || []).forEach((order: any) => {
-          // Only count if NOT already shipped (to avoid double counting with Stock Out Marketer)
           let productId = order.product_id;
           if (!productId) {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
             existing.agentPurchases += order.quantity || 1;
             orderMap.set(productId, existing);
           }
@@ -236,6 +247,7 @@ const BranchProductManagement = () => {
           returnIn: stocks.returnIn,
           stockOutMarketer: stocks.stockOutMarketer,
           agentPurchases: stocks.agentPurchases,
+          branchCustomerShipped: stocks.branchCustomerShipped,
         }));
 
         setAllTimeOrderStocks(result);
@@ -289,22 +301,23 @@ const BranchProductManagement = () => {
         if (stockOutError) throw stockOutError;
 
         // Aggregate stock movements by product
-        const stockMap = new Map<string, { stockIn: number; stockOutAgent: number; stockOutOthers: number }>();
+        const stockMap = new Map<string, { stockIn: number; stockOutAgent: number; stockOutBranch: number }>();
 
         (stockInData || []).forEach((movement: any) => {
-          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutOthers: 0 };
+          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutBranch: 0 };
           existing.stockIn += movement.quantity;
           stockMap.set(movement.product_id, existing);
         });
 
         (stockOutData || []).forEach((movement: any) => {
-          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutOthers: 0 };
+          const existing = stockMap.get(movement.product_id) || { stockIn: 0, stockOutAgent: 0, stockOutBranch: 0 };
           // Check if recipient is an agent
           const isAgent = movement.recipient_id && agents?.includes(movement.recipient_id);
           if (isAgent) {
             existing.stockOutAgent += movement.quantity;
           } else {
-            existing.stockOutOthers += movement.quantity;
+            // Stock Out Branch = stock_out_branch without agent recipient
+            existing.stockOutBranch += movement.quantity;
           }
           stockMap.set(movement.product_id, existing);
         });
@@ -313,7 +326,7 @@ const BranchProductManagement = () => {
           productId,
           stockIn: stocks.stockIn,
           stockOutAgent: stocks.stockOutAgent,
-          stockOutOthers: stocks.stockOutOthers,
+          stockOutBranch: stocks.stockOutBranch,
         }));
         setFilteredStocks(filteredStockResult);
 
@@ -334,10 +347,10 @@ const BranchProductManagement = () => {
         const { data: returnData, error: returnError } = await returnQuery;
         if (returnError) throw returnError;
 
-        // Fetch Stock Out Marketer orders (filter by date_processed)
+        // Fetch ALL Shipped orders (filter by date_processed) with marketer_id and buyer_id
         let processedQuery = supabase
           .from("customer_purchases")
-          .select("produk, sku, quantity, product_id, date_processed")
+          .select("produk, sku, quantity, product_id, date_processed, marketer_id, buyer_id")
           .eq("seller_id", user.id)
           .eq("delivery_status", "Shipped");
 
@@ -369,7 +382,7 @@ const BranchProductManagement = () => {
         if (agentPurchaseError) throw agentPurchaseError;
 
         // Aggregate order stocks by product_id
-        const orderMap = new Map<string, { returnIn: number; stockOutMarketer: number; agentPurchases: number }>();
+        const orderMap = new Map<string, { returnIn: number; stockOutMarketer: number; agentPurchases: number; branchCustomerShipped: number }>();
 
         (returnData || []).forEach((order: any) => {
           let productId = order.product_id;
@@ -377,20 +390,29 @@ const BranchProductManagement = () => {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
             existing.returnIn += order.quantity || 1;
             orderMap.set(productId, existing);
           }
         });
 
+        // Process shipped orders - categorize into Stock Out Marketer vs Branch Customer Shipped
         (processedData || []).forEach((order: any) => {
           let productId = order.product_id;
           if (!productId) {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
-            existing.stockOutMarketer += order.quantity || 1;
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
+            const isAgent = order.buyer_id && agents?.includes(order.buyer_id);
+
+            if (order.marketer_id) {
+              // Has marketer_id = Stock Out Marketer
+              existing.stockOutMarketer += order.quantity || 1;
+            } else if (!isAgent) {
+              // No marketer_id and not agent = Branch direct customer order (Stock Out Branch)
+              existing.branchCustomerShipped += order.quantity || 1;
+            }
             orderMap.set(productId, existing);
           }
         });
@@ -401,7 +423,7 @@ const BranchProductManagement = () => {
             productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
           }
           if (productId) {
-            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0 };
+            const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
             existing.agentPurchases += order.quantity || 1;
             orderMap.set(productId, existing);
           }
@@ -412,6 +434,7 @@ const BranchProductManagement = () => {
           returnIn: stocks.returnIn,
           stockOutMarketer: stocks.stockOutMarketer,
           agentPurchases: stocks.agentPurchases,
+          branchCustomerShipped: stocks.branchCustomerShipped,
         }));
         setOrderStocks(orderStockResult);
 
@@ -440,10 +463,23 @@ const BranchProductManagement = () => {
     return filtered?.stockOutAgent || 0;
   };
 
-  const getStockOutOthers = (productId: string) => {
+  // Get Stock Out Branch (stock_out_branch without agent + HQ customer shipped)
+  const getStockOutBranchOnly = (productId: string) => {
     const source = hasDateFilter ? filteredStocks : allTimeStocks;
     const filtered = source.find(f => f.productId === productId);
-    return filtered?.stockOutOthers || 0;
+    return filtered?.stockOutBranch || 0;
+  };
+
+  // Get Branch Customer Shipped (Branch direct orders with delivery_status = 'Shipped')
+  const getBranchCustomerShipped = (productId: string) => {
+    const source = hasDateFilter ? orderStocks : allTimeOrderStocks;
+    const filtered = source.find(f => f.productId === productId);
+    return filtered?.branchCustomerShipped || 0;
+  };
+
+  // Get Total Stock Out Branch (stock_out_branch without agent + Branch customer shipped)
+  const getTotalStockOutBranch = (productId: string) => {
+    return getStockOutBranchOnly(productId) + getBranchCustomerShipped(productId);
   };
 
   // Get Return In for a product
@@ -453,7 +489,7 @@ const BranchProductManagement = () => {
     return filtered?.returnIn || 0;
   };
 
-  // Get Stock Out Marketer for a product (delivery_status = 'Shipped')
+  // Get Stock Out Marketer for a product (delivery_status = 'Shipped' with marketer_id)
   const getStockOutMarketer = (productId: string) => {
     const source = hasDateFilter ? orderStocks : allTimeOrderStocks;
     const filtered = source.find(f => f.productId === productId);
@@ -472,9 +508,9 @@ const BranchProductManagement = () => {
     return getStockOutAgent(productId) + getAgentPurchases(productId);
   };
 
-  // Get Total Stock Out (Agent + Marketer + Others)
+  // Get Total Stock Out (Agent + Marketer + Branch)
   const getTotalStockOut = (productId: string) => {
-    return getTotalStockOutAgent(productId) + getStockOutMarketer(productId) + getStockOutOthers(productId);
+    return getTotalStockOutAgent(productId) + getStockOutMarketer(productId) + getTotalStockOutBranch(productId);
   };
 
   // Get Quantity from inventory table (source of truth - like HQ)
@@ -486,6 +522,8 @@ const BranchProductManagement = () => {
   // Stats calculation
   const stockOutAgentFromBranch = (hasDateFilter ? filteredStocks : allTimeStocks).reduce((sum, f) => sum + f.stockOutAgent, 0);
   const agentPurchasesTotal = (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + (f.agentPurchases || 0), 0);
+  const stockOutBranchOnly = (hasDateFilter ? filteredStocks : allTimeStocks).reduce((sum, f) => sum + f.stockOutBranch, 0);
+  const branchCustomerShippedTotal = (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + (f.branchCustomerShipped || 0), 0);
 
   // Total Quantity from inventory table (source of truth - not affected by date filter)
   const totalQuantity = (products || []).reduce((sum, p) => sum + (p.currentQuantity || 0), 0);
@@ -497,10 +535,10 @@ const BranchProductManagement = () => {
     returnIn: (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + f.returnIn, 0),
     stockOutAgent: stockOutAgentFromBranch + agentPurchasesTotal, // Stock Out Agent + Agent Purchases
     stockOutMarketer: (hasDateFilter ? orderStocks : allTimeOrderStocks).reduce((sum, f) => sum + f.stockOutMarketer, 0),
-    stockOutOthers: (hasDateFilter ? filteredStocks : allTimeStocks).reduce((sum, f) => sum + f.stockOutOthers, 0),
+    stockOutBranch: stockOutBranchOnly + branchCustomerShippedTotal, // Stock Out Branch + Branch Customer Shipped
     totalStockOut: 0,
   };
-  stats.totalStockOut = stats.stockOutAgent + stats.stockOutMarketer + stats.stockOutOthers;
+  stats.totalStockOut = stats.stockOutAgent + stats.stockOutMarketer + stats.stockOutBranch;
 
   if (isLoading) {
     return (
@@ -600,8 +638,8 @@ const BranchProductManagement = () => {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">Stock Out Others</p>
-                <p className="text-xl font-bold text-gray-600">{stats.stockOutOthers.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Stock Out Branch</p>
+                <p className="text-xl font-bold text-gray-600">{stats.stockOutBranch.toLocaleString()}</p>
               </div>
               <TrendingDown className="w-6 h-6 text-gray-500" />
             </div>
@@ -677,7 +715,7 @@ const BranchProductManagement = () => {
                   <TableHead>Return In</TableHead>
                   <TableHead className="text-orange-600">Stock Out Agent</TableHead>
                   <TableHead className="text-yellow-600">Stock Out Marketer</TableHead>
-                  <TableHead className="text-gray-600">Stock Out Others</TableHead>
+                  <TableHead className="text-gray-600">Stock Out Branch</TableHead>
                   <TableHead className="text-red-600">Total Stock Out</TableHead>
                   <TableHead>Quantity</TableHead>
                 </TableRow>
@@ -702,7 +740,7 @@ const BranchProductManagement = () => {
                         {isFilterLoading ? "..." : getStockOutMarketer(product.id).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-gray-600">
-                        {isFilterLoading ? "..." : getStockOutOthers(product.id).toLocaleString()}
+                        {isFilterLoading ? "..." : getTotalStockOutBranch(product.id).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-red-600 font-medium">
                         {isFilterLoading ? "..." : getTotalStockOut(product.id).toLocaleString()}

@@ -722,6 +722,8 @@ const Customers = ({ userType }: CustomersProps) => {
               storehub_invoice: transaction.invoiceNumber, // Invoice number for grouping
               platform: "StoreHub", // Track source platform
               date_order: syncDate, // Store the user-selected sync date
+              delivery_status: "Shipped", // StoreHub orders are already fulfilled
+              date_processed: syncDate, // Mark as processed on sync date
             } as any);
 
           if (purchaseError) {

@@ -21,10 +21,16 @@ import {
   Printer,
   Search,
   DollarSign,
+  Clock,
+  ShoppingBag,
+  Music2,
+  Truck,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 
 const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
+const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
 const PAGE_SIZE_OPTIONS = [10, 50, 100];
 
 const LogisticsReturn = () => {
@@ -37,6 +43,7 @@ const LogisticsReturn = () => {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [paymentFilter, setPaymentFilter] = useState("All");
+  const [platformFilter, setPlatformFilter] = useState("All");
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -127,6 +134,15 @@ const LogisticsReturn = () => {
     enabled: !!user?.id,
   });
 
+  // Helper function to determine order platform category
+  const getOrderPlatformCategory = (order: any) => {
+    const platform = order.jenis_platform?.toLowerCase() || "";
+    if (platform === "tiktok") return "Tiktok";
+    if (platform === "shopee") return "Shopee";
+    // Everything else (Website, Facebook, etc.) goes through Ninjavan
+    return "Ninjavan";
+  };
+
   // Filter orders
   const filteredOrders = orders.filter((order: any) => {
     // Search filter
@@ -147,6 +163,14 @@ const LogisticsReturn = () => {
       return false;
     }
 
+    // Platform filter
+    if (platformFilter !== "All") {
+      const orderCategory = getOrderPlatformCategory(order);
+      if (orderCategory !== platformFilter) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -157,12 +181,26 @@ const LogisticsReturn = () => {
     currentPage * pageSize
   );
 
-  // Counts
+  // Counts - use all orders (before platform filter) for stats
+  // Ninjavan = orders that are NOT Tiktok, NOT Shopee
+  const ninjavanOrders = orders.filter((o: any) => {
+    const platform = o.jenis_platform?.toLowerCase() || "";
+    return platform !== "tiktok" && platform !== "shopee";
+  });
+
   const counts = {
-    total: filteredOrders.length,
-    cash: filteredOrders.filter((o: any) => o.payment_method === "Online Transfer").length,
-    cod: filteredOrders.filter((o: any) => o.payment_method === "COD").length,
-    totalSales: filteredOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0),
+    // Total Return (Branch Order except storehub + Marketer order) - already excluded in query
+    total: orders.length,
+    // Return Tiktok (Tiktok Branch + Tiktok Marketer)
+    tiktok: orders.filter((o: any) => o.jenis_platform?.toLowerCase() === "tiktok").length,
+    // Return Shopee (Shopee Branch + Shopee Marketer)
+    shopee: orders.filter((o: any) => o.jenis_platform?.toLowerCase() === "shopee").length,
+    // Return Ninjavan (order branch and marketer order but except tiktok, shopee)
+    ninjavan: ninjavanOrders.length,
+    // Return Ninjavan COD
+    ninjavanCod: ninjavanOrders.filter((o: any) => o.payment_method === "COD").length,
+    // Return Ninjavan CASH (not COD)
+    ninjavanCash: ninjavanOrders.filter((o: any) => o.payment_method !== "COD").length,
   };
 
   // Checkbox handlers
@@ -274,47 +312,69 @@ const LogisticsReturn = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <RotateCcw className="w-8 h-8 text-red-500" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setPlatformFilter("All")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-6 h-6 text-red-500" />
               <div>
-                <p className="text-2xl font-bold">{counts.total}</p>
-                <p className="text-sm text-muted-foreground">Total Returns</p>
+                <p className="text-xl font-bold">{counts.total}</p>
+                <p className="text-xs text-muted-foreground">Total Return</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setPlatformFilter("Tiktok")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Music2 className="w-6 h-6 text-pink-500" />
+              <div>
+                <p className="text-xl font-bold">{counts.tiktok}</p>
+                <p className="text-xs text-muted-foreground">Return Tiktok</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setPlatformFilter("Shopee")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="w-6 h-6 text-orange-600" />
+              <div>
+                <p className="text-xl font-bold">{counts.shopee}</p>
+                <p className="text-xs text-muted-foreground">Return Shopee</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-primary transition-colors" onClick={() => setPlatformFilter("Ninjavan")}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Truck className="w-6 h-6 text-red-500" />
+              <div>
+                <p className="text-xl font-bold">{counts.ninjavan}</p>
+                <p className="text-xs text-muted-foreground">Return Ninjavan</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <Package className="w-8 h-8 text-green-500" />
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-6 h-6 text-yellow-600" />
               <div>
-                <p className="text-2xl font-bold">{counts.cash}</p>
-                <p className="text-sm text-muted-foreground">Online Transfer Returns</p>
+                <p className="text-xl font-bold">{counts.ninjavanCod}</p>
+                <p className="text-xs text-muted-foreground">Ninjavan COD</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <RotateCcw className="w-8 h-8 text-orange-500" />
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-6 h-6 text-green-500" />
               <div>
-                <p className="text-2xl font-bold">{counts.cod}</p>
-                <p className="text-sm text-muted-foreground">COD Returns</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold">RM {counts.totalSales.toFixed(2)}</p>
-                <p className="text-sm text-muted-foreground">Total Return Value</p>
+                <p className="text-xl font-bold">{counts.ninjavanCash}</p>
+                <p className="text-xs text-muted-foreground">Ninjavan CASH</p>
               </div>
             </div>
           </CardContent>
@@ -352,6 +412,20 @@ const LogisticsReturn = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Platform:</span>
+                <Select value={platformFilter} onValueChange={(v) => { setPlatformFilter(v); handleFilterChange(); }}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PLATFORM_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt === "All" ? "All Order" : opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Payment:</span>
                 <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v); handleFilterChange(); }}>
