@@ -286,7 +286,7 @@ const Customers = ({ userType }: CustomersProps) => {
         .select('id')
         .eq('phone', data.customerPhone)
         .eq('created_by', user?.id)
-        .single();
+        .maybeSingle();
 
       let customerId = existingCustomer?.id;
 
@@ -416,6 +416,18 @@ const Customers = ({ userType }: CustomersProps) => {
           ninjavan_order_id: ninjavanOrderId,
           order_from: data.orderFrom || null,
           attachment_url: attachmentUrl,
+          // Save direct columns for display (since we use select("*") without joins)
+          marketer_name: data.customerName,
+          no_phone: data.customerPhone,
+          alamat: data.customerAddress,
+          poskod: data.customerPostcode || null,
+          bandar: data.customerCity || null,
+          negeri: data.customerState,
+          produk: productName,
+          sku: selectedProduct?.sku || null,
+          cara_bayaran: data.paymentMethod,
+          jenis_closing: data.closingType,
+          date_order: getMalaysiaDate(), // Use Malaysia timezone for order date
         } as any);
 
       if (purchaseError) throw purchaseError;
