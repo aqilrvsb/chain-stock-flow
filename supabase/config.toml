@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.billplz-payment]
 verify_jwt = false
+
+[functions.woocommerce-webhook]
+verify_jwt = false

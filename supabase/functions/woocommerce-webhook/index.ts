@@ -393,9 +393,16 @@ serve(async (req) => {
   const marketerIdStaff = marketerLookup.idstaff;
   const branchId = marketerLookup.branch_id;
 
+  console.log('=== Marketer found ===');
+  console.log('Marketer UUID:', marketerId);
+  console.log('Marketer idstaff:', marketerIdStaff);
+  console.log('Branch ID:', branchId);
+
   try {
     // Get raw body for signature verification
     const rawBody = await req.text();
+    console.log('Raw body length:', rawBody.length);
+    console.log('Raw body preview:', rawBody.substring(0, 200));
 
     // Handle empty body (ping test from WooCommerce)
     if (!rawBody || rawBody.trim() === '') {
@@ -419,22 +426,47 @@ serve(async (req) => {
       );
     }
 
-    // Handle WooCommerce webhook ping/test (webhook_id in body means it's a test)
-    if (wooOrder && typeof wooOrder === 'object' && 'webhook_id' in wooOrder) {
-      console.log('WooCommerce webhook ping/test received:', wooOrder);
+    // Handle WooCommerce webhook ping/test
+    // WooCommerce sends different test payloads:
+    // 1. webhook_id in body (test delivery)
+    // 2. action: "woocommerce_rest_api_test_connection"
+    // 3. Empty or minimal payload
+    const orderAsAny = wooOrder as any;
+    const isPingTest = wooOrder && typeof wooOrder === 'object' && (
+      'webhook_id' in wooOrder ||
+      orderAsAny.action === 'woocommerce_rest_api_test_connection' ||
+      !wooOrder.id ||
+      !wooOrder.status
+    );
+
+    if (isPingTest) {
+      console.log('WooCommerce webhook ping/test received:', JSON.stringify(wooOrder).substring(0, 200));
       return new Response(
         JSON.stringify({ success: true, message: 'Webhook test successful' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('WooCommerce webhook received:', {
-      topic,
-      source,
-      orderId: wooOrder.id,
-      status: wooOrder.status,
-      marketerId,
-      marketerIdStaff
+    // Log ALL incoming webhooks for debugging
+    console.log('=== WooCommerce webhook received ===');
+    console.log('Topic:', topic);
+    console.log('Source:', source);
+    console.log('Order ID:', wooOrder.id);
+    console.log('Order Status:', wooOrder.status);
+    console.log('Marketer ID:', marketerId);
+    console.log('Marketer idstaff:', marketerIdStaff);
+    console.log('Full order data:', JSON.stringify(wooOrder).substring(0, 500));
+
+    // Log to webhook_logs immediately for debugging (even before processing)
+    await supabase.from('webhook_logs').insert({
+      webhook_type: 'woocommerce',
+      request_method: req.method,
+      request_body: wooOrder,
+      request_headers: { signature: signature ? 'present' : 'missing', source, topic, webhookId },
+      profile_id: marketerId,
+      response_status: 0, // Mark as "incoming" - will be updated later
+      response_body: { stage: 'received', status: wooOrder.status },
+      processing_time_ms: 0
     });
 
     // Verify webhook signature using idstaff as secret (no woo_config needed)
