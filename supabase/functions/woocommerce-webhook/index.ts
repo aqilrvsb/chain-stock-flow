@@ -512,6 +512,33 @@ serve(async (req) => {
       );
     }
 
+    // Check for duplicate - skip if woo_order_id already exists
+    // This handles cases where order goes: processing -> on-hold -> processing
+    const { data: existingOrder } = await supabase
+      .from('customer_purchases')
+      .select('id, id_sale, tracking_number')
+      .eq('woo_order_id', wooOrder.id)
+      .maybeSingle();
+
+    if (existingOrder) {
+      console.log('Duplicate order detected - WooCommerce order already processed:', {
+        woo_order_id: wooOrder.id,
+        existing_order_id: existingOrder.id,
+        id_sale: existingOrder.id_sale,
+        tracking_number: existingOrder.tracking_number
+      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Order already processed',
+          existing_order_id: existingOrder.id,
+          id_sale: existingOrder.id_sale,
+          tracking_number: existingOrder.tracking_number
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Use shipping address if available, otherwise billing
     const shipping = wooOrder.shipping.address_1 ? wooOrder.shipping : wooOrder.billing;
     const customerName = `${shipping.first_name} ${shipping.last_name}`.trim() ||
@@ -566,10 +593,60 @@ serve(async (req) => {
       }
     }
 
+    // Create or get customer record (like MarketerOrders.tsx does)
+    let customerId: string | null = null;
+
+    // Check if customer exists by phone
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('phone', customerPhone)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+      // Update customer address
+      await supabase
+        .from('customers')
+        .update({
+          name: customerName,
+          address: fullAddress,
+          postcode: postcode,
+          city: city,
+          state: state,
+        })
+        .eq('id', customerId);
+      console.log('Existing customer found:', customerId);
+    } else {
+      // Create new customer
+      const { data: newCustomer, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          name: customerName,
+          phone: customerPhone,
+          address: fullAddress,
+          postcode: postcode,
+          city: city,
+          state: state,
+          created_by: marketerId,
+        })
+        .select('id')
+        .single();
+
+      if (customerError) {
+        console.error('Error creating customer:', customerError);
+        // Continue without customer_id - will fail if NOT NULL constraint exists
+      } else {
+        customerId = newCustomer.id;
+        console.log('New customer created:', customerId);
+      }
+    }
+
     // Insert order into customer_purchases
     const { data: newOrder, error: insertError } = await supabase
       .from('customer_purchases')
       .insert({
+        customer_id: customerId, // Link to customer record
         seller_id: branchId, // Branch ID so it appears in Branch logistics
         marketer_id: marketerId,
         marketer_id_staff: marketerIdStaff,
