@@ -598,13 +598,23 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
 
       // For COD and CASH orders (non Shopee/Tiktok), call NinjaVan API
       let trackingNumber = isShopeeOrTiktokPlatform ? formData.trackingNumber : "";
+      let idSale = "";
 
       if (!isShopeeOrTiktokPlatform && ninjavanConfig && branchId) {
         try {
           const { data: session } = await supabase.auth.getSession();
-          // Generate short sale ID for NinjaVan (max 9 chars)
-          const ts = Date.now().toString().slice(-5);
-          const idSale = `OJ${ts}`;
+
+          // Generate incremental sale ID using database function (OJ00001, OJ00002, etc.)
+          const { data: saleIdData, error: saleIdError } = await supabase.rpc("generate_sale_id");
+          if (saleIdError) {
+            console.error("Error generating sale ID:", saleIdError);
+            // Fallback: generate based on timestamp
+            const ts = Date.now().toString().slice(-5);
+            idSale = `OJ${ts}`;
+          } else {
+            idSale = saleIdData as string;
+          }
+          console.log("Generated Sale ID:", idSale);
 
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
             body: {
@@ -746,6 +756,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
             total_price: formData.hargaJualan,
             profit: formData.hargaJualan,
             kurier,
+            id_sale: idSale || null, // Incremental Sale ID (OJ00001, OJ00002, etc.)
             tracking_number: trackingNumber,
             no_tracking: trackingNumber,
             jenis_platform: formData.jenisPlatform,
