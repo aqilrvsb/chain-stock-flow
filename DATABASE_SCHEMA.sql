@@ -698,3 +698,13 @@ CREATE TABLE public.system_settings (
 -- Marketers need this to create orders via NinjaVan
 -- Policy: "Marketers can view their branch ninjavan config" ON ninjavan_config
 -- Condition: profile_id = profiles.branch_id OR profile_id = user_roles.created_by
+
+-- RLS Policies for customer_purchases:
+-- Policy: "Marketers can delete their own orders" ON customer_purchases FOR DELETE
+-- Condition: marketer_id = auth.uid()
+-- Policy: "Marketers can update their own orders" ON customer_purchases FOR UPDATE
+-- Condition: marketer_id = auth.uid()
+-- Policy: "Branch can delete orders under their branch" ON customer_purchases FOR DELETE
+-- Condition: seller_id = auth.uid()
+-- Policy: "Branch can update orders under their branch" ON customer_purchases FOR UPDATE
+-- Condition: seller_id = auth.uid()

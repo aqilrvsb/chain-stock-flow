@@ -328,10 +328,10 @@ const MarketerHistory = () => {
       const isNinjavanOrder = orderToDelete.platform !== "Shopee" && orderToDelete.platform !== "Tiktok";
 
       // If it's a Ninjavan order and has tracking number, cancel via API first
-      if (isNinjavanOrder && orderToDelete.trackingNo) {
+      if (isNinjavanOrder && orderToDelete.trackingNo && branchId) {
         try {
           const { data: cancelResult, error: cancelError } = await supabase.functions.invoke("ninjavan-cancel", {
-            body: { trackingNumber: orderToDelete.trackingNo },
+            body: { trackingNumber: orderToDelete.trackingNo, profileId: branchId },
           });
 
           if (cancelError) {
