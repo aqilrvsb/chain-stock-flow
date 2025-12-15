@@ -11,8 +11,11 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function getMalaysiaDate(): string {
   const now = new Date();
-  const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
-  return malaysiaTime.toISOString().split("T")[0];
+  // Format directly in Malaysia timezone
+  const year = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", year: "numeric" });
+  const month = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", month: "2-digit" });
+  const day = now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", day: "2-digit" });
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -21,7 +24,11 @@ export function getMalaysiaDate(): string {
  */
 export function getMalaysiaYesterday(): string {
   const now = new Date();
-  const malaysiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur" }));
-  malaysiaTime.setDate(malaysiaTime.getDate() - 1);
-  return malaysiaTime.toISOString().split("T")[0];
+  // Subtract 1 day in milliseconds
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // Format directly in Malaysia timezone
+  const year = yesterday.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", year: "numeric" });
+  const month = yesterday.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", month: "2-digit" });
+  const day = yesterday.toLocaleString("en-US", { timeZone: "Asia/Kuala_Lumpur", day: "2-digit" });
+  return `${year}-${month}-${day}`;
 }
