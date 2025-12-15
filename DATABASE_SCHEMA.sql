@@ -3,7 +3,7 @@
 -- ============================================================================
 -- WARNING: This schema is for context/reference only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
--- Last Updated: 2025-12-14
+-- Last Updated: 2025-12-15
 -- ============================================================================
 
 -- ============================================================================
@@ -483,6 +483,8 @@ CREATE TABLE public.customer_purchases (
   no_tracking text,  -- Tracking number alias (used by marketer orders)
   cara_bayaran text,  -- Payment method type: CASH or COD (used by marketer orders)
   nota_staff text,  -- Staff notes (used by marketer orders)
+  id_sale text,  -- Unique sale ID (e.g., OJ00001) for NinjaVan tracking
+  woo_order_id integer,  -- WooCommerce order ID for orders created via webhook
   CONSTRAINT customer_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT customer_purchases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT customer_purchases_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
@@ -544,6 +546,30 @@ CREATE TABLE public.ninjavan_tokens (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT ninjavan_tokens_pkey PRIMARY KEY (id),
   CONSTRAINT ninjavan_tokens_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id)
+);
+
+-- ============================================================================
+-- WOOCOMMERCE INTEGRATION
+-- ============================================================================
+
+-- Webhook Logs: Track all webhook requests for debugging
+CREATE TABLE public.webhook_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  webhook_type text NOT NULL,  -- 'woocommerce', 'ninjavan', etc.
+  request_method text,
+  request_body jsonb,
+  request_headers jsonb,
+  profile_id uuid,
+  order_id uuid,
+  response_status integer,
+  response_body jsonb,
+  error_message text,
+  processing_time_ms integer,
+  ip_address text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT webhook_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT webhook_logs_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT webhook_logs_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.customer_purchases(id)
 );
 
 -- ============================================================================
@@ -708,3 +734,31 @@ CREATE TABLE public.system_settings (
 -- Condition: seller_id = auth.uid()
 -- Policy: "Branch can update orders under their branch" ON customer_purchases FOR UPDATE
 -- Condition: seller_id = auth.uid()
+
+-- ============================================================================
+-- WOOCOMMERCE INTEGRATION
+-- ============================================================================
+
+-- Webhook URL: https://[project-ref].supabase.co/functions/v1/woocommerce-webhook?marketer_id=[IDSTAFF]
+-- Example: https://nzjolxsloobsoqltkpmi.supabase.co/functions/v1/woocommerce-webhook?marketer_id=BRKB-001
+
+-- WooCommerce Webhook Settings:
+--   - Topic: Action -> woocommerce_order_status_processing
+--   - Delivery URL: [Webhook URL above]
+--   - Secret: Use marketer's idstaff (e.g., BRKB-001)
+--   - API Version: WP REST API Integration v3
+
+-- The webhook:
+--   1. Accepts marketer_id (idstaff) as URL query parameter
+--   2. Verifies signature using idstaff as the secret
+--   3. Only processes orders with status 'processing' (payment confirmed)
+--   4. Creates NinjaVan shipping order (for both COD and CASH)
+--   5. Inserts order into customer_purchases with:
+--      - seller_id = branch_id (so Branch sees it in logistics)
+--      - marketer_id = marketer's UUID
+--      - woo_order_id = WooCommerce order ID
+--      - id_sale = Generated sale ID (OJ00001, OJ00002, etc.)
+--      - For CASH orders: payment is already done (tarikh_bayaran set)
+
+-- webhook_logs table stores all webhook requests for debugging
+-- RLS Policy: Users can view their own webhook logs

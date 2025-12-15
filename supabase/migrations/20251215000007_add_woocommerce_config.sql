@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS public.webhook_logs (
 -- Enable RLS on webhook_logs
 ALTER TABLE public.webhook_logs ENABLE ROW LEVEL SECURITY;
 
--- Users can view their own logs
+-- Users can view their own logs (drop first if exists to avoid error)
+DROP POLICY IF EXISTS "Users can view their own webhook_logs" ON public.webhook_logs;
 CREATE POLICY "Users can view their own webhook_logs" ON public.webhook_logs
   FOR SELECT USING (profile_id = auth.uid());
 
