@@ -338,6 +338,18 @@ const StockOutHQ = () => {
 
   const deleteStock = useMutation({
     mutationFn: async (id: string) => {
+      // First delete any related stock_in_branch records that reference this stock_out_hq
+      const { error: branchError } = await supabase
+        .from("stock_in_branch")
+        .delete()
+        .eq("hq_stock_out_id", id);
+
+      if (branchError) {
+        console.error("Error deleting related stock_in_branch:", branchError);
+        // Continue anyway - might not have any related records
+      }
+
+      // Now delete the stock_out_hq record
       const { error } = await supabase
         .from("stock_out_hq")
         .delete()
@@ -347,6 +359,7 @@ const StockOutHQ = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stock-out-hq"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-in-branch"] });
       toast.success("Stock out record deleted successfully");
     },
     onError: (error: any) => {
