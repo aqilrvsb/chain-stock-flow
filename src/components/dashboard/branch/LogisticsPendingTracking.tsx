@@ -80,6 +80,7 @@ const LogisticsPendingTracking = () => {
       const marketerIds = marketers?.map(m => m.id) || [];
 
       // Query 1: HQ orders (seller_id = branch)
+      // Pending Tracking is for COD orders shipped via Ninjavan (exclude Tiktok, Shopee, StoreHub)
       let hqQuery = supabase
         .from("customer_purchases")
         .select(`
@@ -91,6 +92,8 @@ const LogisticsPendingTracking = () => {
         .eq("delivery_status", "Shipped")
         .eq("payment_method", "COD")
         .neq("platform", "StoreHub")
+        .neq("jenis_platform", "Tiktok")
+        .neq("jenis_platform", "Shopee")
         .neq("seo", "Successfull Delivery")
         .order("created_at", { ascending: false });
 
@@ -117,6 +120,9 @@ const LogisticsPendingTracking = () => {
           .in("marketer_id", marketerIds)
           .eq("delivery_status", "Shipped")
           .eq("payment_method", "COD")
+          .neq("platform", "StoreHub")
+          .neq("jenis_platform", "Tiktok")
+          .neq("jenis_platform", "Shopee")
           .neq("seo", "Successfull Delivery")
           .order("created_at", { ascending: false });
 
