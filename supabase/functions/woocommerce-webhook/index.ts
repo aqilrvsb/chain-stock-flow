@@ -416,37 +416,9 @@ serve(async (req) => {
       marketerIdStaff
     });
 
-    // Get marketer's woo_config for signature verification
-    const { data: wooConfig, error: configError } = await supabase
-      .from('woo_config')
-      .select('*')
-      .eq('profile_id', marketerId)
-      .eq('is_active', true)
-      .single();
-
-    if (configError || !wooConfig) {
-      console.log('WooCommerce config not found for marketer:', marketerId);
-      // Log the request
-      await supabase.from('webhook_logs').insert({
-        webhook_type: 'woocommerce',
-        request_method: req.method,
-        request_body: wooOrder,
-        request_headers: { signature, source, topic, webhookId },
-        profile_id: marketerId,
-        response_status: 400,
-        response_body: { error: 'WooCommerce config not found' },
-        error_message: 'WooCommerce config not found for marketer',
-        processing_time_ms: Date.now() - startTime
-      });
-
-      return new Response(
-        JSON.stringify({ error: 'WooCommerce not configured for this marketer' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Verify webhook signature
-    if (signature && !verifyWebhookSignature(rawBody, signature, wooConfig.webhook_secret)) {
+    // Verify webhook signature using idstaff as secret (no woo_config needed)
+    // Marketer sets their idstaff as the webhook secret in WooCommerce
+    if (signature && !verifyWebhookSignature(rawBody, signature, marketerIdStaff)) {
       console.error('Invalid webhook signature');
       await supabase.from('webhook_logs').insert({
         webhook_type: 'woocommerce',
@@ -456,12 +428,12 @@ serve(async (req) => {
         profile_id: marketerId,
         response_status: 401,
         response_body: { error: 'Invalid signature' },
-        error_message: 'Invalid webhook signature',
+        error_message: 'Invalid webhook signature - expected idstaff as secret',
         processing_time_ms: Date.now() - startTime
       });
 
       return new Response(
-        JSON.stringify({ error: 'Invalid webhook signature' }),
+        JSON.stringify({ error: 'Invalid webhook signature. Use your idstaff as the webhook secret in WooCommerce.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
