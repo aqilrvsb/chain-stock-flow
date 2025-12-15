@@ -80,12 +80,14 @@ const ProductManagement = () => {
           const { data: stockOutHQData } = await stockOutHQQuery;
           const stockOutHQ = stockOutHQData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
-          // Pending orders (success) quantity
+          // Pending orders (success) quantity - exclude HQ manual transfers (billplz_bill_id = 'HQ')
+          // because those are already counted in stock_out_hq
           let pendingOrdersQuery = supabase
             .from("pending_orders")
             .select("quantity")
             .eq("product_id", product.id)
-            .eq("status", "completed");
+            .eq("status", "completed")
+            .neq("billplz_bill_id", "HQ");
 
           if (startDate) {
             pendingOrdersQuery = pendingOrdersQuery.gte("created_at", startDate + 'T00:00:00.000Z');
@@ -100,10 +102,14 @@ const ProductManagement = () => {
           // Total Stock Out = Stock Out HQ + Pending Orders (success)
           const totalStockOut = stockOutHQ + pendingOrdersQty;
 
+          // Get current inventory quantity (source of truth - updated by Stock In/Out and Billplz)
+          const currentQuantity = product.inventory?.[0]?.quantity || 0;
+
           return {
             ...product,
             stockIn,
             stockOut: totalStockOut,
+            currentQuantity,
           };
         })
       );
@@ -327,10 +333,10 @@ const ProductManagement = () => {
 
   // Calculate summary stats
   const totalProducts = products?.length || 0;
-  // Total Quantity = Stock In - Stock Out (calculated, not from inventory table)
+  // Total Quantity from inventory table (source of truth - already deducted by Stock Out and Billplz)
+  const totalQuantity = products?.reduce((sum, p) => sum + (p.currentQuantity || 0), 0) || 0;
   const totalStockIn = products?.reduce((sum, p) => sum + (p.stockIn || 0), 0) || 0;
   const totalStockOut = products?.reduce((sum, p) => sum + (p.stockOut || 0), 0) || 0;
-  const totalQuantity = totalStockIn - totalStockOut;
   const totalActive = products?.filter(p => p.is_active).length || 0;
   const totalInactive = totalProducts - totalActive;
 
@@ -535,9 +541,6 @@ const ProductManagement = () => {
             </TableHeader>
             <TableBody>
               {products?.map((product) => {
-                // Quantity = Stock In - Stock Out
-                const calculatedQuantity = (product.stockIn || 0) - (product.stockOut || 0);
-
                 return (
                   <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.sku}</TableCell>
@@ -545,7 +548,7 @@ const ProductManagement = () => {
                   <TableCell>RM {product.base_cost}</TableCell>
                   <TableCell>{product.stockIn || 0}</TableCell>
                   <TableCell>{product.stockOut || 0}</TableCell>
-                  <TableCell className="font-medium">{calculatedQuantity}</TableCell>
+                  <TableCell className="font-medium">{product.currentQuantity || 0}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Switch
