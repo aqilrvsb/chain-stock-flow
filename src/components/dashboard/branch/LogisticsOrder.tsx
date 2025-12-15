@@ -589,7 +589,7 @@ const LogisticsOrder = () => {
                           <td className="p-3">{order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.phone || order.no_phone || "-"}</td>
-                          <td className="p-3">{order.product?.name || order.storehub_product || "-"}</td>
+                          <td className="p-3">{order.product?.name || order.produk || order.storehub_product || "-"}</td>
                           <td className="p-3">{order.quantity}</td>
                           <td className="p-3">RM {Number(order.total_price || 0).toFixed(2)}</td>
                           <td className="p-3">
@@ -610,7 +610,7 @@ const LogisticsOrder = () => {
                             </span>
                           </td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
-                          <td className="p-3">{order.customer?.state || "-"}</td>
+                          <td className="p-3">{order.customer?.state || order.negeri || "-"}</td>
                           <td className="p-3">
                             <div className="max-w-xs">
                               <p className="text-sm truncate">{order.alamat || order.customer?.address || "-"}</p>
