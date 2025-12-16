@@ -178,19 +178,19 @@ const BranchProductManagement = () => {
           .eq("seller_id", user.id)
           .eq("delivery_status", "Return");
 
-        // Fetch ALL Shipped orders (delivery_status = 'Shipped') for this branch with marketer_id and buyer_id
+        // Fetch ALL Shipped orders (delivery_status = 'Shipped') for this branch with marketer_id
         const { data: shippedData } = await supabase
           .from("customer_purchases")
-          .select("produk, sku, quantity, product_id, marketer_id, buyer_id")
+          .select("produk, sku, quantity, product_id, marketer_id")
           .eq("seller_id", user.id)
           .eq("delivery_status", "Shipped");
 
-        // Fetch Agent Purchases - purchases where buyer_id is an agent
+        // Fetch Agent Purchases from agent_purchases table (where branch_id = this branch)
         const { data: agentPurchaseData } = await supabase
-          .from("customer_purchases")
-          .select("produk, sku, quantity, product_id, buyer_id")
-          .eq("seller_id", user.id)
-          .in("buyer_id", agents || []);
+          .from("agent_purchases")
+          .select("product_id, quantity")
+          .eq("branch_id", user.id)
+          .eq("status", "completed");
 
         // Aggregate by product_id
         const orderMap = new Map<string, { returnIn: number; stockOutMarketer: number; agentPurchases: number; branchCustomerShipped: number }>();
@@ -215,29 +215,24 @@ const BranchProductManagement = () => {
           }
           if (productId) {
             const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
-            const isAgent = order.buyer_id && agents?.includes(order.buyer_id);
 
             if (order.marketer_id) {
               // Has marketer_id = Stock Out Marketer
               existing.stockOutMarketer += order.quantity || 1;
-            } else if (!isAgent) {
-              // No marketer_id and not agent = Branch direct customer order (Stock Out Branch)
+            } else {
+              // No marketer_id = Branch direct customer order (Stock Out Branch)
               existing.branchCustomerShipped += order.quantity || 1;
             }
-            // Agent orders will be counted in agentPurchases below
             orderMap.set(productId, existing);
           }
         });
 
-        // Count agent purchases
-        (agentPurchaseData || []).forEach((order: any) => {
-          let productId = order.product_id;
-          if (!productId) {
-            productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
-          }
+        // Count agent purchases from agent_purchases table
+        (agentPurchaseData || []).forEach((purchase: any) => {
+          const productId = purchase.product_id;
           if (productId) {
             const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
-            existing.agentPurchases += order.quantity || 1;
+            existing.agentPurchases += purchase.quantity || 1;
             orderMap.set(productId, existing);
           }
         });
@@ -347,10 +342,10 @@ const BranchProductManagement = () => {
         const { data: returnData, error: returnError } = await returnQuery;
         if (returnError) throw returnError;
 
-        // Fetch ALL Shipped orders (filter by date_processed) with marketer_id and buyer_id
+        // Fetch ALL Shipped orders (filter by date_processed) with marketer_id
         let processedQuery = supabase
           .from("customer_purchases")
-          .select("produk, sku, quantity, product_id, date_processed, marketer_id, buyer_id")
+          .select("produk, sku, quantity, product_id, date_processed, marketer_id")
           .eq("seller_id", user.id)
           .eq("delivery_status", "Shipped");
 
@@ -364,12 +359,12 @@ const BranchProductManagement = () => {
         const { data: processedData, error: processedError } = await processedQuery;
         if (processedError) throw processedError;
 
-        // Fetch Agent Purchases - purchases where buyer_id is an agent (filter by created_at)
+        // Fetch Agent Purchases from agent_purchases table (filter by created_at)
         let agentPurchaseQuery = supabase
-          .from("customer_purchases")
-          .select("produk, sku, quantity, product_id, buyer_id, created_at")
-          .eq("seller_id", user.id)
-          .in("buyer_id", agents || []);
+          .from("agent_purchases")
+          .select("product_id, quantity, created_at")
+          .eq("branch_id", user.id)
+          .eq("status", "completed");
 
         if (startDate) {
           agentPurchaseQuery = agentPurchaseQuery.gte("created_at", startDate + "T00:00:00+08:00");
@@ -404,27 +399,24 @@ const BranchProductManagement = () => {
           }
           if (productId) {
             const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
-            const isAgent = order.buyer_id && agents?.includes(order.buyer_id);
 
             if (order.marketer_id) {
               // Has marketer_id = Stock Out Marketer
               existing.stockOutMarketer += order.quantity || 1;
-            } else if (!isAgent) {
-              // No marketer_id and not agent = Branch direct customer order (Stock Out Branch)
+            } else {
+              // No marketer_id = Branch direct customer order (Stock Out Branch)
               existing.branchCustomerShipped += order.quantity || 1;
             }
             orderMap.set(productId, existing);
           }
         });
 
-        (agentPurchaseData || []).forEach((order: any) => {
-          let productId = order.product_id;
-          if (!productId) {
-            productId = getProductIdFromName(order.produk) || getProductIdFromName(order.sku);
-          }
+        // Count agent purchases from agent_purchases table
+        (agentPurchaseData || []).forEach((purchase: any) => {
+          const productId = purchase.product_id;
           if (productId) {
             const existing = orderMap.get(productId) || { returnIn: 0, stockOutMarketer: 0, agentPurchases: 0, branchCustomerShipped: 0 };
-            existing.agentPurchases += order.quantity || 1;
+            existing.agentPurchases += purchase.quantity || 1;
             orderMap.set(productId, existing);
           }
         });
