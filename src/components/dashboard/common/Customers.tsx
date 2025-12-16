@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
-import { getMalaysiaDate } from "@/lib/utils";
+import { getMalaysiaDate, getMalaysiaYesterday } from "@/lib/utils";
 
 interface CustomersProps {
   userType: "master_agent" | "agent" | "branch";
@@ -325,6 +325,86 @@ const Customers = ({ userType }: CustomersProps) => {
   // Sources that use manual tracking (Tiktok/Shopee) vs NinjaVan
   const MANUAL_TRACKING_SOURCES = ["Tiktok HQ", "Shopee HQ"];
 
+  // Helper function to check lead and determine NP/EP/EC type for branch
+  const checkLeadAndDetermineType = async (phoneNumber: string): Promise<{
+    type: "NP" | "EP" | "EC";
+    leadId?: string;
+    isNewLead?: boolean;
+    countOrder?: number
+  }> => {
+    const today = getMalaysiaDate();
+
+    // Search for existing lead by phone number created by this branch
+    const { data: existingLead } = await supabase
+      .from("prospects")
+      .select("id, tarikh_phone_number, jenis_prospek, count_order")
+      .eq("created_by", user?.id)
+      .eq("no_telefon", phoneNumber)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLead) {
+      const existingType = existingLead.jenis_prospek?.toUpperCase();
+      const currentCountOrder = existingLead.count_order || 0;
+
+      // If already EC or has orders, it's EC
+      if (existingType === "EC" || currentCountOrder > 0) {
+        return { type: "EC", leadId: existingLead.id, countOrder: currentCountOrder };
+      }
+
+      // If NP or EP that hasn't ordered yet
+      if (existingLead.tarikh_phone_number === today) {
+        return { type: "NP", leadId: existingLead.id, countOrder: currentCountOrder };
+      } else {
+        return { type: "EP", leadId: existingLead.id, countOrder: currentCountOrder };
+      }
+    } else {
+      // No lead found - will be EP (new lead auto-created with yesterday's date)
+      return { type: "EP", isNewLead: true, countOrder: 0 };
+    }
+  };
+
+  // Auto-create lead with yesterday's date (only if not exists)
+  const autoCreateLead = async (phoneNumber: string, customerName: string, productName: string): Promise<string | null> => {
+    // Double-check if lead already exists to prevent duplicates
+    const { data: existingLead } = await supabase
+      .from("prospects")
+      .select("id")
+      .eq("created_by", user?.id)
+      .eq("no_telefon", phoneNumber)
+      .maybeSingle();
+
+    if (existingLead) {
+      // Lead already exists, return existing ID
+      return existingLead.id;
+    }
+
+    const yesterdayDate = getMalaysiaYesterday();
+
+    const { data, error } = await supabase
+      .from("prospects")
+      .insert({
+        nama_prospek: customerName.toUpperCase(),
+        no_telefon: phoneNumber,
+        niche: productName,
+        jenis_prospek: "EP",
+        tarikh_phone_number: yesterdayDate,
+        created_by: user?.id,
+        status_closed: "",
+        price_closed: 0,
+        count_order: 0,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Error auto-creating lead:", error);
+      return null;
+    }
+    return data?.id || null;
+  };
+
   const createCustomerPurchase = useMutation({
     mutationFn: async (data: CustomerPurchaseData) => {
       // Check if seller has enough inventory
@@ -508,11 +588,44 @@ const Customers = ({ userType }: CustomersProps) => {
 
       if (updateError) throw updateError;
 
+      // For Branch: Track prospect status (NP/EP/EC) for leads reporting
+      if (userType === 'branch' && data.customerPhone) {
+        try {
+          // Check lead and determine type
+          const leadResult = await checkLeadAndDetermineType(data.customerPhone);
+
+          // If lead is new, auto-create it with yesterday's date
+          let finalLeadId = leadResult.leadId;
+          if (leadResult.isNewLead) {
+            finalLeadId = await autoCreateLead(data.customerPhone, data.customerName, productName) || undefined;
+          }
+
+          // Update lead with jenis_prospek, count_order, status_closed, price_closed
+          if (finalLeadId) {
+            await supabase
+              .from("prospects")
+              .update({
+                jenis_prospek: leadResult.type,
+                count_order: (leadResult.countOrder || 0) + 1,
+                status_closed: "Closed",
+                price_closed: data.price,
+              })
+              .eq("id", finalLeadId);
+
+            console.log(`Lead updated: ${finalLeadId}, Type: ${leadResult.type}, Order #${(leadResult.countOrder || 0) + 1}`);
+          }
+        } catch (leadError) {
+          console.error("Error updating lead status:", leadError);
+          // Don't throw - purchase is already created, lead tracking is supplementary
+        }
+      }
+
       return { trackingNumber };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-prospects"] }); // Refresh leads data
       setIsModalOpen(false);
 
       let successMessage = "Customer purchase recorded successfully. Inventory has been updated.";
