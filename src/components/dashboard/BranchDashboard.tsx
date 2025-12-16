@@ -19,6 +19,8 @@ import MarketerManagement from "./branch/MarketerManagement";
 import CustomerMarketer from "./branch/CustomerMarketer";
 import BranchDashboardView from "./branch/BranchDashboardView";
 import MarketerTop10 from "./marketer/MarketerTop10";
+import BranchSpend from "./branch/BranchSpend";
+import BranchReportingSpend from "./branch/BranchReportingSpend";
 
 const BranchDashboard = () => {
   const [activeView, setActiveView] = useState("dashboard");
@@ -57,6 +59,10 @@ const BranchDashboard = () => {
         return <RewardAgentGold />;
       case "reporting-agent":
         return <ReportingAgent />;
+      case "branch-spend":
+        return <BranchSpend />;
+      case "branch-reporting-spend":
+        return <BranchReportingSpend />;
       case "analytics":
         return <MyAnalytics />;
       case "settings":

@@ -805,6 +805,41 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
+
+                {/* Marketing Group - Collapsible */}
+                <Collapsible defaultOpen className="group/collapsible">
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="cursor-pointer">
+                        <DollarSign className="h-4 w-4" />
+                        {open && <span>Marketing</span>}
+                        {open && <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("branch-spend")}
+                            isActive={activeView === "branch-spend"}
+                            className="cursor-pointer"
+                          >
+                            <span>Spend</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("branch-reporting-spend")}
+                            isActive={activeView === "branch-reporting-spend"}
+                            className="cursor-pointer"
+                          >
+                            <span>Reporting Spend</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
