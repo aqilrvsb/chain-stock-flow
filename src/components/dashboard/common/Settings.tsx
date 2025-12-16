@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Truck } from "lucide-react";
+import { Loader2, Upload, Truck, Building2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -63,6 +63,15 @@ const Settings = () => {
   const [ninjavanSenderCity, setNinjavanSenderCity] = useState("");
   const [ninjavanSenderState, setNinjavanSenderState] = useState("");
   const [savingNinjavan, setSavingNinjavan] = useState(false);
+
+  // Company/Invoice info states (Branch only)
+  const [companyName, setCompanyName] = useState("");
+  const [companyReg, setCompanyReg] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [businessWebsite, setBusinessWebsite] = useState("");
+  const [savingCompanyInfo, setSavingCompanyInfo] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", user?.id],
@@ -541,6 +550,45 @@ const Settings = () => {
     }
   };
 
+  const handleCompanyInfoUpdate = async () => {
+    setSavingCompanyInfo(true);
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          company_name: companyName || null,
+          company_reg: companyReg || null,
+          business_address: businessAddress || null,
+          business_phone: businessPhone || null,
+          business_email: businessEmail || null,
+          business_website: businessWebsite || null,
+        } as any)
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast({ title: "Company/Invoice information saved successfully" });
+
+      // Clear form fields
+      setCompanyName("");
+      setCompanyReg("");
+      setBusinessAddress("");
+      setBusinessPhone("");
+      setBusinessEmail("");
+      setBusinessWebsite("");
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCompanyInfo(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -891,6 +939,99 @@ const Settings = () => {
             <Button onClick={handleNinjavanUpdate} disabled={savingNinjavan}>
               {savingNinjavan && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save NinjaVan Configuration
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Building2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Company / Invoice Settings</CardTitle>
+                <CardDescription>Configure your company information for invoice headers</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {profile && ((profile as any).company_name || (profile as any).business_address) && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p className="font-medium">Current Configuration:</p>
+                <p className="text-muted-foreground">Company: {(profile as any).company_name || 'Not set'} {(profile as any).company_reg ? `(${(profile as any).company_reg})` : ''}</p>
+                <p className="text-muted-foreground">Address: {(profile as any).business_address || 'Not set'}</p>
+                <p className="text-muted-foreground">Phone: {(profile as any).business_phone || 'Not set'}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="company_name">Company Name *</Label>
+                <Input
+                  id="company_name"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. OLIVE JARDIN SDN BHD"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company_reg">Company Registration No.</Label>
+                <Input
+                  id="company_reg"
+                  value={companyReg}
+                  onChange={(e) => setCompanyReg(e.target.value)}
+                  placeholder="e.g. 1579025-U"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="business_address">Business Address *</Label>
+              <Textarea
+                id="business_address"
+                value={businessAddress}
+                onChange={(e) => setBusinessAddress(e.target.value)}
+                placeholder="e.g. No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan"
+                rows={2}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="business_phone">Business Phone *</Label>
+                <Input
+                  id="business_phone"
+                  value={businessPhone}
+                  onChange={(e) => setBusinessPhone(e.target.value)}
+                  placeholder="e.g. 010-262 8508 / 012-343 8508"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="business_email">Business Email</Label>
+                <Input
+                  id="business_email"
+                  type="email"
+                  value={businessEmail}
+                  onChange={(e) => setBusinessEmail(e.target.value)}
+                  placeholder="e.g. info@company.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="business_website">Website</Label>
+              <Input
+                id="business_website"
+                value={businessWebsite}
+                onChange={(e) => setBusinessWebsite(e.target.value)}
+                placeholder="e.g. www.company.com"
+              />
+            </div>
+
+            <Button onClick={handleCompanyInfoUpdate} disabled={savingCompanyInfo}>
+              {savingCompanyInfo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Company Information
             </Button>
           </CardContent>
         </Card>

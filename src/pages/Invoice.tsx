@@ -4,11 +4,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Loader2, FileText } from "lucide-react";
 
+// Default company info (fallback if not configured)
+const DEFAULT_COMPANY = {
+  name: "OLIVE JARDIN SDN BHD",
+  reg: "1579025-U",
+  address: "No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan",
+  phone: "010-262 8508 / 012-343 8508",
+  email: "olivejardin8008@gmail.com",
+  website: "olivejardin.com",
+};
+
 const Invoice = () => {
   const [searchParams] = useSearchParams();
   const orderNumber = searchParams.get("order");
   const invoiceType = searchParams.get("type"); // "customer" for customer_purchases, default is pending_orders
   const [orderData, setOrderData] = useState<any>(null);
+  const [companyInfo, setCompanyInfo] = useState(DEFAULT_COMPANY);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +61,26 @@ const Invoice = () => {
             unit_price: p.unit_price,
             total_price: p.total_price,
           }));
+
+          // Fetch seller's company info
+          if (firstPurchase.seller_id) {
+            const { data: sellerProfile } = await supabase
+              .from("profiles")
+              .select("company_name, company_reg, business_address, business_phone, business_email, business_website")
+              .eq("id", firstPurchase.seller_id)
+              .single();
+
+            if (sellerProfile) {
+              setCompanyInfo({
+                name: (sellerProfile as any).company_name || DEFAULT_COMPANY.name,
+                reg: (sellerProfile as any).company_reg || DEFAULT_COMPANY.reg,
+                address: (sellerProfile as any).business_address || DEFAULT_COMPANY.address,
+                phone: (sellerProfile as any).business_phone || DEFAULT_COMPANY.phone,
+                email: (sellerProfile as any).business_email || DEFAULT_COMPANY.email,
+                website: (sellerProfile as any).business_website || DEFAULT_COMPANY.website,
+              });
+            }
+          }
 
           setOrderData({
             type: "customer",
@@ -157,11 +188,13 @@ const Invoice = () => {
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8 pb-8 border-b-2 border-gray-200">
             <div>
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-900">OLIVE JARDIN SDN BHD (1579025-U)</h2>
-                <p className="text-sm text-gray-700 mt-1">No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan</p>
-                <p className="text-sm text-gray-700">Tel: 010-262 8508 / 012-343 8508</p>
-                <p className="text-sm text-gray-700">Email: olivejardin8008@gmail.com</p>
-                <p className="text-sm text-gray-700">Website: olivejardin.com</p>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {companyInfo.name} {companyInfo.reg ? `(${companyInfo.reg})` : ""}
+                </h2>
+                <p className="text-sm text-gray-700 mt-1">{companyInfo.address}</p>
+                <p className="text-sm text-gray-700">Tel: {companyInfo.phone}</p>
+                {companyInfo.email && <p className="text-sm text-gray-700">Email: {companyInfo.email}</p>}
+                {companyInfo.website && <p className="text-sm text-gray-700">Website: {companyInfo.website}</p>}
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">INVOICE</h1>
               <p className="text-gray-600 mt-1">
@@ -386,11 +419,13 @@ const Invoice = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8 pb-8 border-b-2 border-gray-200">
           <div>
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-gray-900">OLIVE JARDIN SDN BHD (1579025-U)</h2>
-              <p className="text-sm text-gray-700 mt-1">No. 897, Jalan Dato Pati, 15000 Kota Bharu, Kelantan</p>
-              <p className="text-sm text-gray-700">Tel: 010-262 8508 / 012-343 8508</p>
-              <p className="text-sm text-gray-700">Email: olivejardin8008@gmail.com</p>
-              <p className="text-sm text-gray-700">Website: olivejardin.com</p>
+              <h2 className="text-xl font-bold text-gray-900">
+                {companyInfo.name} {companyInfo.reg ? `(${companyInfo.reg})` : ""}
+              </h2>
+              <p className="text-sm text-gray-700 mt-1">{companyInfo.address}</p>
+              <p className="text-sm text-gray-700">Tel: {companyInfo.phone}</p>
+              {companyInfo.email && <p className="text-sm text-gray-700">Email: {companyInfo.email}</p>}
+              {companyInfo.website && <p className="text-sm text-gray-700">Website: {companyInfo.website}</p>}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">INVOICE</h1>
             <p className="text-gray-600 mt-1">Order #{orderData.order_number}</p>

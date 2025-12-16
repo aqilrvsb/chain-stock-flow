@@ -44,6 +44,13 @@ CREATE TABLE public.profiles (
   storehub_password text,
   branch_id uuid,
   password_hash text,
+  -- Company/Invoice info (Branch only)
+  company_name text,
+  company_reg text,
+  business_address text,
+  business_phone text,
+  business_email text,
+  business_website text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
   CONSTRAINT profiles_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.profiles(id)
