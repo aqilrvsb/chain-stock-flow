@@ -1,23 +1,29 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, FileText } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, FileText, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMalaysiaDate } from "@/lib/utils";
+import { toast } from "sonner";
+import Swal from "sweetalert2";
 
 const CustomerMarketer = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const today = getMalaysiaDate();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [platformFilter, setPlatformFilter] = useState("all");
   const [marketerFilter, setMarketerFilter] = useState("all");
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -125,6 +131,65 @@ const CustomerMarketer = () => {
     { title: "Other", count: platformCounts.other, percent: platformPercent(platformCounts.other), color: "bg-gray-100 text-gray-800" },
   ];
 
+  // Checkbox handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedOrders(new Set((purchases || []).map((p: any) => p.id)));
+    } else {
+      setSelectedOrders(new Set());
+    }
+  };
+
+  const handleSelectOrder = (orderId: string, checked: boolean) => {
+    const newSelection = new Set(selectedOrders);
+    if (checked) {
+      newSelection.add(orderId);
+    } else {
+      newSelection.delete(orderId);
+    }
+    setSelectedOrders(newSelection);
+  };
+
+  const isAllSelected = (purchases || []).length > 0 && (purchases || []).every((p: any) => selectedOrders.has(p.id));
+
+  // Delete selected orders
+  const handleDeleteSelected = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Please select orders to delete");
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete Orders?",
+      text: `Are you sure you want to delete ${selectedOrders.size} order(s)? This action cannot be undone.`,
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Yes, Delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedOrders).map((orderId) =>
+        supabase.from("customer_purchases").delete().eq("id", orderId)
+      );
+
+      await Promise.all(deletePromises);
+
+      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      queryClient.invalidateQueries({ queryKey: ["customer_marketer_purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setSelectedOrders(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete orders");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -133,6 +198,22 @@ const CustomerMarketer = () => {
           <p className="text-muted-foreground mt-2">
             View orders from marketers under your branch
           </p>
+        </div>
+        <div className="flex gap-2">
+          {selectedOrders.size > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete ({selectedOrders.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -244,6 +325,12 @@ const CustomerMarketer = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Marketer</TableHead>
@@ -265,6 +352,12 @@ const CustomerMarketer = () => {
               <TableBody>
                 {(purchases || []).map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedOrders.has(purchase.id)}
+                        onCheckedChange={(checked) => handleSelectOrder(purchase.id, !!checked)}
+                      />
+                    </TableCell>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       {purchase.date_order ? format(new Date(purchase.date_order), "dd-MM-yyyy") : "-"}
