@@ -80,14 +80,19 @@ const CLOSING_TYPES = [
 ];
 
 const ORDER_FROM_OPTIONS = [
+  "Facebook",
   "Tiktok HQ",
   "Shopee HQ",
-  "Online HQ",
+  "Database",
+  "Google",
   "StoreHub",
 ];
 
 // These sources require manual tracking number and PDF attachment
 const MANUAL_TRACKING_SOURCES = ["Tiktok HQ", "Shopee HQ"];
+
+// These sources use NinjaVan for shipping (all except Tiktok HQ/Shopee HQ which have their own tracking)
+const NINJAVAN_SOURCES = ["Facebook", "Database", "Google", "StoreHub"];
 
 const AddCustomerModal = ({
   open,
@@ -115,8 +120,8 @@ const AddCustomerModal = ({
 
   // Check if order source requires manual tracking (Tiktok/Shopee)
   const requiresManualTracking = MANUAL_TRACKING_SOURCES.includes(orderFrom);
-  // Check if order source uses NinjaVan (Online HQ, SYAHIR, AFIF)
-  const usesNinjaVan = userType === "branch" && orderFrom && !requiresManualTracking;
+  // Check if order source uses NinjaVan (Facebook, Database, Google, StoreHub)
+  const usesNinjaVan = userType === "branch" && orderFrom && NINJAVAN_SOURCES.includes(orderFrom);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

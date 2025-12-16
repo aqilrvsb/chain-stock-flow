@@ -201,10 +201,12 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // Platform breakdown stats
   const platformCounts = {
-    storehub: groupedPurchases.filter(p => p.platform === "StoreHub").length,
+    facebook: groupedPurchases.filter(p => p.platform === "Facebook").length,
     tiktokHQ: groupedPurchases.filter(p => p.platform === "Tiktok HQ").length,
     shopeeHQ: groupedPurchases.filter(p => p.platform === "Shopee HQ").length,
-    onlineHQ: groupedPurchases.filter(p => p.platform === "Online HQ").length,
+    database: groupedPurchases.filter(p => p.platform === "Database").length,
+    google: groupedPurchases.filter(p => p.platform === "Google").length,
+    storehub: groupedPurchases.filter(p => p.platform === "StoreHub").length,
   };
 
   const platformPercent = (count: number) => totalTransactions > 0 ? ((count / totalTransactions) * 100).toFixed(1) : "0.0";
@@ -237,10 +239,12 @@ const Customers = ({ userType }: CustomersProps) => {
   ];
 
   const platformStats = [
-    { title: "StoreHub", count: platformCounts.storehub, percent: platformPercent(platformCounts.storehub), color: "bg-blue-100 text-blue-800" },
+    { title: "Facebook", count: platformCounts.facebook, percent: platformPercent(platformCounts.facebook), color: "bg-blue-100 text-blue-800" },
     { title: "Tiktok HQ", count: platformCounts.tiktokHQ, percent: platformPercent(platformCounts.tiktokHQ), color: "bg-pink-100 text-pink-800" },
     { title: "Shopee HQ", count: platformCounts.shopeeHQ, percent: platformPercent(platformCounts.shopeeHQ), color: "bg-orange-100 text-orange-800" },
-    { title: "Online HQ", count: platformCounts.onlineHQ, percent: platformPercent(platformCounts.onlineHQ), color: "bg-green-100 text-green-800" },
+    { title: "Database", count: platformCounts.database, percent: platformPercent(platformCounts.database), color: "bg-purple-100 text-purple-800" },
+    { title: "Google", count: platformCounts.google, percent: platformPercent(platformCounts.google), color: "bg-green-100 text-green-800" },
+    { title: "StoreHub", count: platformCounts.storehub, percent: platformPercent(platformCounts.storehub), color: "bg-cyan-100 text-cyan-800" },
   ];
 
   // Checkbox handlers
@@ -989,11 +993,12 @@ const Customers = ({ userType }: CustomersProps) => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Jenis Platform</SelectItem>
-                        <SelectItem value="StoreHub">StoreHub</SelectItem>
+                        <SelectItem value="Facebook">Facebook</SelectItem>
                         <SelectItem value="Tiktok HQ">Tiktok HQ</SelectItem>
                         <SelectItem value="Shopee HQ">Shopee HQ</SelectItem>
-                        <SelectItem value="Online HQ">Online HQ</SelectItem>
-                        <SelectItem value="Manual">Manual</SelectItem>
+                        <SelectItem value="Database">Database</SelectItem>
+                        <SelectItem value="Google">Google</SelectItem>
+                        <SelectItem value="StoreHub">StoreHub</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1046,14 +1051,18 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        purchase.platform === "StoreHub"
+                        purchase.platform === "Facebook"
                           ? "bg-blue-100 text-blue-800"
                           : purchase.platform === "Tiktok HQ"
                           ? "bg-pink-100 text-pink-800"
                           : purchase.platform === "Shopee HQ"
                           ? "bg-orange-100 text-orange-800"
-                          : purchase.platform === "Online HQ"
+                          : purchase.platform === "Database"
+                          ? "bg-purple-100 text-purple-800"
+                          : purchase.platform === "Google"
                           ? "bg-green-100 text-green-800"
+                          : purchase.platform === "StoreHub"
+                          ? "bg-cyan-100 text-cyan-800"
                           : "bg-gray-100 text-gray-800"
                       }`}>
                         {purchase.platform || "Manual"}
