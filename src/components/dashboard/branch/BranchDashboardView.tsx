@@ -194,7 +194,15 @@ const BranchDashboardView = () => {
     const branchStorehub = branchByPlatform("StoreHub");
     const branchTiktok = branchByPlatform("Tiktok HQ");
     const branchShopee = branchByPlatform("Shopee HQ");
-    const branchOnline = branchByPlatform("Online HQ");
+
+    // Online = Facebook + Database + Google combined
+    const branchFacebook = branchByPlatform("Facebook");
+    const branchDatabase = branchByPlatform("Database");
+    const branchGoogle = branchByPlatform("Google");
+    const branchOnline = {
+      sales: branchFacebook.sales + branchDatabase.sales + branchGoogle.sales,
+      customers: branchFacebook.customers + branchDatabase.customers + branchGoogle.customers,
+    };
 
     // Total Branch Customers
     const branchCustomerIds = new Set(filteredBranchOrders.map((o: any) => o.customer_id));

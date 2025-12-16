@@ -223,14 +223,18 @@ const Invoice = () => {
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Platform</span>
                     <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
-                      orderData.platform === "StoreHub"
+                      orderData.platform === "Facebook"
                         ? "bg-blue-100 text-blue-800"
                         : orderData.platform === "Tiktok HQ"
                         ? "bg-pink-100 text-pink-800"
                         : orderData.platform === "Shopee HQ"
                         ? "bg-orange-100 text-orange-800"
-                        : orderData.platform === "Online HQ"
+                        : orderData.platform === "Database"
+                        ? "bg-purple-100 text-purple-800"
+                        : orderData.platform === "Google"
                         ? "bg-green-100 text-green-800"
+                        : orderData.platform === "StoreHub"
+                        ? "bg-cyan-100 text-cyan-800"
                         : "bg-gray-100 text-gray-800"
                     }`}>
                       {orderData.platform || "Manual"}
