@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/table";
 import {
   DollarSign,
+  Users,
   TrendingUp,
+  Target,
   RotateCcw,
+  BarChart3,
   Percent,
   Loader2,
   Facebook,
@@ -27,7 +30,6 @@ import {
   Phone,
   Play,
   Store,
-  ShoppingCart,
 } from "lucide-react";
 
 interface AggregatedSpend {
@@ -36,8 +38,12 @@ interface AggregatedSpend {
   jenisClosing: string;
   totalSpend: number;
   totalSales: number;
-  totalUnits: number;
+  totalLeads: number;
+  leadsClose: number;
+  leadsNotClose: number;
+  kpk: string;
   roas: string;
+  closingRate: string;
 }
 
 const BranchReportingSpend = () => {
@@ -56,6 +62,20 @@ const BranchReportingSpend = () => {
         .eq("branch_id", user?.id)
         .is("marketer_id_staff", null) // Only branch's own spends
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch prospects for this branch
+  const { data: prospects = [], isLoading: prospectsLoading } = useQuery({
+    queryKey: ["branch-reporting-prospects", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("*")
+        .eq("created_by", user?.id);
       if (error) throw error;
       return data || [];
     },
@@ -86,6 +106,16 @@ const BranchReportingSpend = () => {
       return matchesStartDate && matchesEndDate;
     });
   }, [spends, startDate, endDate]);
+
+  // Filter prospects based on same date range
+  const filteredProspects = useMemo(() => {
+    return prospects.filter((prospect: any) => {
+      const prospectDate = prospect.tarikh_phone_number;
+      const matchesStartDate = !startDate || (prospectDate && prospectDate >= startDate);
+      const matchesEndDate = !endDate || (prospectDate && prospectDate <= endDate);
+      return matchesStartDate && matchesEndDate;
+    });
+  }, [prospects, startDate, endDate]);
 
   // Filter orders based on date range
   const filteredOrders = useMemo(() => {
@@ -123,7 +153,6 @@ const BranchReportingSpend = () => {
         call: platformSpends.filter((s: any) => s.jenis_closing === "Call").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
         live: platformSpends.filter((s: any) => s.jenis_closing === "Live").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
         shop: platformSpends.filter((s: any) => s.jenis_closing === "Shop").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
-        walkIn: platformSpends.filter((s: any) => s.jenis_closing === "Walk In").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
       };
 
       const closingPct = {
@@ -133,7 +162,6 @@ const BranchReportingSpend = () => {
         callPct: totalSpend > 0 ? (closingBreakdown.call / totalSpend) * 100 : 0,
         livePct: totalSpend > 0 ? (closingBreakdown.live / totalSpend) * 100 : 0,
         shopPct: totalSpend > 0 ? (closingBreakdown.shop / totalSpend) * 100 : 0,
-        walkInPct: totalSpend > 0 ? (closingBreakdown.walkIn / totalSpend) * 100 : 0,
       };
 
       return {
@@ -157,7 +185,6 @@ const BranchReportingSpend = () => {
       call: filteredSpends.filter((s: any) => s.jenis_closing === "Call").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
       live: filteredSpends.filter((s: any) => s.jenis_closing === "Live").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
       shop: filteredSpends.filter((s: any) => s.jenis_closing === "Shop").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
-      walkIn: filteredSpends.filter((s: any) => s.jenis_closing === "Walk In").reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0),
       totalSpend,
     };
   }, [filteredSpends]);
@@ -181,19 +208,22 @@ const BranchReportingSpend = () => {
           jenisClosing: jenisClosing,
           totalSpend: Number(spend.total_spend) || 0,
           totalSales: 0,
-          totalUnits: 0,
+          totalLeads: 0,
+          leadsClose: 0,
+          leadsNotClose: 0,
+          kpk: "0.00",
           roas: "0.00",
+          closingRate: "0.00",
         });
       }
     });
 
-    // Distribute sales proportionally
+    // Distribute sales and leads proportionally
     dataMap.forEach((value) => {
       const totalPlatformSpend = Array.from(dataMap.values())
         .filter((d) => d.product === value.product && d.platform === value.platform)
         .reduce((sum, d) => sum + d.totalSpend, 0);
 
-      // Match orders by product name and platform
       const platformOrders = filteredOrders.filter((o: any) => {
         const productMatch = (o.produk || o.storehub_product || "").toLowerCase().includes(value.product.toLowerCase()) ||
                             value.product.toLowerCase().includes((o.produk || o.storehub_product || "").toLowerCase());
@@ -201,13 +231,26 @@ const BranchReportingSpend = () => {
         return productMatch && platformMatch;
       });
       const totalPlatformSales = platformOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
-      const totalPlatformUnits = platformOrders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
 
       const spendRatio = totalPlatformSpend > 0 ? value.totalSpend / totalPlatformSpend : 0;
       value.totalSales = totalPlatformSales * spendRatio;
-      value.totalUnits = Math.round(totalPlatformUnits * spendRatio);
 
+      const matchingProspects = filteredProspects.filter((p: any) => p.niche === value.product);
+      const productTotalSpend = Array.from(dataMap.values())
+        .filter((d) => d.product === value.product)
+        .reduce((sum, d) => sum + d.totalSpend, 0);
+
+      const productSpendRatio = productTotalSpend > 0 ? value.totalSpend / productTotalSpend : 0;
+      const distributedLeads = Math.round(matchingProspects.length * productSpendRatio);
+      const distributedLeadsClose = Math.round(matchingProspects.filter((p: any) => p.status_closed === "closed").length * productSpendRatio);
+
+      value.totalLeads = distributedLeads;
+      value.leadsClose = distributedLeadsClose;
+      value.leadsNotClose = distributedLeads - distributedLeadsClose;
+
+      value.kpk = value.totalLeads > 0 ? (value.totalSpend / value.totalLeads).toFixed(2) : "0.00";
       value.roas = value.totalSpend > 0 ? (value.totalSales / value.totalSpend).toFixed(2) : "0.00";
+      value.closingRate = value.totalLeads > 0 ? ((value.leadsClose / value.totalLeads) * 100).toFixed(2) : "0.00";
     });
 
     return Array.from(dataMap.values())
@@ -217,25 +260,30 @@ const BranchReportingSpend = () => {
         if (a.platform !== b.platform) return a.platform.localeCompare(b.platform);
         return a.jenisClosing.localeCompare(b.jenisClosing);
       });
-  }, [filteredSpends, filteredOrders]);
+  }, [filteredSpends, filteredOrders, filteredProspects]);
 
-  // Overall stats (without leads)
+  // Overall stats
   const stats = useMemo(() => {
     const totalSpend = filteredSpends.reduce((sum: number, s: any) => sum + (Number(s.total_spend) || 0), 0);
-    const totalSales = filteredOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
-    const totalUnits = filteredOrders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
-    const roas = totalSpend > 0 ? (totalSales / totalSpend).toFixed(2) : "0.00";
-    const costPerUnit = totalUnits > 0 ? (totalSpend / totalUnits).toFixed(2) : "0.00";
+    const totalLeads = filteredProspects.length;
+    const overallKPK = totalLeads > 0 ? (totalSpend / totalLeads).toFixed(2) : "0.00";
+    const leadsClose = filteredProspects.filter((p: any) => p.status_closed === "closed").length;
+    const leadsTidakClose = filteredProspects.filter((p: any) => !p.status_closed || p.status_closed !== "closed").length;
+    const totalClosedPrice = filteredProspects
+      .filter((p: any) => p.status_closed === "closed")
+      .reduce((sum: number, p: any) => sum + (Number(p.price_closed) || 0), 0);
+    const roas = totalSpend > 0 ? (totalClosedPrice / totalSpend).toFixed(2) : "0.00";
+    const closingRate = totalLeads > 0 ? ((leadsClose / totalLeads) * 100).toFixed(2) : "0.00";
 
-    return { totalSpend, totalSales, totalUnits, roas, costPerUnit };
-  }, [filteredSpends, filteredOrders]);
+    return { totalSpend, totalLeads, overallKPK, leadsClose, leadsTidakClose, roas, closingRate };
+  }, [filteredSpends, filteredProspects]);
 
   const resetFilters = () => {
     setStartDate("");
     setEndDate("");
   };
 
-  const isLoading = spendsLoading || ordersLoading;
+  const isLoading = spendsLoading || prospectsLoading || ordersLoading;
 
   if (isLoading) {
     return (
@@ -255,8 +303,8 @@ const BranchReportingSpend = () => {
         </div>
       </div>
 
-      {/* Stats Cards (No Leads) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <DollarSign className="w-4 h-4 text-green-500" />
@@ -267,18 +315,34 @@ const BranchReportingSpend = () => {
 
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <ShoppingCart className="w-4 h-4 text-blue-500" />
-            <span className="text-xs uppercase font-medium">Total Sales</span>
+            <Users className="w-4 h-4 text-blue-500" />
+            <span className="text-xs uppercase font-medium">Total Leads</span>
           </div>
-          <p className="text-xl font-bold text-foreground">RM {stats.totalSales.toFixed(2)}</p>
+          <p className="text-xl font-bold text-foreground">{stats.totalLeads}</p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <ShoppingBag className="w-4 h-4 text-purple-500" />
-            <span className="text-xs uppercase font-medium">Total Units</span>
+            <BarChart3 className="w-4 h-4 text-purple-500" />
+            <span className="text-xs uppercase font-medium">Overall KPK</span>
           </div>
-          <p className="text-xl font-bold text-foreground">{stats.totalUnits}</p>
+          <p className="text-xl font-bold text-foreground">RM {stats.overallKPK}</p>
+        </div>
+
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-400 mb-1">
+            <Target className="w-4 h-4" />
+            <span className="text-xs uppercase font-medium">Leads Close</span>
+          </div>
+          <p className="text-xl font-bold text-green-700 dark:text-green-400">{stats.leadsClose}</p>
+        </div>
+
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-400 mb-1">
+            <Target className="w-4 h-4" />
+            <span className="text-xs uppercase font-medium">Leads Tidak Close</span>
+          </div>
+          <p className="text-xl font-bold text-red-700 dark:text-red-400">{stats.leadsTidakClose}</p>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-4">
@@ -292,16 +356,16 @@ const BranchReportingSpend = () => {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Percent className="w-4 h-4 text-indigo-500" />
-            <span className="text-xs uppercase font-medium">Cost/Unit</span>
+            <span className="text-xs uppercase font-medium">Closing Rate</span>
           </div>
-          <p className="text-xl font-bold text-foreground">RM {stats.costPerUnit}</p>
+          <p className="text-xl font-bold text-foreground">{stats.closingRate}%</p>
         </div>
       </div>
 
       {/* Jenis Closing Summary */}
       <div>
         <h2 className="text-lg font-semibold text-foreground mb-3">Spend By Jenis Closing</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 rounded-lg p-4">
             <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 mb-1">
               <Globe className="w-4 h-4" />
@@ -349,14 +413,6 @@ const BranchReportingSpend = () => {
             </div>
             <p className="text-xl font-bold text-amber-700 dark:text-amber-300">RM {closingStats.shop.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{closingStats.totalSpend > 0 ? ((closingStats.shop / closingStats.totalSpend) * 100).toFixed(1) : 0}%</p>
-          </div>
-          <div className="bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 mb-1">
-              <Store className="w-4 h-4" />
-              <span className="text-xs uppercase font-medium">Walk In</span>
-            </div>
-            <p className="text-xl font-bold text-cyan-700 dark:text-cyan-300">RM {closingStats.walkIn.toFixed(2)}</p>
-            <p className="text-xs text-muted-foreground">{closingStats.totalSpend > 0 ? ((closingStats.walkIn / closingStats.totalSpend) * 100).toFixed(1) : 0}%</p>
           </div>
         </div>
       </div>
@@ -423,12 +479,6 @@ const BranchReportingSpend = () => {
                     RM {platform.closingBreakdown.shop.toFixed(0)} <span className="text-muted-foreground">({platform.closingPct.shopPct.toFixed(0)}%)</span>
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-cyan-600 dark:text-cyan-400">Walk In</span>
-                  <span className="text-xs font-medium">
-                    RM {platform.closingBreakdown.walkIn.toFixed(0)} <span className="text-muted-foreground">({platform.closingPct.walkInPct.toFixed(0)}%)</span>
-                  </span>
-                </div>
               </div>
             </div>
           ))}
@@ -453,7 +503,7 @@ const BranchReportingSpend = () => {
         </div>
       </div>
 
-      {/* Table - Aggregated by Product + Platform + Jenis Closing (No Leads) */}
+      {/* Table - Aggregated by Product + Platform + Jenis Closing */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
@@ -464,14 +514,18 @@ const BranchReportingSpend = () => {
               <TableHead>Jenis Closing</TableHead>
               <TableHead className="text-right">Total Spend</TableHead>
               <TableHead className="text-right">Total Sales</TableHead>
-              <TableHead className="text-right">Total Units</TableHead>
+              <TableHead className="text-right">Total Leads</TableHead>
+              <TableHead className="text-right">KPK</TableHead>
+              <TableHead className="text-right">Leads Close</TableHead>
+              <TableHead className="text-right">Leads X Close</TableHead>
               <TableHead className="text-right">ROAS</TableHead>
+              <TableHead className="text-right">Closing Rate</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {aggregatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   No spend data
                 </TableCell>
               </TableRow>
@@ -514,8 +568,6 @@ const BranchReportingSpend = () => {
                           ? "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
                           : data.jenisClosing === "Shop"
                           ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                          : data.jenisClosing === "Walk In"
-                          ? "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400"
                           : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
                       }`}
                     >
@@ -524,8 +576,12 @@ const BranchReportingSpend = () => {
                   </TableCell>
                   <TableCell className="text-right font-medium">RM {data.totalSpend.toFixed(2)}</TableCell>
                   <TableCell className="text-right font-medium text-green-600">RM {data.totalSales.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">{data.totalUnits}</TableCell>
+                  <TableCell className="text-right">{data.totalLeads}</TableCell>
+                  <TableCell className="text-right">RM {data.kpk}</TableCell>
+                  <TableCell className="text-right text-green-600">{data.leadsClose}</TableCell>
+                  <TableCell className="text-right text-red-600">{data.leadsNotClose}</TableCell>
                   <TableCell className="text-right">{data.roas}x</TableCell>
+                  <TableCell className="text-right">{data.closingRate}%</TableCell>
                 </TableRow>
               ))
             )}

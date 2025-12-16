@@ -21,6 +21,7 @@ import BranchDashboardView from "./branch/BranchDashboardView";
 import MarketerTop10 from "./marketer/MarketerTop10";
 import BranchSpend from "./branch/BranchSpend";
 import BranchReportingSpend from "./branch/BranchReportingSpend";
+import BranchLeads from "./branch/BranchLeads";
 
 const BranchDashboard = () => {
   const [activeView, setActiveView] = useState("dashboard");
@@ -63,6 +64,8 @@ const BranchDashboard = () => {
         return <BranchSpend />;
       case "branch-reporting-spend":
         return <BranchReportingSpend />;
+      case "branch-leads":
+        return <BranchLeads />;
       case "analytics":
         return <MyAnalytics />;
       case "settings":

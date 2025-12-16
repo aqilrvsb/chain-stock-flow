@@ -836,6 +836,15 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                             <span>Reporting Spend</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("branch-leads")}
+                            isActive={activeView === "branch-leads"}
+                            className="cursor-pointer"
+                          >
+                            <span>Leads</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>
