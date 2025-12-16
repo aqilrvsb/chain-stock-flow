@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
@@ -27,6 +28,8 @@ const Customers = ({ userType }: CustomersProps) => {
   const [platformFilter, setPlatformFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch profile for StoreHub credentials (Branch only)
   const { data: profile } = useQuery({
@@ -239,6 +242,66 @@ const Customers = ({ userType }: CustomersProps) => {
     { title: "Shopee HQ", count: platformCounts.shopeeHQ, percent: platformPercent(platformCounts.shopeeHQ), color: "bg-orange-100 text-orange-800" },
     { title: "Online HQ", count: platformCounts.onlineHQ, percent: platformPercent(platformCounts.onlineHQ), color: "bg-green-100 text-green-800" },
   ];
+
+  // Checkbox handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedOrders(new Set(groupedPurchases.map((p: any) => p.id)));
+    } else {
+      setSelectedOrders(new Set());
+    }
+  };
+
+  const handleSelectOrder = (orderId: string, checked: boolean) => {
+    const newSelection = new Set(selectedOrders);
+    if (checked) {
+      newSelection.add(orderId);
+    } else {
+      newSelection.delete(orderId);
+    }
+    setSelectedOrders(newSelection);
+  };
+
+  const isAllSelected = groupedPurchases.length > 0 && groupedPurchases.every((p: any) => selectedOrders.has(p.id));
+
+  // Delete selected orders
+  const handleDeleteSelected = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Please select orders to delete");
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete Orders?",
+      text: `Are you sure you want to delete ${selectedOrders.size} order(s)? This action cannot be undone.`,
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Yes, Delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete all selected orders
+      const deletePromises = Array.from(selectedOrders).map((orderId) =>
+        supabase.from("customer_purchases").delete().eq("id", orderId)
+      );
+
+      await Promise.all(deletePromises);
+
+      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setSelectedOrders(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete orders");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Fetch NinjaVan config for Branch
   const { data: ninjavanConfig } = useQuery({
@@ -817,6 +880,20 @@ const Customers = ({ userType }: CustomersProps) => {
           </p>
         </div>
         <div className="flex gap-2">
+          {selectedOrders.size > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
+              Delete ({selectedOrders.size})
+            </Button>
+          )}
           {userType === "branch" && (
             <Button
               variant="outline"
@@ -932,6 +1009,12 @@ const Customers = ({ userType }: CustomersProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>No</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Platform</TableHead>
@@ -951,6 +1034,12 @@ const Customers = ({ userType }: CustomersProps) => {
               <TableBody>
                 {groupedPurchases.map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedOrders.has(purchase.id)}
+                        onCheckedChange={(checked) => handleSelectOrder(purchase.id, !!checked)}
+                      />
+                    </TableCell>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
                       {format(new Date(purchase.date_order || purchase.created_at), "dd-MM-yyyy")}

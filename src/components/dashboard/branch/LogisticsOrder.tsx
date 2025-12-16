@@ -27,8 +27,10 @@ import {
   Music2,
   DollarSign,
   CreditCard,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import Swal from "sweetalert2";
 
 const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
 const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
@@ -54,6 +56,7 @@ const LogisticsOrder = () => {
   // Loading states
   const [isShipping, setIsShipping] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -360,6 +363,44 @@ const LogisticsOrder = () => {
     setSelectedOrders(new Set());
   };
 
+  // Bulk Delete action
+  const handleBulkDelete = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Please select orders to delete");
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete Orders?",
+      text: `Are you sure you want to delete ${selectedOrders.size} order(s)? This action cannot be undone.`,
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Yes, Delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedOrders).map((orderId) =>
+        supabase.from("customer_purchases").delete().eq("id", orderId)
+      );
+
+      await Promise.all(deletePromises);
+
+      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setSelectedOrders(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete orders");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -516,6 +557,14 @@ const LogisticsOrder = () => {
               <div className="flex-1" />
 
               <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={selectedOrders.size === 0 || isDeleting}
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Delete ({selectedOrders.size})
+                </Button>
                 <Button
                   variant="outline"
                   onClick={handleBulkPrint}
