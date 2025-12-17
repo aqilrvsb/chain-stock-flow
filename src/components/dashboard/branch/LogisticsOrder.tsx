@@ -28,6 +28,7 @@ import {
   DollarSign,
   CreditCard,
   Trash2,
+  Navigation,
 } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -58,6 +59,7 @@ const LogisticsOrder = () => {
   const [isShipping, setIsShipping] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [generatingTrackingFor, setGeneratingTrackingFor] = useState<string | null>(null);
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -502,6 +504,105 @@ const LogisticsOrder = () => {
     }
   };
 
+  // Generate NinjaVan tracking for an order
+  const handleGenerateTracking = async (order: any) => {
+    // Ask for postcode confirmation/update
+    const { value: postcode, isConfirmed } = await Swal.fire({
+      title: "Generate Tracking",
+      text: "Enter or confirm postcode for shipping:",
+      input: "text",
+      inputValue: order.customer?.postcode || order.poskod || "",
+      inputPlaceholder: "Enter postcode (e.g., 15100)",
+      showCancelButton: true,
+      confirmButtonText: "Generate Tracking",
+      cancelButtonText: "Cancel",
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 5) {
+          return "Please enter a valid postcode";
+        }
+        return null;
+      },
+    });
+
+    if (!isConfirmed || !postcode) return;
+
+    setGeneratingTrackingFor(order.id);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+
+      // Prepare order data for NinjaVan
+      const orderData = {
+        profileId: user?.id,
+        customerName: order.customer?.name || order.marketer_name || "Customer",
+        phone: order.customer?.phone || order.no_phone || "",
+        address: order.alamat || order.customer?.address || "",
+        postcode: postcode.trim(),
+        city: order.customer?.city || order.bandar || "",
+        state: order.customer?.state || order.negeri || "",
+        price: Number(order.total_price || 0),
+        paymentMethod: order.payment_method || "Online Transfer",
+        productName: order.product?.name || order.produk || "Product",
+        productSku: order.product?.sku || "",
+        quantity: order.quantity || 1,
+        nota: order.nota_staff || "",
+        marketerIdStaff: order.marketer?.idstaff || order.marketer_id_staff || "",
+      };
+
+      console.log("Generating tracking for order:", orderData);
+
+      const response = await supabase.functions.invoke("ninjavan-order", {
+        body: orderData,
+        headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to generate tracking");
+      }
+
+      const result = response.data;
+
+      if (!result.success || !result.trackingNumber) {
+        throw new Error(result.error || "Failed to get tracking number");
+      }
+
+      // Update the order with tracking number and postcode
+      const { error: updateError } = await supabase
+        .from("customer_purchases")
+        .update({
+          tracking_number: result.trackingNumber,
+          // Also update postcode if customer exists
+        })
+        .eq("id", order.id);
+
+      if (updateError) throw updateError;
+
+      // If there's a customer_id, update customer postcode too
+      if (order.customer_id && postcode !== order.customer?.postcode) {
+        await supabase
+          .from("customers")
+          .update({ postcode: postcode.trim() })
+          .eq("id", order.customer_id);
+      }
+
+      toast.success(`Tracking generated: ${result.trackingNumber}`);
+      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+    } catch (error: any) {
+      console.error("Generate tracking error:", error);
+      toast.error(error.message || "Failed to generate tracking number");
+    } finally {
+      setGeneratingTrackingFor(null);
+    }
+  };
+
+  // Check if order needs tracking generation (NinjaVan platforms without tracking)
+  const needsTrackingGeneration = (order: any) => {
+    const platform = getOrderPlatform(order)?.toLowerCase() || "";
+    const isNinjavanPlatform = platform !== "tiktok" && platform !== "shopee" && platform !== "storehub";
+    const hasNoTracking = !order.tracking_number;
+    return isNinjavanPlatform && hasNoTracking;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -779,7 +880,28 @@ const LogisticsOrder = () => {
                             </span>
                           </td>
                           <td className="p-3">{order.closing_type || order.jenis_closing || "-"}</td>
-                          <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
+                          <td className="p-3">
+                            {order.tracking_number ? (
+                              <span className="font-mono text-sm">{order.tracking_number}</span>
+                            ) : needsTrackingGeneration(order) ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleGenerateTracking(order)}
+                                disabled={generatingTrackingFor === order.id}
+                                className="h-7 px-2 text-xs"
+                              >
+                                {generatingTrackingFor === order.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : (
+                                  <Navigation className="w-3 h-3 mr-1" />
+                                )}
+                                Generate
+                              </Button>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
                           <td className="p-3">{order.customer?.state || order.negeri || "-"}</td>
                           <td className="p-3">
                             <div className="max-w-xs">
