@@ -34,7 +34,7 @@ import Swal from "sweetalert2";
 
 const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
 const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
-const PAGE_SIZE_OPTIONS = [10, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 50, 100, "All"] as const;
 
 const LogisticsOrder = () => {
   const { user } = useAuth();
@@ -48,7 +48,7 @@ const LogisticsOrder = () => {
   const [endDate, setEndDate] = useState(today);
   const [paymentFilter, setPaymentFilter] = useState("All");
   const [platformFilter, setPlatformFilter] = useState("All");
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState<number | "All">(10);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Selection state
@@ -197,11 +197,11 @@ const LogisticsOrder = () => {
   });
 
   // Pagination
-  const totalPages = Math.ceil(filteredOrders.length / pageSize);
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const effectivePageSize = pageSize === "All" ? filteredOrders.length : pageSize;
+  const totalPages = pageSize === "All" ? 1 : Math.ceil(filteredOrders.length / pageSize);
+  const paginatedOrders = pageSize === "All"
+    ? filteredOrders
+    : filteredOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Counts - use all orders (before platform filter) for stats
   // Ninjavan = orders that are NOT Tiktok, NOT Shopee, NOT StoreHub
@@ -611,13 +611,13 @@ const LogisticsOrder = () => {
 
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Show:</span>
-                <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+                <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(v === "All" ? "All" : Number(v)); setCurrentPage(1); }}>
                   <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {PAGE_SIZE_OPTIONS.map((size) => (
-                      <SelectItem key={size} value={size.toString()}>{size}</SelectItem>
+                      <SelectItem key={size.toString()} value={size.toString()}>{size}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
