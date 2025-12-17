@@ -7,15 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Package, Loader2, TrendingUp, TrendingDown, RotateCcw, Truck, Store, Play, ShoppingBag, Globe } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
+import { format, parseISO, isWithinInterval } from "date-fns";
 
 const BranchProductTransaction = () => {
   const { user } = useAuth();
 
-  // Date filter state - default to current month
-  const today = new Date();
-  const [startDate, setStartDate] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
+  // Date filter state - default to current date only
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
 
   // Fetch all products
   const { data: products, isLoading: productsLoading } = useQuery({
