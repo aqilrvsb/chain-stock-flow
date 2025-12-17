@@ -576,7 +576,7 @@ const LogisticsReturn = () => {
                             </span>
                           </td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
-                          <td className="p-3">{order.customer?.state || "-"}</td>
+                          <td className="p-3">{order.customer?.state || order.negeri || "-"}</td>
                           <td className="p-3">
                             <div className="max-w-xs">
                               <p className="text-sm truncate">{order.alamat || order.customer?.address || "-"}</p>

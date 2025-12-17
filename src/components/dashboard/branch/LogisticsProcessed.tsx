@@ -800,7 +800,7 @@ const LogisticsProcessed = () => {
                             </span>
                           </td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
-                          <td className="p-3">{order.customer?.state || "-"}</td>
+                          <td className="p-3">{order.customer?.state || order.negeri || "-"}</td>
                           <td className="p-3">
                             <div className="min-w-[200px]">
                               <p className="text-sm whitespace-normal">{order.alamat || order.customer?.address || "-"}</p>
