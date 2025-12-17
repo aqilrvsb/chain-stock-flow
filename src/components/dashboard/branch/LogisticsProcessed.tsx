@@ -86,7 +86,8 @@ const LogisticsProcessed = () => {
         .select(`
           *,
           customer:customers(name, phone, address, state, postcode, city),
-          product:products(name, sku)
+          product:products(name, sku),
+          marketer:profiles!customer_purchases_marketer_id_fkey(full_name, idstaff)
         `)
         .eq("seller_id", user?.id)
         .eq("delivery_status", "Shipped")
@@ -111,7 +112,8 @@ const LogisticsProcessed = () => {
           .select(`
             *,
             customer:customers(name, phone, address, state, postcode, city),
-            product:products(name, sku)
+            product:products(name, sku),
+            marketer:profiles!customer_purchases_marketer_id_fkey(full_name, idstaff)
           `)
           .in("marketer_id", marketerIds)
           .eq("delivery_status", "Shipped")
@@ -736,8 +738,8 @@ const LogisticsProcessed = () => {
                           </td>
                           <td className="p-3">{(currentPage - 1) * pageSize + index + 1}</td>
                           <td className="p-3">{order.date_processed || "-"}</td>
-                          <td className="p-3 font-mono text-xs">{order.marketer_id_staff || "-"}</td>
-                          <td className="p-3">{order.marketer_name || "-"}</td>
+                          <td className="p-3 font-mono text-xs">{order.marketer?.idstaff || order.marketer_id_staff || "-"}</td>
+                          <td className="p-3">{order.marketer?.full_name || (order.marketer_id ? "-" : "Branch")}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.phone || order.no_phone || "-"}</td>
                           <td className="p-3">{order.product?.name || order.storehub_product || "-"}</td>
