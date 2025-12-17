@@ -614,14 +614,24 @@ const LogisticsProcessed = () => {
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search... (use + to combine filters)"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
-                  className="pl-10"
-                />
+              <div className="relative flex-1 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customer name or phone..."
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="default"
+                  onClick={() => handleFilterChange()}
+                  className="shrink-0"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
               </div>
               <div className="flex gap-2">
                 <Input
@@ -792,8 +802,8 @@ const LogisticsProcessed = () => {
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
                           <td className="p-3">{order.customer?.state || "-"}</td>
                           <td className="p-3">
-                            <div className="max-w-xs">
-                              <p className="text-sm truncate">{order.alamat || order.customer?.address || "-"}</p>
+                            <div className="min-w-[200px]">
+                              <p className="text-sm whitespace-normal">{order.alamat || order.customer?.address || "-"}</p>
                               <p className="text-xs text-muted-foreground">
                                 {order.customer?.postcode} {order.customer?.city}
                               </p>
