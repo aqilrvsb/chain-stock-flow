@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { format, startOfMonth } from "date-fns";
 import { getMalaysiaDate } from "@/lib/utils";
 import {
@@ -29,6 +37,7 @@ import {
   CreditCard,
   Trash2,
   Navigation,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -60,6 +69,24 @@ const LogisticsOrder = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [generatingTrackingFor, setGeneratingTrackingFor] = useState<string | null>(null);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    customerName: "",
+    phone: "",
+    address: "",
+    postcode: "",
+    city: "",
+    state: "",
+    quantity: 1,
+    totalPrice: 0,
+    paymentMethod: "Online Transfer",
+    notaStaff: "",
+    productId: "",
+  });
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -196,6 +223,12 @@ const LogisticsOrder = () => {
     if (platform === "shopee" || platform === "shopee hq") return "Shopee";
     // Everything else (Website, Facebook, etc.) goes through Ninjavan
     return "Ninjavan";
+  };
+
+  // Check if order is NinjaVan platform (Facebook, Google, Database)
+  const isNinjavanPlatform = (order: any) => {
+    const platform = getOrderPlatform(order)?.toLowerCase() || "";
+    return platform !== "tiktok" && platform !== "shopee" && platform !== "storehub";
   };
 
   // Filter orders
@@ -487,6 +520,25 @@ const LogisticsOrder = () => {
 
     setIsDeleting(true);
     try {
+      const { data: session } = await supabase.auth.getSession();
+      const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+      // Cancel NinjaVan tracking for orders that have tracking numbers (NinjaVan platform only)
+      for (const order of selectedOrdersList) {
+        if (order.tracking_number && isNinjavanPlatform(order)) {
+          try {
+            await supabase.functions.invoke("ninjavan-cancel", {
+              body: { trackingNumber: order.tracking_number, profileId: user?.id },
+              headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+            });
+          } catch (cancelError) {
+            console.error("Failed to cancel tracking:", order.tracking_number, cancelError);
+            // Continue with delete even if cancel fails
+          }
+        }
+      }
+
+      // Delete orders
       const deletePromises = Array.from(selectedOrders).map((orderId) =>
         supabase.from("customer_purchases").delete().eq("id", orderId)
       );
@@ -597,11 +649,168 @@ const LogisticsOrder = () => {
 
   // Check if order needs tracking generation (NinjaVan platforms without tracking)
   const needsTrackingGeneration = (order: any) => {
-    const platform = getOrderPlatform(order)?.toLowerCase() || "";
-    const isNinjavanPlatform = platform !== "tiktok" && platform !== "shopee" && platform !== "storehub";
-    const hasNoTracking = !order.tracking_number;
-    return isNinjavanPlatform && hasNoTracking;
+    return isNinjavanPlatform(order) && !order.tracking_number;
   };
+
+  // Open edit dialog
+  const handleOpenEdit = (order: any) => {
+    setEditingOrder(order);
+    setEditForm({
+      customerName: order.customer?.name || order.marketer_name || "",
+      phone: order.customer?.phone || order.no_phone || "",
+      address: order.alamat || order.customer?.address || "",
+      postcode: order.customer?.postcode || order.poskod || "",
+      city: order.customer?.city || order.bandar || "",
+      state: order.customer?.state || order.negeri || "",
+      quantity: order.quantity || 1,
+      totalPrice: Number(order.total_price || 0),
+      paymentMethod: order.payment_method || "Online Transfer",
+      notaStaff: order.nota_staff || "",
+      productId: order.product_id || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  // Save edited order
+  const handleSaveEdit = async () => {
+    if (!editingOrder) return;
+
+    setIsSavingEdit(true);
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const hasExistingTracking = !!editingOrder.tracking_number;
+      const isNinjavan = isNinjavanPlatform(editingOrder);
+
+      // Step 1: If has existing tracking, cancel it first
+      if (hasExistingTracking && isNinjavan) {
+        toast.info("Cancelling existing tracking...");
+        const cancelResponse = await supabase.functions.invoke("ninjavan-cancel", {
+          body: { trackingNumber: editingOrder.tracking_number, profileId: user?.id },
+          headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+        });
+
+        if (cancelResponse.error) {
+          console.error("Cancel tracking error:", cancelResponse.error);
+          // Continue anyway - tracking might already be cancelled
+        } else {
+          toast.success("Existing tracking cancelled");
+        }
+      }
+
+      // Step 2: Update order details in database
+      const updateData: any = {
+        quantity: editForm.quantity,
+        total_price: editForm.totalPrice,
+        payment_method: editForm.paymentMethod,
+        nota_staff: editForm.notaStaff,
+        alamat: editForm.address,
+        negeri: editForm.state,
+        poskod: editForm.postcode,
+        bandar: editForm.city,
+        no_phone: editForm.phone,
+        marketer_name: editForm.customerName,
+      };
+
+      // If product changed
+      if (editForm.productId && editForm.productId !== editingOrder.product_id) {
+        updateData.product_id = editForm.productId;
+      }
+
+      // Clear tracking number if it was cancelled
+      if (hasExistingTracking && isNinjavan) {
+        updateData.tracking_number = null;
+        updateData.ninjavan_order_id = null;
+      }
+
+      const { error: updateError } = await supabase
+        .from("customer_purchases")
+        .update(updateData)
+        .eq("id", editingOrder.id);
+
+      if (updateError) throw updateError;
+
+      // Also update customer record if exists
+      if (editingOrder.customer_id) {
+        await supabase
+          .from("customers")
+          .update({
+            name: editForm.customerName,
+            phone: editForm.phone,
+            address: editForm.address,
+            postcode: editForm.postcode,
+            city: editForm.city,
+            state: editForm.state,
+          })
+          .eq("id", editingOrder.customer_id);
+      }
+
+      // Step 3: Generate new tracking for NinjaVan platforms
+      if (isNinjavan) {
+        toast.info("Generating new tracking...");
+
+        const product = allProducts.find((p: any) => p.id === editForm.productId) || editingOrder.product;
+
+        const orderData = {
+          profileId: user?.id,
+          customerName: editForm.customerName,
+          phone: editForm.phone,
+          address: editForm.address,
+          postcode: editForm.postcode,
+          city: editForm.city,
+          state: editForm.state,
+          price: editForm.totalPrice,
+          paymentMethod: editForm.paymentMethod,
+          productName: product?.name || editingOrder.produk || "Product",
+          productSku: product?.sku || "",
+          quantity: editForm.quantity,
+          nota: editForm.notaStaff,
+          marketerIdStaff: editingOrder.marketer?.idstaff || editingOrder.marketer_id_staff || "",
+        };
+
+        const response = await supabase.functions.invoke("ninjavan-order", {
+          body: orderData,
+          headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+        });
+
+        if (response.error) {
+          throw new Error(response.error.message || "Failed to generate tracking");
+        }
+
+        const result = response.data;
+
+        if (!result.success || !result.trackingNumber) {
+          throw new Error(result.error || "Failed to get tracking number");
+        }
+
+        // Update order with new tracking number
+        await supabase
+          .from("customer_purchases")
+          .update({ tracking_number: result.trackingNumber })
+          .eq("id", editingOrder.id);
+
+        toast.success(`Order updated! New tracking: ${result.trackingNumber}`);
+      } else {
+        toast.success("Order updated successfully");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+      setEditDialogOpen(false);
+      setEditingOrder(null);
+    } catch (error: any) {
+      console.error("Save edit error:", error);
+      toast.error(error.message || "Failed to save changes");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Malaysian states list
+  const MALAYSIAN_STATES = [
+    "Johor", "Kedah", "Kelantan", "Melaka", "Negeri Sembilan",
+    "Pahang", "Perak", "Perlis", "Pulau Pinang", "Sabah",
+    "Sarawak", "Selangor", "Terengganu", "Kuala Lumpur", "Labuan", "Putrajaya"
+  ];
 
   return (
     <div className="space-y-6">
@@ -823,6 +1032,7 @@ const LogisticsOrder = () => {
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
                       <th className="p-3 text-left">Nota</th>
+                      <th className="p-3 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -914,11 +1124,21 @@ const LogisticsOrder = () => {
                           <td className="p-3">
                             <p className="text-sm truncate max-w-xs">{order.nota_staff || "-"}</p>
                           </td>
+                          <td className="p-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEdit(order)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={16} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={18} className="text-center py-12 text-muted-foreground">
                           No pending orders found.
                         </td>
                       </tr>
@@ -957,6 +1177,177 @@ const LogisticsOrder = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Order Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Order</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="customerName">Customer Name</Label>
+                <Input
+                  id="customerName"
+                  value={editForm.customerName}
+                  onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="postcode">Postcode</Label>
+                <Input
+                  id="postcode"
+                  value={editForm.postcode}
+                  onChange={(e) => setEditForm({ ...editForm, postcode: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  value={editForm.city}
+                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Select
+                  value={editForm.state}
+                  onValueChange={(v) => setEditForm({ ...editForm, state: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MALAYSIAN_STATES.map((state) => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={editForm.quantity}
+                  onChange={(e) => setEditForm({ ...editForm, quantity: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalPrice">Total Price (RM)</Label>
+                <Input
+                  id="totalPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editForm.totalPrice}
+                  onChange={(e) => setEditForm({ ...editForm, totalPrice: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentMethod">Payment Method</Label>
+                <Select
+                  value={editForm.paymentMethod}
+                  onValueChange={(v) => setEditForm({ ...editForm, paymentMethod: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Online Transfer">Online Transfer</SelectItem>
+                    <SelectItem value="COD">COD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="product">Product</Label>
+              <Select
+                value={editForm.productId}
+                onValueChange={(v) => setEditForm({ ...editForm, productId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allProducts.map((product: any) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notaStaff">Notes</Label>
+              <Input
+                id="notaStaff"
+                value={editForm.notaStaff}
+                onChange={(e) => setEditForm({ ...editForm, notaStaff: e.target.value })}
+                placeholder="Staff notes..."
+              />
+            </div>
+
+            {editingOrder && isNinjavanPlatform(editingOrder) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> This is a NinjaVan order ({getOrderPlatform(editingOrder)}).
+                  {editingOrder.tracking_number ? (
+                    <> Current tracking <span className="font-mono">{editingOrder.tracking_number}</span> will be cancelled and a new one will be generated.</>
+                  ) : (
+                    <> A new tracking number will be generated.</>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={isSavingEdit}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSavingEdit}>
+              {isSavingEdit ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

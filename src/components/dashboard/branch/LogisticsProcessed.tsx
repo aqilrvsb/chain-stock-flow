@@ -197,6 +197,12 @@ const LogisticsProcessed = () => {
     return "Ninjavan";
   };
 
+  // Check if order is NinjaVan platform (Facebook, Google, Database)
+  const isNinjavanPlatform = (order: any) => {
+    const platform = getOrderPlatform(order)?.toLowerCase() || "";
+    return platform !== "tiktok" && platform !== "shopee" && platform !== "storehub";
+  };
+
   // Filter orders
   const filteredOrders = orders.filter((order: any) => {
     // Search filter
@@ -380,8 +386,24 @@ const LogisticsProcessed = () => {
     setIsDeleting(true);
 
     try {
+      const { data: session } = await supabase.auth.getSession();
       // Get selected orders for inventory restoration BEFORE deleting
       const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+      // Cancel NinjaVan tracking for orders that have tracking numbers (NinjaVan platform only)
+      for (const order of selectedOrdersList) {
+        if (order.tracking_number && isNinjavanPlatform(order)) {
+          try {
+            await supabase.functions.invoke("ninjavan-cancel", {
+              body: { trackingNumber: order.tracking_number, profileId: user?.id },
+              headers: { Authorization: `Bearer ${session?.session?.access_token}` },
+            });
+          } catch (cancelError) {
+            console.error("Failed to cancel tracking:", order.tracking_number, cancelError);
+            // Continue with delete even if cancel fails
+          }
+        }
+      }
 
       // Restore inventory for each order (add back the quantity)
       for (const order of selectedOrdersList) {
