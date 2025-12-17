@@ -231,7 +231,7 @@ const LogisticsProcessed = () => {
 
   const isAllSelected = paginatedOrders.length > 0 && paginatedOrders.every((o: any) => selectedOrders.has(o.id));
 
-  // Bulk Pending action - revert to pending
+  // Bulk Pending action - revert to pending and restore inventory
   const handleBulkPending = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Please select orders to revert");
@@ -240,7 +240,7 @@ const LogisticsProcessed = () => {
 
     const result = await Swal.fire({
       title: "Revert Orders",
-      text: `Are you sure you want to revert ${selectedOrders.size} order(s) to Pending?`,
+      text: `Are you sure you want to revert ${selectedOrders.size} order(s) to Pending? Inventory will be restored.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, revert",
@@ -251,6 +251,10 @@ const LogisticsProcessed = () => {
     setIsPendingAction(true);
 
     try {
+      // Get selected orders for inventory restoration
+      const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+      // Update delivery status for all selected orders
       const updatePromises = Array.from(selectedOrders).map((orderId) =>
         supabase
           .from("customer_purchases")
@@ -264,9 +268,35 @@ const LogisticsProcessed = () => {
 
       await Promise.all(updatePromises);
 
-      toast.success(`${selectedOrders.size} order(s) reverted to Pending`);
+      // Restore inventory for each order (add back the quantity)
+      for (const order of selectedOrdersList) {
+        const productId = order.product_id;
+        const quantity = order.quantity || 0;
+
+        if (productId && quantity > 0) {
+          // Get current inventory
+          const { data: inventoryData } = await supabase
+            .from("inventory")
+            .select("id, quantity")
+            .eq("user_id", user?.id)
+            .eq("product_id", productId)
+            .single();
+
+          if (inventoryData) {
+            const newQuantity = inventoryData.quantity + quantity;
+            await supabase
+              .from("inventory")
+              .update({ quantity: newQuantity })
+              .eq("id", inventoryData.id);
+          }
+        }
+      }
+
+      toast.success(`${selectedOrders.size} order(s) reverted to Pending. Inventory restored.`);
       queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setSelectedOrders(new Set());
     } catch (error: any) {
       toast.error(error.message || "Failed to revert orders");
@@ -275,7 +305,7 @@ const LogisticsProcessed = () => {
     }
   };
 
-  // Bulk Delete action
+  // Bulk Delete action - delete orders and restore inventory
   const handleBulkDelete = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Please select orders to delete");
@@ -284,7 +314,7 @@ const LogisticsProcessed = () => {
 
     const result = await Swal.fire({
       title: "Delete Orders?",
-      html: `<p>Are you sure you want to delete <strong>${selectedOrders.size}</strong> order(s)?</p><p class="text-red-600 mt-2">This action cannot be undone.</p>`,
+      html: `<p>Are you sure you want to delete <strong>${selectedOrders.size}</strong> order(s)?</p><p class="text-red-600 mt-2">This action cannot be undone. Inventory will be restored.</p>`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -297,16 +327,45 @@ const LogisticsProcessed = () => {
     setIsDeleting(true);
 
     try {
+      // Get selected orders for inventory restoration BEFORE deleting
+      const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+      // Restore inventory for each order (add back the quantity)
+      for (const order of selectedOrdersList) {
+        const productId = order.product_id;
+        const quantity = order.quantity || 0;
+
+        if (productId && quantity > 0) {
+          // Get current inventory
+          const { data: inventoryData } = await supabase
+            .from("inventory")
+            .select("id, quantity")
+            .eq("user_id", user?.id)
+            .eq("product_id", productId)
+            .single();
+
+          if (inventoryData) {
+            const newQuantity = inventoryData.quantity + quantity;
+            await supabase
+              .from("inventory")
+              .update({ quantity: newQuantity })
+              .eq("id", inventoryData.id);
+          }
+        }
+      }
+
+      // Delete orders after restoring inventory
       const deletePromises = Array.from(selectedOrders).map((orderId) =>
         supabase.from("customer_purchases").delete().eq("id", orderId)
       );
 
       await Promise.all(deletePromises);
 
-      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      toast.success(`${selectedOrders.size} order(s) deleted. Inventory restored.`);
       queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setSelectedOrders(new Set());
     } catch (error: any) {

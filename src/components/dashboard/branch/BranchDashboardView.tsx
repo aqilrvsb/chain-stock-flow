@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Calendar, DollarSign, Users, ShoppingCart, Package, Store, Play, ShoppingBag, Facebook, Database, Globe } from "lucide-react";
+import { Loader2, Calendar, DollarSign, Users, ShoppingCart, Package, Store, Play, ShoppingBag, Facebook, Database, Globe, Boxes } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
 
 const BranchDashboardView = () => {
@@ -137,6 +137,11 @@ const BranchDashboardView = () => {
     const marketerSales = filteredMarketerOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
     const totalSales = branchSales + marketerSales;
 
+    // Total Units (Branch + Marketer)
+    const branchUnits = filteredBranchOrders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
+    const marketerUnits = filteredMarketerOrders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
+    const totalUnits = branchUnits + marketerUnits;
+
     // Total Marketer count
     const totalMarketer = marketers.length;
 
@@ -167,6 +172,7 @@ const BranchDashboardView = () => {
     // StoreHub uses transaction_total (grouped by invoice), others use total_price
     const branchByPlatform = (platform: string) => {
       const orders = filteredBranchOrders.filter((o: any) => o.platform === platform);
+      const units = orders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
 
       // For StoreHub, group by invoice and use transaction_total
       if (platform === "StoreHub") {
@@ -183,12 +189,12 @@ const BranchDashboardView = () => {
         });
         const sales = Array.from(invoiceTotals.values()).reduce((sum, v) => sum + v, 0);
         const customerIds = new Set(orders.map((o: any) => o.customer_id));
-        return { sales, customers: customerIds.size };
+        return { sales, customers: customerIds.size, units };
       }
 
       const sales = orders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
       const customerIds = new Set(orders.map((o: any) => o.customer_id));
-      return { sales, customers: customerIds.size };
+      return { sales, customers: customerIds.size, units };
     };
 
     const branchStorehub = branchByPlatform("StoreHub");
@@ -202,6 +208,7 @@ const BranchDashboardView = () => {
     const branchOnline = {
       sales: branchFacebook.sales + branchDatabase.sales + branchGoogle.sales,
       customers: branchFacebook.customers + branchDatabase.customers + branchGoogle.customers,
+      units: branchFacebook.units + branchDatabase.units + branchGoogle.units,
     };
 
     // Total Branch Customers
@@ -212,8 +219,9 @@ const BranchDashboardView = () => {
     const marketerByPlatform = (platform: string) => {
       const orders = filteredMarketerOrders.filter((o: any) => o.jenis_platform === platform);
       const sales = orders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
+      const units = orders.reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
       const customerIds = new Set(orders.map((o: any) => o.customer_id));
-      return { sales, customers: customerIds.size };
+      return { sales, customers: customerIds.size, units };
     };
 
     const marketerFB = marketerByPlatform("Facebook");
@@ -240,6 +248,9 @@ const BranchDashboardView = () => {
       totalSales,
       branchSales,
       marketerSales,
+      totalUnits,
+      branchUnits,
+      marketerUnits,
       totalMarketer,
       totalNinjaCOD,
       totalNinjaCash,
@@ -331,7 +342,7 @@ const BranchDashboardView = () => {
       </Card>
 
       {/* Main Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {/* Total Sales */}
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="pt-6">
@@ -340,6 +351,18 @@ const BranchDashboardView = () => {
               <span className="text-sm font-medium">TOTAL SALES</span>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(stats.totalSales)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Branch + Marketer</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Units */}
+        <Card className="border-l-4 border-l-cyan-500">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-cyan-600 mb-2">
+              <Boxes className="w-5 h-5" />
+              <span className="text-sm font-medium">TOTAL UNITS</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.totalUnits.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground mt-1">Branch + Marketer</p>
           </CardContent>
         </Card>
@@ -444,7 +467,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.branchStorehub.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.branchStorehub.customers}</span> customers
+                  <span className="text-foreground">{stats.branchStorehub.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.branchStorehub.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.branchStorehub.pct)}</p>
               </div>
@@ -461,7 +484,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.branchTiktok.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.branchTiktok.customers}</span> customers
+                  <span className="text-foreground">{stats.branchTiktok.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.branchTiktok.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.branchTiktok.pct)}</p>
               </div>
@@ -478,7 +501,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.branchShopee.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.branchShopee.customers}</span> customers
+                  <span className="text-foreground">{stats.branchShopee.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.branchShopee.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.branchShopee.pct)}</p>
               </div>
@@ -495,7 +518,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.branchOnline.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.branchOnline.customers}</span> customers
+                  <span className="text-foreground">{stats.branchOnline.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.branchOnline.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.branchOnline.pct)}</p>
               </div>
@@ -563,7 +586,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.marketerFB.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.marketerFB.customers}</span> customers
+                  <span className="text-foreground">{stats.marketerFB.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.marketerFB.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.marketerFB.pct)}</p>
               </div>
@@ -580,7 +603,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.marketerDatabase.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.marketerDatabase.customers}</span> customers
+                  <span className="text-foreground">{stats.marketerDatabase.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.marketerDatabase.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.marketerDatabase.pct)}</p>
               </div>
@@ -597,7 +620,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.marketerShopee.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.marketerShopee.customers}</span> customers
+                  <span className="text-foreground">{stats.marketerShopee.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.marketerShopee.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.marketerShopee.pct)}</p>
               </div>
@@ -614,7 +637,7 @@ const BranchDashboardView = () => {
               <p className="text-xl font-bold">{formatCurrency(stats.marketerTiktok.sales)}</p>
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  <span className="text-foreground">{stats.marketerTiktok.customers}</span> customers
+                  <span className="text-foreground">{stats.marketerTiktok.customers}</span> customers | <span className="text-cyan-600 font-medium">{stats.marketerTiktok.units}</span> units
                 </p>
                 <p className="text-xs text-muted-foreground">{formatPercent(stats.marketerTiktok.pct)}</p>
               </div>

@@ -139,11 +139,25 @@ const LogisticsOrder = () => {
     enabled: !!user?.id,
   });
 
+  // Helper function to get platform display value (fallback to platform/order_from if jenis_platform is empty)
+  const getOrderPlatform = (order: any) => {
+    if (order.jenis_platform) return order.jenis_platform;
+    // Fallback for old Branch HQ orders that only have platform/order_from
+    if (order.order_from) {
+      // Map order_from values to display values
+      if (order.order_from === "Tiktok HQ") return "Tiktok";
+      if (order.order_from === "Shopee HQ") return "Shopee";
+      return order.order_from; // Facebook, Database, Google, StoreHub
+    }
+    if (order.platform && order.platform !== "Manual") return order.platform;
+    return null;
+  };
+
   // Helper function to determine order platform category
   const getOrderPlatformCategory = (order: any) => {
-    const platform = order.jenis_platform?.toLowerCase() || "";
-    if (platform === "tiktok") return "Tiktok";
-    if (platform === "shopee") return "Shopee";
+    const platform = getOrderPlatform(order)?.toLowerCase() || "";
+    if (platform === "tiktok" || platform === "tiktok hq") return "Tiktok";
+    if (platform === "shopee" || platform === "shopee hq") return "Shopee";
     // Everything else (Website, Facebook, etc.) goes through Ninjavan
     return "Ninjavan";
   };
@@ -189,7 +203,7 @@ const LogisticsOrder = () => {
   // Counts - use all orders (before platform filter) for stats
   // Ninjavan = orders that are NOT Tiktok, NOT Shopee, NOT StoreHub
   const ninjavanOrders = orders.filter((o: any) => {
-    const platform = o.jenis_platform?.toLowerCase() || "";
+    const platform = getOrderPlatform(o)?.toLowerCase() || "";
     return platform !== "tiktok" && platform !== "shopee";
   });
 
@@ -197,9 +211,9 @@ const LogisticsOrder = () => {
     // Total Order (Branch Order except storehub + Marketer order) - already excluded in query
     total: orders.length,
     // Order Tiktok (Tiktok Branch + Tiktok Marketer)
-    tiktok: orders.filter((o: any) => o.jenis_platform?.toLowerCase() === "tiktok").length,
+    tiktok: orders.filter((o: any) => getOrderPlatform(o)?.toLowerCase() === "tiktok").length,
     // Order Shopee (Shopee Branch + Shopee Marketer)
-    shopee: orders.filter((o: any) => o.jenis_platform?.toLowerCase() === "shopee").length,
+    shopee: orders.filter((o: any) => getOrderPlatform(o)?.toLowerCase() === "shopee").length,
     // Order Ninjavan (order branch and marketer order but except tiktok, shopee, storehub)
     ninjavan: ninjavanOrders.length,
     // Order Ninjavan COD
@@ -304,14 +318,14 @@ const LogisticsOrder = () => {
     const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
 
     // Separate NinjaVan orders and Shopee/Tiktok orders
-    const ninjavanOrders = selectedOrdersList.filter(
-      (o: any) => o.jenis_platform !== "Shopee" && o.jenis_platform !== "Tiktok" && o.tracking_number
+    const ninjavanOrdersForPrint = selectedOrdersList.filter(
+      (o: any) => getOrderPlatform(o) !== "Shopee" && getOrderPlatform(o) !== "Tiktok" && o.tracking_number
     );
     const marketplaceOrders = selectedOrdersList.filter(
-      (o: any) => (o.jenis_platform === "Shopee" || o.jenis_platform === "Tiktok") && o.waybill_url
+      (o: any) => (getOrderPlatform(o) === "Shopee" || getOrderPlatform(o) === "Tiktok") && o.waybill_url
     );
 
-    if (ninjavanOrders.length === 0 && marketplaceOrders.length === 0) {
+    if (ninjavanOrdersForPrint.length === 0 && marketplaceOrders.length === 0) {
       toast.error("Selected orders do not have waybills to print");
       return;
     }
@@ -322,8 +336,8 @@ const LogisticsOrder = () => {
       const { data: session } = await supabase.auth.getSession();
 
       // Handle NinjaVan orders
-      if (ninjavanOrders.length > 0) {
-        const trackingNumbers = ninjavanOrders.map((o: any) => o.tracking_number);
+      if (ninjavanOrdersForPrint.length > 0) {
+        const trackingNumbers = ninjavanOrdersForPrint.map((o: any) => o.tracking_number);
 
         const response = await supabase.functions.invoke("ninjavan-waybill", {
           body: { trackingNumbers, profileId: user?.id },
@@ -688,7 +702,7 @@ const LogisticsOrder = () => {
                           <td className="p-3">{(currentPage - 1) * pageSize + index + 1}</td>
                           <td className="p-3">{order.date_order || "-"}</td>
                           <td className="p-3 font-mono text-xs">{order.marketer_id_staff || "-"}</td>
-                          <td className="p-3">{order.marketer_name || "-"}</td>
+                          <td className="p-3">{order.marketer_name || (order.marketer_id ? "-" : "Branch")}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.phone || order.no_phone || "-"}</td>
                           <td className="p-3">{order.product?.name || order.produk || order.storehub_product || "-"}</td>
@@ -701,14 +715,15 @@ const LogisticsOrder = () => {
                           </td>
                           <td className="p-3">
                             <span className={
-                              order.jenis_platform === "Tiktok" ? "text-pink-600 font-medium" :
-                              order.jenis_platform === "Shopee" ? "text-orange-500 font-medium" :
-                              order.jenis_platform === "Facebook" ? "text-blue-600 font-medium" :
-                              order.jenis_platform === "Google" ? "text-green-600 font-medium" :
-                              order.jenis_platform === "Database" ? "text-purple-600 font-medium" :
+                              getOrderPlatform(order) === "Tiktok" ? "text-pink-600 font-medium" :
+                              getOrderPlatform(order) === "Shopee" ? "text-orange-500 font-medium" :
+                              getOrderPlatform(order) === "Facebook" ? "text-blue-600 font-medium" :
+                              getOrderPlatform(order) === "Google" ? "text-green-600 font-medium" :
+                              getOrderPlatform(order) === "Database" ? "text-purple-600 font-medium" :
+                              getOrderPlatform(order) === "StoreHub" ? "text-teal-600 font-medium" :
                               "text-gray-600"
                             }>
-                              {order.jenis_platform || "-"}
+                              {getOrderPlatform(order) || "-"}
                             </span>
                           </td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>

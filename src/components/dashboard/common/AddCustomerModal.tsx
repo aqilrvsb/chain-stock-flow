@@ -88,11 +88,14 @@ const ORDER_FROM_OPTIONS = [
   "StoreHub",
 ];
 
-// These sources require manual tracking number and PDF attachment
+// These sources require manual tracking number and PDF attachment (no NinjaVan, phone optional)
 const MANUAL_TRACKING_SOURCES = ["Tiktok HQ", "Shopee HQ"];
 
-// These sources use NinjaVan for shipping (all except Tiktok HQ/Shopee HQ which have their own tracking)
-const NINJAVAN_SOURCES = ["Facebook", "Database", "Google", "StoreHub"];
+// StoreHub also doesn't use NinjaVan (phone optional)
+const NO_NINJAVAN_SOURCES = ["Tiktok HQ", "Shopee HQ", "StoreHub"];
+
+// These sources use NinjaVan for shipping (phone REQUIRED for shipping)
+const NINJAVAN_SOURCES = ["Facebook", "Database", "Google"];
 
 const AddCustomerModal = ({
   open,
@@ -138,10 +141,7 @@ const AddCustomerModal = ({
   };
 
   const handleSubmit = () => {
-    // For Branch with NinjaVan sources, require postcode and city for shipping
-    const requiresNinjavanFieldsSubmit = usesNinjaVan;
-
-    // Basic validation - phone is now optional
+    // Basic validation - phone is optional for non-NinjaVan sources
     if (!customerName || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
       return;
     }
@@ -156,8 +156,8 @@ const AddCustomerModal = ({
       return;
     }
 
-    // For NinjaVan sources: require postcode and city for shipping
-    if (requiresNinjavanFieldsSubmit && (!customerPostcode || !customerCity)) {
+    // For NinjaVan sources: require phone, postcode and city for shipping
+    if (usesNinjaVan && (!customerPhone || !customerPostcode || !customerCity)) {
       return;
     }
 
@@ -198,9 +198,6 @@ const AddCustomerModal = ({
     }
   };
 
-  // For Branch with NinjaVan sources, require postcode and city for shipping
-  const requiresNinjavanFields = usesNinjaVan;
-
   const isFormValid =
     customerName &&
     customerState &&
@@ -215,8 +212,8 @@ const AddCustomerModal = ({
     (userType !== "branch" || orderFrom) &&
     // Tiktok/Shopee requires tracking number
     (!requiresManualTracking || trackingNumber) &&
-    // NinjaVan sources require postcode + city
-    (!requiresNinjavanFields || (customerPostcode && customerCity));
+    // NinjaVan sources require phone, postcode + city
+    (!usesNinjaVan || (customerPhone && customerPostcode && customerCity));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -236,15 +233,22 @@ const AddCustomerModal = ({
             />
           </div>
 
-          {/* Customer Phone - Optional */}
+          {/* Customer Phone - Required for NinjaVan, Optional for others */}
           <div className="space-y-2">
-            <Label htmlFor="customer-phone">Phone Customer (Optional)</Label>
+            <Label htmlFor="customer-phone">
+              Phone Customer {usesNinjaVan ? "*" : "(Optional)"}
+            </Label>
             <Input
               id="customer-phone"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               placeholder="Enter customer phone"
             />
+            {usesNinjaVan && (
+              <p className="text-xs text-blue-600">
+                Phone is required for NinjaVan shipping.
+              </p>
+            )}
           </div>
 
           {/* Customer Address */}
@@ -260,7 +264,7 @@ const AddCustomerModal = ({
           </div>
 
           {/* Postcode and City - Required for NinjaVan */}
-          {requiresNinjavanFields && (
+          {usesNinjaVan && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="customer-postcode">Postcode *</Label>

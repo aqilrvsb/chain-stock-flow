@@ -542,16 +542,27 @@ const Customers = ({ userType }: CustomersProps) => {
         }
       }
 
-      // Map orderFrom to platform
+      // Map orderFrom to platform and jenis_platform
       let platform = 'Manual';
+      let jenisPlatform = 'Website'; // Default for NinjaVan orders
       if (orderFromValue) {
         // Use orderFrom value directly as platform (Tiktok HQ, Shopee HQ, Online, StoreHub)
         platform = orderFromValue;
+        // Map to jenis_platform for Logistics Order display
+        // "Tiktok HQ" -> "Tiktok", "Shopee HQ" -> "Shopee", others -> "Facebook" (NinjaVan)
+        if (orderFromValue === 'Tiktok HQ') {
+          jenisPlatform = 'Tiktok';
+        } else if (orderFromValue === 'Shopee HQ') {
+          jenisPlatform = 'Shopee';
+        } else {
+          // Facebook, Database, Google, StoreHub -> use as-is
+          jenisPlatform = orderFromValue;
+        }
       }
 
-      // Only Tiktok HQ and Shopee HQ orders go directly to Shipped status
-      // Other sources (Facebook, Database, Google, StoreHub) go to Pending even with tracking
-      const isDirectShipped = orderFromValue === 'Tiktok HQ' || orderFromValue === 'Shopee HQ';
+      // Tiktok HQ, Shopee HQ, and StoreHub orders go directly to Shipped status (auto-deduct inventory)
+      // NinjaVan sources (Facebook, Database, Google) go to Pending - inventory deducted when shipped via Logistics
+      const isDirectShipped = orderFromValue === 'Tiktok HQ' || orderFromValue === 'Shopee HQ' || orderFromValue === 'StoreHub';
       const deliveryStatus = isDirectShipped ? 'Shipped' : 'Pending';
       const dateProcessed = isDirectShipped ? getMalaysiaDate() : null;
 
@@ -577,6 +588,7 @@ const Customers = ({ userType }: CustomersProps) => {
           tracking_number: trackingNumber,
           remarks: 'Customer purchase',
           platform: platform,
+          jenis_platform: jenisPlatform,
           ninjavan_order_id: ninjavanOrderId,
           order_from: data.orderFrom || null,
           attachment_url: attachmentUrl,
@@ -598,8 +610,8 @@ const Customers = ({ userType }: CustomersProps) => {
 
       if (purchaseError) throw purchaseError;
 
-      // Only deduct inventory for auto-shipped orders (Tiktok HQ, Shopee HQ)
-      // Facebook/Database/Google orders will deduct when moved to "Shipped" in Logistics Order
+      // Only deduct inventory for auto-shipped orders (Tiktok HQ, Shopee HQ, StoreHub)
+      // NinjaVan orders (Facebook/Database/Google) will deduct when moved to "Shipped" in Logistics Order
       if (isDirectShipped) {
         const { error: updateError } = await supabase
           .from('inventory')
