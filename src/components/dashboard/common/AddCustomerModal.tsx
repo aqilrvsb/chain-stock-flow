@@ -67,7 +67,7 @@ const MALAYSIAN_STATES = [
   "Terengganu",
 ];
 
-const PAYMENT_METHODS = ["COD", "Online Transfer", "Cash"];
+const PAYMENT_METHODS = ["COD", "Online Transfer"];
 
 const CLOSING_TYPES = [
   "Website",
@@ -151,8 +151,10 @@ const AddCustomerModal = ({
       return;
     }
 
-    // For Tiktok/Shopee: tracking number and attachment are optional now
-    // (user can still provide them but not required)
+    // For Tiktok/Shopee: require tracking number (PDF attachment optional)
+    if (requiresManualTracking && !trackingNumber) {
+      return;
+    }
 
     // For NinjaVan sources: require postcode and city for shipping
     if (requiresNinjavanFieldsSubmit && (!customerPostcode || !customerCity)) {
@@ -211,6 +213,8 @@ const AddCustomerModal = ({
     parseFloat(price) > 0 &&
     // Branch requires orderFrom
     (userType !== "branch" || orderFrom) &&
+    // Tiktok/Shopee requires tracking number
+    (!requiresManualTracking || trackingNumber) &&
     // NinjaVan sources require postcode + city
     (!requiresNinjavanFields || (customerPostcode && customerCity));
 
