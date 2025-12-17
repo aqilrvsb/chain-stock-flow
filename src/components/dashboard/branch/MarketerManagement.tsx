@@ -24,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Users, Plus, Loader2, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Users, Plus, Loader2, Eye, EyeOff, Trash2, Pencil } from "lucide-react";
 import Swal from "sweetalert2";
 
 const MarketerManagement = () => {
@@ -37,6 +37,11 @@ const MarketerManagement = () => {
   const [idStaff, setIdStaff] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
+
+  // Edit state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingMarketer, setEditingMarketer] = useState<any>(null);
+  const [editFullName, setEditFullName] = useState("");
 
   // Fetch marketers under this branch - simple query by branch_id
   // Marketers have branch_id set to the Branch user who created them
@@ -115,6 +120,55 @@ const MarketerManagement = () => {
       toast.error("Failed to update status");
     },
   });
+
+  // Update marketer name mutation
+  const updateMarketerMutation = useMutation({
+    mutationFn: async ({
+      marketerId,
+      fullName,
+    }: {
+      marketerId: string;
+      fullName: string;
+    }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName })
+        .eq("id", marketerId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Marketer name updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["branch-marketers"] });
+      setIsEditDialogOpen(false);
+      setEditingMarketer(null);
+      setEditFullName("");
+    },
+    onError: () => {
+      toast.error("Failed to update marketer name");
+    },
+  });
+
+  // Open edit dialog
+  const openEditDialog = (marketer: any) => {
+    setEditingMarketer(marketer);
+    setEditFullName(marketer.full_name || "");
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle edit submit
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFullName.trim()) {
+      toast.error("Please enter a name");
+      return;
+    }
+    if (!editingMarketer) return;
+    updateMarketerMutation.mutate({
+      marketerId: editingMarketer.id,
+      fullName: editFullName.trim(),
+    });
+  };
 
   // Delete marketer and all transactions
   const deleteMarketer = async (marketerId: string, marketerName: string) => {
@@ -377,13 +431,22 @@ const MarketerManagement = () => {
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteMarketer(marketer.id, marketer.full_name || marketer.idstaff)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(marketer)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteMarketer(marketer.id, marketer.full_name || marketer.idstaff)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -392,6 +455,53 @@ const MarketerManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Marketer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Marketer</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Staff ID</Label>
+              <Input
+                value={editingMarketer?.idstaff || ""}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editFullName">Full Name</Label>
+              <Input
+                id="editFullName"
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                placeholder="Enter full name"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateMarketerMutation.isPending}>
+                {updateMarketerMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
