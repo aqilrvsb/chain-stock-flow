@@ -27,6 +27,7 @@ import {
   Music2,
   DollarSign,
   CreditCard,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -57,6 +58,7 @@ const LogisticsProcessed = () => {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isPendingAction, setIsPendingAction] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -270,6 +272,47 @@ const LogisticsProcessed = () => {
       toast.error(error.message || "Failed to revert orders");
     } finally {
       setIsPendingAction(false);
+    }
+  };
+
+  // Bulk Delete action
+  const handleBulkDelete = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Please select orders to delete");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Delete Orders?",
+      html: `<p>Are you sure you want to delete <strong>${selectedOrders.size}</strong> order(s)?</p><p class="text-red-600 mt-2">This action cannot be undone.</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsDeleting(true);
+
+    try {
+      const deletePromises = Array.from(selectedOrders).map((orderId) =>
+        supabase.from("customer_purchases").delete().eq("id", orderId)
+      );
+
+      await Promise.all(deletePromises);
+
+      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
+      queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      setSelectedOrders(new Set());
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete orders");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -571,6 +614,14 @@ const LogisticsProcessed = () => {
                 >
                   {isPendingAction ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
                   Pending ({selectedOrders.size})
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={selectedOrders.size === 0 || isDeleting}
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                  Delete ({selectedOrders.size})
                 </Button>
               </div>
             </div>
