@@ -549,11 +549,11 @@ const Customers = ({ userType }: CustomersProps) => {
         platform = data.orderFrom;
       }
 
-      // Orders with tracking number go directly to Shipped status
-      // This includes: Tiktok HQ, Shopee HQ (manual tracking), and NinjaVan orders (auto tracking)
-      const hasTrackingNumber = !!trackingNumber;
-      const deliveryStatus = hasTrackingNumber ? 'Shipped' : 'Pending';
-      const dateProcessed = hasTrackingNumber ? getMalaysiaDate() : null;
+      // Only Tiktok HQ and Shopee HQ orders go directly to Shipped status
+      // Other sources (Facebook, Database, Google, StoreHub) go to Pending even with tracking
+      const isDirectShipped = data.orderFrom === 'Tiktok HQ' || data.orderFrom === 'Shopee HQ';
+      const deliveryStatus = isDirectShipped ? 'Shipped' : 'Pending';
+      const dateProcessed = isDirectShipped ? getMalaysiaDate() : null;
 
       // Create customer purchase record
       const { error: purchaseError } = await supabase
