@@ -532,6 +532,7 @@ const LogisticsReturn = () => {
                       <th className="p-3 text-left">Total</th>
                       <th className="p-3 text-left">Payment</th>
                       <th className="p-3 text-left">Platform</th>
+                      <th className="p-3 text-left">Closing</th>
                       <th className="p-3 text-left">Tracking</th>
                       <th className="p-3 text-left">State</th>
                       <th className="p-3 text-left">Address</th>
@@ -575,6 +576,7 @@ const LogisticsReturn = () => {
                               {getOrderPlatform(order) || "-"}
                             </span>
                           </td>
+                          <td className="p-3">{order.closing_type || order.jenis_closing || "-"}</td>
                           <td className="p-3 font-mono text-sm">{order.tracking_number || "-"}</td>
                           <td className="p-3">{order.customer?.state || order.negeri || "-"}</td>
                           <td className="p-3">
@@ -592,7 +594,7 @@ const LogisticsReturn = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={16} className="text-center py-12 text-muted-foreground">
+                        <td colSpan={17} className="text-center py-12 text-muted-foreground">
                           No return orders found.
                         </td>
                       </tr>
