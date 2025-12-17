@@ -229,7 +229,7 @@ const LogisticsOrder = () => {
 
   const isAllSelected = paginatedOrders.length > 0 && paginatedOrders.every((o: any) => selectedOrders.has(o.id));
 
-  // Bulk Ship action
+  // Bulk Ship action - also deducts inventory
   const handleBulkShipped = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Please select orders to mark as shipped");
@@ -240,6 +240,10 @@ const LogisticsOrder = () => {
     const today = getMalaysiaDate();
 
     try {
+      // Get selected orders with their product_id and quantity
+      const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
+
+      // Update delivery status for all selected orders
       const updatePromises = Array.from(selectedOrders).map((orderId) =>
         supabase
           .from("customer_purchases")
@@ -253,9 +257,35 @@ const LogisticsOrder = () => {
 
       await Promise.all(updatePromises);
 
-      toast.success(`${selectedOrders.size} order(s) marked as Shipped`);
+      // Deduct inventory for each order
+      for (const order of selectedOrdersList) {
+        const productId = order.product_id;
+        const quantity = order.quantity || 0;
+
+        if (productId && quantity > 0) {
+          // Get current inventory
+          const { data: inventoryData } = await supabase
+            .from("inventory")
+            .select("id, quantity")
+            .eq("user_id", user?.id)
+            .eq("product_id", productId)
+            .single();
+
+          if (inventoryData) {
+            const newQuantity = Math.max(0, inventoryData.quantity - quantity);
+            await supabase
+              .from("inventory")
+              .update({ quantity: newQuantity })
+              .eq("id", inventoryData.id);
+          }
+        }
+      }
+
+      toast.success(`${selectedOrders.size} order(s) marked as Shipped. Inventory updated.`);
       queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setSelectedOrders(new Set());
     } catch (error: any) {
       toast.error(error.message || "Failed to update orders");
@@ -337,10 +367,13 @@ const LogisticsOrder = () => {
     }
   };
 
-  // Process single order
+  // Process single order - also deducts inventory
   const handleProcessOrder = async (orderId: string) => {
     const today = getMalaysiaDate();
     try {
+      // Get order details for inventory deduction
+      const order = orders.find((o: any) => o.id === orderId);
+
       await supabase
         .from("customer_purchases")
         .update({
@@ -350,9 +383,29 @@ const LogisticsOrder = () => {
         })
         .eq("id", orderId);
 
-      toast.success("Order marked as Shipped");
+      // Deduct inventory
+      if (order?.product_id && order?.quantity > 0) {
+        const { data: inventoryData } = await supabase
+          .from("inventory")
+          .select("id, quantity")
+          .eq("user_id", user?.id)
+          .eq("product_id", order.product_id)
+          .single();
+
+        if (inventoryData) {
+          const newQuantity = Math.max(0, inventoryData.quantity - order.quantity);
+          await supabase
+            .from("inventory")
+            .update({ quantity: newQuantity })
+            .eq("id", inventoryData.id);
+        }
+      }
+
+      toast.success("Order marked as Shipped. Inventory updated.");
       queryClient.invalidateQueries({ queryKey: ["logistics-order"] });
       queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     } catch (error: any) {
       toast.error(error.message || "Failed to process order");
     }

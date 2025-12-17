@@ -598,14 +598,17 @@ const Customers = ({ userType }: CustomersProps) => {
 
       if (purchaseError) throw purchaseError;
 
-      // Deduct inventory from seller
-      const { error: updateError } = await supabase
-        .from('inventory')
-        .update({ quantity: inventoryData.quantity - data.quantity })
-        .eq('user_id', user?.id)
-        .eq('product_id', data.productId);
+      // Only deduct inventory for auto-shipped orders (Tiktok HQ, Shopee HQ)
+      // Facebook/Database/Google orders will deduct when moved to "Shipped" in Logistics Order
+      if (isDirectShipped) {
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ quantity: inventoryData.quantity - data.quantity })
+          .eq('user_id', user?.id)
+          .eq('product_id', data.productId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+      }
 
       // For Branch: Track prospect status (NP/EP/EC) for leads reporting (only if phone provided)
       if (userType === 'branch' && data.customerPhone && data.customerPhone.trim()) {
