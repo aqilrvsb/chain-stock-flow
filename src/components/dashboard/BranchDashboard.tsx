@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DashboardLayout from "./DashboardLayout";
 import BranchProductManagement from "./branch/BranchProductManagement";
+import BranchProductTransaction from "./branch/BranchProductTransaction";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
 import RewardAgentPlatinum from "./master-agent/RewardAgentPlatinum";
@@ -30,6 +31,8 @@ const BranchDashboard = () => {
     switch (activeView) {
       case "inventory":
         return <BranchProductManagement />;
+      case "product-transaction":
+        return <BranchProductTransaction />;
       case "stock-in":
         return <StockInBranch />;
       case "stock-out":

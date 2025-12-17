@@ -215,12 +215,30 @@ const LogisticsPendingTracking = () => {
 
     const selectedOrdersList = paginatedOrders.filter((o: any) => selectedOrders.has(o.id));
 
+    // Helper to get platform
+    const getOrderPlatform = (order: any) => {
+      if (order.jenis_platform) return order.jenis_platform;
+      if (order.order_from) {
+        if (order.order_from === "Tiktok HQ") return "Tiktok";
+        if (order.order_from === "Shopee HQ") return "Shopee";
+        return order.order_from;
+      }
+      if (order.platform && order.platform !== "Manual") return order.platform;
+      return null;
+    };
+
     // Separate NinjaVan orders and Shopee/Tiktok orders
     const ninjavanOrders = selectedOrdersList.filter(
-      (o: any) => o.jenis_platform !== "Shopee" && o.jenis_platform !== "Tiktok" && o.tracking_number
+      (o: any) => {
+        const platform = getOrderPlatform(o)?.toLowerCase() || "";
+        return platform !== "shopee" && platform !== "shopee hq" && platform !== "tiktok" && platform !== "tiktok hq" && o.tracking_number;
+      }
     );
     const marketplaceOrders = selectedOrdersList.filter(
-      (o: any) => (o.jenis_platform === "Shopee" || o.jenis_platform === "Tiktok") && o.waybill_url
+      (o: any) => {
+        const platform = getOrderPlatform(o)?.toLowerCase() || "";
+        return (platform === "shopee" || platform === "shopee hq" || platform === "tiktok" || platform === "tiktok hq") && o.waybill_url;
+      }
     );
 
     if (ninjavanOrders.length === 0 && marketplaceOrders.length === 0) {

@@ -611,6 +611,15 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                         </SidebarMenuSubItem>
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
+                            onClick={() => onViewChange("product-transaction")}
+                            isActive={activeView === "product-transaction"}
+                            className="cursor-pointer"
+                          >
+                            <span>Product Transaction</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
                             onClick={() => onViewChange("stock-in")}
                             isActive={activeView === "stock-in"}
                             className="cursor-pointer"
