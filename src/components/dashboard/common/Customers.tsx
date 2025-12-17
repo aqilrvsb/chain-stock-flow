@@ -472,8 +472,9 @@ const Customers = ({ userType }: CustomersProps) => {
       }
 
       // Determine if this order uses NinjaVan or manual tracking
-      const usesManualTracking = data.orderFrom && MANUAL_TRACKING_SOURCES.includes(data.orderFrom);
-      const usesNinjaVan = userType === 'branch' && data.orderFrom && !usesManualTracking;
+      const orderFromValue = data.orderFrom?.trim() || '';
+      const usesManualTracking = orderFromValue && MANUAL_TRACKING_SOURCES.includes(orderFromValue);
+      const usesNinjaVan = userType === 'branch' && orderFromValue && !usesManualTracking;
 
       // For COD payments with NinjaVan sources, create NinjaVan order
       let trackingNumber = data.trackingNumber || null;
@@ -543,16 +544,23 @@ const Customers = ({ userType }: CustomersProps) => {
 
       // Map orderFrom to platform
       let platform = 'Manual';
-      if (data.orderFrom) {
+      if (orderFromValue) {
         // Use orderFrom value directly as platform (Tiktok HQ, Shopee HQ, Online, StoreHub)
-        platform = data.orderFrom;
+        platform = orderFromValue;
       }
 
       // Only Tiktok HQ and Shopee HQ orders go directly to Shipped status
       // Other sources (Facebook, Database, Google, StoreHub) go to Pending even with tracking
-      const isDirectShipped = data.orderFrom === 'Tiktok HQ' || data.orderFrom === 'Shopee HQ';
+      const isDirectShipped = orderFromValue === 'Tiktok HQ' || orderFromValue === 'Shopee HQ';
       const deliveryStatus = isDirectShipped ? 'Shipped' : 'Pending';
       const dateProcessed = isDirectShipped ? getMalaysiaDate() : null;
+
+      console.log('Order creation debug:', {
+        orderFrom: data.orderFrom,
+        orderFromValue,
+        isDirectShipped,
+        deliveryStatus
+      });
 
       // Create customer purchase record
       const { error: purchaseError } = await supabase
