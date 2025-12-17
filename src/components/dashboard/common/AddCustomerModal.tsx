@@ -67,7 +67,7 @@ const MALAYSIAN_STATES = [
   "Terengganu",
 ];
 
-const PAYMENT_METHODS = ["Online Transfer", "COD"];
+const PAYMENT_METHODS = ["COD", "Online Transfer", "Cash"];
 
 const CLOSING_TYPES = [
   "Website",
@@ -141,8 +141,8 @@ const AddCustomerModal = ({
     // For Branch with NinjaVan sources, require postcode and city for shipping
     const requiresNinjavanFieldsSubmit = usesNinjaVan;
 
-    // Basic validation
-    if (!customerName || !customerPhone || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
+    // Basic validation - phone is now optional
+    if (!customerName || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
       return;
     }
 
@@ -151,10 +151,8 @@ const AddCustomerModal = ({
       return;
     }
 
-    // For Tiktok/Shopee: require tracking number and attachment
-    if (requiresManualTracking && (!trackingNumber || !attachmentFile)) {
-      return;
-    }
+    // For Tiktok/Shopee: tracking number and attachment are optional now
+    // (user can still provide them but not required)
 
     // For NinjaVan sources: require postcode and city for shipping
     if (requiresNinjavanFieldsSubmit && (!customerPostcode || !customerCity)) {
@@ -163,7 +161,7 @@ const AddCustomerModal = ({
 
     onSubmit({
       customerName,
-      customerPhone,
+      customerPhone: customerPhone || "", // Allow empty phone
       customerAddress,
       customerPostcode: customerPostcode || undefined,
       customerCity: customerCity || undefined,
@@ -203,7 +201,6 @@ const AddCustomerModal = ({
 
   const isFormValid =
     customerName &&
-    customerPhone &&
     customerState &&
     paymentMethod &&
     closingType &&
@@ -214,9 +211,7 @@ const AddCustomerModal = ({
     parseFloat(price) > 0 &&
     // Branch requires orderFrom
     (userType !== "branch" || orderFrom) &&
-    // Tiktok/Shopee requires tracking + attachment
-    (!requiresManualTracking || (trackingNumber && attachmentFile)) &&
-    // NinjaVan COD requires postcode + city
+    // NinjaVan sources require postcode + city
     (!requiresNinjavanFields || (customerPostcode && customerCity));
 
   return (
@@ -228,7 +223,7 @@ const AddCustomerModal = ({
         <div className="space-y-4 py-4">
           {/* Customer Name */}
           <div className="space-y-2">
-            <Label htmlFor="customer-name">Name Customer</Label>
+            <Label htmlFor="customer-name">Name Customer *</Label>
             <Input
               id="customer-name"
               value={customerName}
@@ -237,9 +232,9 @@ const AddCustomerModal = ({
             />
           </div>
 
-          {/* Customer Phone */}
+          {/* Customer Phone - Optional */}
           <div className="space-y-2">
-            <Label htmlFor="customer-phone">Phone Customer</Label>
+            <Label htmlFor="customer-phone">Phone Customer (Optional)</Label>
             <Input
               id="customer-phone"
               value={customerPhone}
@@ -260,7 +255,7 @@ const AddCustomerModal = ({
             />
           </div>
 
-          {/* Postcode and City - Required for COD (NinjaVan) */}
+          {/* Postcode and City - Required for NinjaVan */}
           {requiresNinjavanFields && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -286,7 +281,7 @@ const AddCustomerModal = ({
 
           {/* State */}
           <div className="space-y-2">
-            <Label htmlFor="customer-state">State</Label>
+            <Label htmlFor="customer-state">State *</Label>
             <Select value={customerState} onValueChange={setCustomerState}>
               <SelectTrigger id="customer-state">
                 <SelectValue placeholder="Select state" />
@@ -303,7 +298,7 @@ const AddCustomerModal = ({
 
           {/* Payment Method */}
           <div className="space-y-2">
-            <Label htmlFor="payment-method">Payment Method</Label>
+            <Label htmlFor="payment-method">Payment Method *</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
               <SelectTrigger id="payment-method">
                 <SelectValue placeholder="Select payment method" />
@@ -349,7 +344,7 @@ const AddCustomerModal = ({
 
           {/* Jenis Closing */}
           <div className="space-y-2">
-            <Label htmlFor="closing-type">Jenis Closing</Label>
+            <Label htmlFor="closing-type">Jenis Closing *</Label>
             <Select value={closingType} onValueChange={setClosingType}>
               <SelectTrigger id="closing-type">
                 <SelectValue placeholder="Select jenis closing" />
@@ -366,7 +361,7 @@ const AddCustomerModal = ({
 
           {/* Product */}
           <div className="space-y-2">
-            <Label htmlFor="product">Product</Label>
+            <Label htmlFor="product">Product *</Label>
             <Select value={productId} onValueChange={setProductId}>
               <SelectTrigger id="product">
                 <SelectValue placeholder="Select product" />
@@ -383,7 +378,7 @@ const AddCustomerModal = ({
 
           {/* Unit/Quantity */}
           <div className="space-y-2">
-            <Label htmlFor="quantity">Unit</Label>
+            <Label htmlFor="quantity">Unit *</Label>
             <Input
               id="quantity"
               type="number"
@@ -396,7 +391,7 @@ const AddCustomerModal = ({
 
           {/* Price */}
           <div className="space-y-2">
-            <Label htmlFor="price">Price (RM)</Label>
+            <Label htmlFor="price">Price (RM) *</Label>
             <Input
               id="price"
               type="number"
@@ -408,10 +403,10 @@ const AddCustomerModal = ({
             />
           </div>
 
-          {/* Tracking Number */}
+          {/* Tracking Number - Optional for all, but shows hint for Tiktok/Shopee */}
           <div className="space-y-2">
             <Label htmlFor="tracking-number">
-              Tracking Number {requiresManualTracking ? "*" : requiresNinjavanFields ? "(Auto-generated by NinjaVan)" : "(Optional)"}
+              Tracking Number {requiresManualTracking ? "*" : usesNinjaVan ? "(Auto-generated)" : "(Optional)"}
             </Label>
             <Input
               id="tracking-number"
@@ -420,23 +415,23 @@ const AddCustomerModal = ({
               placeholder={
                 requiresManualTracking
                   ? "Enter tracking number from Tiktok/Shopee"
-                  : requiresNinjavanFields
+                  : usesNinjaVan
                   ? "Will be auto-generated"
-                  : "Enter tracking number"
+                  : "Enter tracking number (optional)"
               }
-              disabled={requiresNinjavanFields}
+              disabled={usesNinjaVan}
             />
-            {requiresNinjavanFields && (
+            {usesNinjaVan && (
               <p className="text-xs text-muted-foreground">
                 Tracking number will be automatically generated by NinjaVan.
               </p>
             )}
           </div>
 
-          {/* PDF Attachment - Required for Tiktok/Shopee */}
+          {/* PDF Attachment - For Tiktok/Shopee (optional now) */}
           {requiresManualTracking && (
             <div className="space-y-2">
-              <Label htmlFor="attachment">PDF Attachment *</Label>
+              <Label htmlFor="attachment">PDF Attachment (Optional)</Label>
               <div className="flex flex-col gap-2">
                 <input
                   ref={fileInputRef}

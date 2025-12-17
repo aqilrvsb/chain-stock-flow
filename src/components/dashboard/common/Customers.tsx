@@ -427,15 +427,19 @@ const Customers = ({ userType }: CustomersProps) => {
       const selectedProduct = products?.find(p => p.id === data.productId);
       const productName = selectedProduct?.name || "Product";
 
-      // Check if customer exists
-      const { data: existingCustomer } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('phone', data.customerPhone)
-        .eq('created_by', user?.id)
-        .maybeSingle();
+      // Check if customer exists (only if phone provided)
+      let customerId: string | null = null;
 
-      let customerId = existingCustomer?.id;
+      if (data.customerPhone) {
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('phone', data.customerPhone)
+          .eq('created_by', user?.id)
+          .maybeSingle();
+
+        customerId = existingCustomer?.id || null;
+      }
 
       // Create customer if doesn't exist
       if (!customerId) {
@@ -443,7 +447,7 @@ const Customers = ({ userType }: CustomersProps) => {
           .from('customers')
           .insert({
             name: data.customerName,
-            phone: data.customerPhone,
+            phone: data.customerPhone || `walk-in-${Date.now()}`, // Generate unique phone for walk-in
             address: data.customerAddress,
             postcode: data.customerPostcode || null,
             city: data.customerCity || null,
@@ -588,8 +592,8 @@ const Customers = ({ userType }: CustomersProps) => {
 
       if (updateError) throw updateError;
 
-      // For Branch: Track prospect status (NP/EP/EC) for leads reporting
-      if (userType === 'branch' && data.customerPhone) {
+      // For Branch: Track prospect status (NP/EP/EC) for leads reporting (only if phone provided)
+      if (userType === 'branch' && data.customerPhone && data.customerPhone.trim()) {
         try {
           // Check lead and determine type
           const leadResult = await checkLeadAndDetermineType(data.customerPhone);
