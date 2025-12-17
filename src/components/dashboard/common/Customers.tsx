@@ -549,6 +549,11 @@ const Customers = ({ userType }: CustomersProps) => {
         platform = data.orderFrom;
       }
 
+      // Tiktok HQ and Shopee HQ orders go directly to Shipped status
+      const isDirectShipped = data.orderFrom === 'Tiktok HQ' || data.orderFrom === 'Shopee HQ';
+      const deliveryStatus = isDirectShipped ? 'Shipped' : 'Pending';
+      const dateProcessed = isDirectShipped ? getMalaysiaDate() : null;
+
       // Create customer purchase record
       const { error: purchaseError } = await supabase
         .from('customer_purchases')
@@ -567,6 +572,8 @@ const Customers = ({ userType }: CustomersProps) => {
           ninjavan_order_id: ninjavanOrderId,
           order_from: data.orderFrom || null,
           attachment_url: attachmentUrl,
+          delivery_status: deliveryStatus,
+          date_processed: dateProcessed,
           // Save direct columns for display (since we use select("*") without joins)
           marketer_name: data.customerName,
           no_phone: data.customerPhone,
