@@ -87,15 +87,25 @@ const CustomerMarketer = () => {
   const totalUnitsPurchased = filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0) || 0;
   const totalPrice = filteredPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
 
-  // Platform breakdown stats (using jenis_platform for marketer)
-  const platformCounts = {
-    facebook: filteredPurchases.filter(p => p.jenis_platform === "Facebook").length,
-    tiktok: filteredPurchases.filter(p => p.jenis_platform === "Tiktok").length,
-    shopee: filteredPurchases.filter(p => p.jenis_platform === "Shopee").length,
-    other: filteredPurchases.filter(p => !["Facebook", "Tiktok", "Shopee"].includes(p.jenis_platform)).length,
+  // Platform breakdown stats with all metrics (using jenis_platform for marketer)
+  const getPlatformStats = (platformName: string, isOther: boolean = false) => {
+    const platformPurchases = isOther
+      ? filteredPurchases.filter(p => !["Facebook", "Tiktok", "Shopee"].includes(p.jenis_platform))
+      : filteredPurchases.filter(p => p.jenis_platform === platformName);
+    return {
+      customers: new Set(platformPurchases.map(p => p.no_phone)).size,
+      transactions: platformPurchases.length,
+      units: platformPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0),
+      revenue: platformPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0),
+    };
   };
 
-  const platformPercent = (count: number) => totalTransactions > 0 ? ((count / totalTransactions) * 100).toFixed(1) : "0.0";
+  const platformStats = [
+    { title: "Facebook", ...getPlatformStats("Facebook"), color: "bg-blue-100 text-blue-800" },
+    { title: "Tiktok", ...getPlatformStats("Tiktok"), color: "bg-pink-100 text-pink-800" },
+    { title: "Shopee", ...getPlatformStats("Shopee"), color: "bg-orange-100 text-orange-800" },
+    { title: "Other", ...getPlatformStats("", true), color: "bg-gray-100 text-gray-800" },
+  ];
 
   const stats = [
     {
@@ -122,13 +132,6 @@ const CustomerMarketer = () => {
       icon: DollarSign,
       color: "text-green-600",
     },
-  ];
-
-  const platformStats = [
-    { title: "Facebook", count: platformCounts.facebook, percent: platformPercent(platformCounts.facebook), color: "bg-blue-100 text-blue-800" },
-    { title: "Tiktok", count: platformCounts.tiktok, percent: platformPercent(platformCounts.tiktok), color: "bg-pink-100 text-pink-800" },
-    { title: "Shopee", count: platformCounts.shopee, percent: platformPercent(platformCounts.shopee), color: "bg-orange-100 text-orange-800" },
-    { title: "Other", count: platformCounts.other, percent: platformPercent(platformCounts.other), color: "bg-gray-100 text-gray-800" },
   ];
 
   // Checkbox handlers
@@ -239,15 +242,27 @@ const CustomerMarketer = () => {
         {platformStats.map((platform) => (
           <Card key={platform.title}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="mb-3">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${platform.color}`}>
+                  {platform.title}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${platform.color}`}>
-                    {platform.title}
-                  </span>
-                  <p className="text-xl font-bold mt-2">{platform.count}</p>
+                  <p className="text-muted-foreground">Customers</p>
+                  <p className="font-bold">{platform.customers}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-muted-foreground">{platform.percent}%</p>
+                <div>
+                  <p className="text-muted-foreground">Transactions</p>
+                  <p className="font-bold">{platform.transactions}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Units</p>
+                  <p className="font-bold">{platform.units}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Revenue</p>
+                  <p className="font-bold text-green-600">RM {platform.revenue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>

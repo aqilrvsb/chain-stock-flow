@@ -199,17 +199,25 @@ const Customers = ({ userType }: CustomersProps) => {
   // Count unique transactions (by invoice number from remarks) to match StoreHub
   const totalTransactions = groupedPurchases.length;
 
-  // Platform breakdown stats
-  const platformCounts = {
-    facebook: groupedPurchases.filter(p => p.platform === "Facebook").length,
-    tiktokHQ: groupedPurchases.filter(p => p.platform === "Tiktok HQ").length,
-    shopeeHQ: groupedPurchases.filter(p => p.platform === "Shopee HQ").length,
-    database: groupedPurchases.filter(p => p.platform === "Database").length,
-    google: groupedPurchases.filter(p => p.platform === "Google").length,
-    storehub: groupedPurchases.filter(p => p.platform === "StoreHub").length,
+  // Platform breakdown stats with all metrics
+  const getPlatformStats = (platformName: string) => {
+    const platformPurchases = groupedPurchases.filter(p => p.platform === platformName);
+    return {
+      customers: new Set(platformPurchases.map(p => p.customerPhone)).size,
+      transactions: platformPurchases.length,
+      units: platformPurchases.reduce((sum, p) => sum + (p.total_quantity || 0), 0),
+      revenue: platformPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0),
+    };
   };
 
-  const platformPercent = (count: number) => totalTransactions > 0 ? ((count / totalTransactions) * 100).toFixed(1) : "0.0";
+  const platformStats = [
+    { title: "Facebook", ...getPlatformStats("Facebook"), color: "bg-blue-100 text-blue-800" },
+    { title: "Tiktok HQ", ...getPlatformStats("Tiktok HQ"), color: "bg-pink-100 text-pink-800" },
+    { title: "Shopee HQ", ...getPlatformStats("Shopee HQ"), color: "bg-orange-100 text-orange-800" },
+    { title: "Database", ...getPlatformStats("Database"), color: "bg-purple-100 text-purple-800" },
+    { title: "Google", ...getPlatformStats("Google"), color: "bg-green-100 text-green-800" },
+    { title: "StoreHub", ...getPlatformStats("StoreHub"), color: "bg-cyan-100 text-cyan-800" },
+  ];
 
   const stats = [
     {
@@ -236,15 +244,6 @@ const Customers = ({ userType }: CustomersProps) => {
       icon: DollarSign,
       color: "text-green-600",
     },
-  ];
-
-  const platformStats = [
-    { title: "Facebook", count: platformCounts.facebook, percent: platformPercent(platformCounts.facebook), color: "bg-blue-100 text-blue-800" },
-    { title: "Tiktok HQ", count: platformCounts.tiktokHQ, percent: platformPercent(platformCounts.tiktokHQ), color: "bg-pink-100 text-pink-800" },
-    { title: "Shopee HQ", count: platformCounts.shopeeHQ, percent: platformPercent(platformCounts.shopeeHQ), color: "bg-orange-100 text-orange-800" },
-    { title: "Database", count: platformCounts.database, percent: platformPercent(platformCounts.database), color: "bg-purple-100 text-purple-800" },
-    { title: "Google", count: platformCounts.google, percent: platformPercent(platformCounts.google), color: "bg-green-100 text-green-800" },
-    { title: "StoreHub", count: platformCounts.storehub, percent: platformPercent(platformCounts.storehub), color: "bg-cyan-100 text-cyan-800" },
   ];
 
   // Checkbox handlers
@@ -1062,19 +1061,31 @@ const Customers = ({ userType }: CustomersProps) => {
       </div>
 
       {/* Platform Breakdown Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {platformStats.map((platform) => (
           <Card key={platform.title}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="mb-3">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${platform.color}`}>
+                  {platform.title}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${platform.color}`}>
-                    {platform.title}
-                  </span>
-                  <p className="text-xl font-bold mt-2">{platform.count}</p>
+                  <p className="text-muted-foreground">Customers</p>
+                  <p className="font-bold">{platform.customers}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-muted-foreground">{platform.percent}%</p>
+                <div>
+                  <p className="text-muted-foreground">Transactions</p>
+                  <p className="font-bold">{platform.transactions}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Units</p>
+                  <p className="font-bold">{platform.units}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Revenue</p>
+                  <p className="font-bold text-green-600">RM {platform.revenue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
