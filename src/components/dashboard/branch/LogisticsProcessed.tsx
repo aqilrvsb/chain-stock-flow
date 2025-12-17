@@ -626,7 +626,7 @@ const LogisticsProcessed = () => {
                 </div>
                 <Button
                   variant="default"
-                  onClick={() => handleFilterChange()}
+                  onClick={() => { setStartDate(""); setEndDate(""); handleFilterChange(); }}
                   className="shrink-0"
                 >
                   <Search className="w-4 h-4 mr-2" />
