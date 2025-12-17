@@ -74,6 +74,37 @@ const LogisticsProcessed = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch all products for dropdown
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ["all-products-dropdown"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Update product for an order
+  const handleUpdateProduct = async (orderId: string, productId: string) => {
+    try {
+      const { error } = await supabase
+        .from("customer_purchases")
+        .update({ product_id: productId })
+        .eq("id", orderId);
+
+      if (error) throw error;
+
+      toast.success("Product updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["logistics-processed"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update product");
+    }
+  };
+
   // Fetch shipped orders (both HQ orders and Marketer orders)
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["logistics-processed", user?.id, startDate, endDate, marketers],
@@ -779,7 +810,24 @@ const LogisticsProcessed = () => {
                           <td className="p-3">{order.marketer?.full_name || (order.marketer_id ? "-" : "Branch")}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
                           <td className="p-3">{order.customer?.phone || order.no_phone || "-"}</td>
-                          <td className="p-3">{order.product?.name || order.storehub_product || "-"}</td>
+                          <td className="p-3">
+                            {order.product?.name || order.storehub_product ? (
+                              order.product?.name || order.storehub_product
+                            ) : (
+                              <Select onValueChange={(v) => handleUpdateProduct(order.id, v)}>
+                                <SelectTrigger className="w-[180px] h-8 text-xs">
+                                  <SelectValue placeholder="Select product..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {allProducts.map((product: any) => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </td>
                           <td className="p-3">{order.quantity}</td>
                           <td className="p-3">RM {Number(order.total_price || 0).toFixed(2)}</td>
                           <td className="p-3">
