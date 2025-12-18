@@ -83,6 +83,10 @@ const BranchLeads = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // Quick search state (search without date filter)
+  const [quickSearch, setQuickSearch] = useState("");
+  const [isQuickSearchActive, setIsQuickSearchActive] = useState(false);
+
   // Fetch prospects for this branch (branch_id = user.id)
   const { data: prospects = [], isLoading } = useQuery({
     queryKey: ["branch-prospects", user?.id],
@@ -114,6 +118,16 @@ const BranchLeads = () => {
   // Filter prospects based on search and date range
   const filteredProspects = useMemo(() => {
     return prospects.filter((prospect: any) => {
+      // If quick search is active, only filter by name/phone (ignore date filters)
+      if (isQuickSearchActive && quickSearch) {
+        const searchTerm = quickSearch.toLowerCase();
+        return (
+          prospect.nama_prospek?.toLowerCase().includes(searchTerm) ||
+          prospect.no_telefon?.includes(quickSearch)
+        );
+      }
+
+      // Normal filter with date range
       const matchesSearch =
         prospect.nama_prospek?.toLowerCase().includes(search.toLowerCase()) ||
         prospect.no_telefon?.includes(search) ||
@@ -125,7 +139,7 @@ const BranchLeads = () => {
 
       return matchesSearch && matchesStartDate && matchesEndDate;
     });
-  }, [prospects, search, startDate, endDate]);
+  }, [prospects, search, startDate, endDate, quickSearch, isQuickSearchActive]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -222,6 +236,25 @@ const BranchLeads = () => {
     setSearch("");
     setStartDate("");
     setEndDate("");
+    setQuickSearch("");
+    setIsQuickSearchActive(false);
+  };
+
+  // Handle quick search button click
+  const handleQuickSearch = () => {
+    if (quickSearch.trim()) {
+      setIsQuickSearchActive(true);
+      // Clear date filters when quick search is activated
+      setStartDate("");
+      setEndDate("");
+      setSearch("");
+    }
+  };
+
+  // Clear quick search
+  const clearQuickSearch = () => {
+    setQuickSearch("");
+    setIsQuickSearchActive(false);
   };
 
   const handleCloseDialog = () => {
@@ -667,23 +700,89 @@ const BranchLeads = () => {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Quick Search - Search by Name/Phone without Date */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Quick Search</span>
+          </div>
+          <div className="flex flex-1 gap-2 items-center">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Enter name or phone number..."
+                value={quickSearch}
+                onChange={(e) => {
+                  setQuickSearch(e.target.value);
+                  if (!e.target.value) setIsQuickSearchActive(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleQuickSearch();
+                }}
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={handleQuickSearch} className="bg-primary hover:bg-primary/90">
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </Button>
+            {isQuickSearchActive && (
+              <Button variant="outline" onClick={clearQuickSearch}>
+                <XCircle className="w-4 h-4 mr-2" />
+                Clear
+              </Button>
+            )}
+          </div>
+          {isQuickSearchActive && (
+            <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+              Showing results for: "{quickSearch}"
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Date Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Start Date</span>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setIsQuickSearchActive(false);
+            }}
+            className="w-40"
+          />
         </div>
 
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">End Date</span>
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setIsQuickSearchActive(false);
+            }}
+            className="w-40"
+          />
         </div>
 
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search name, phone, niche..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input
+            placeholder="Search name, phone, niche..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setIsQuickSearchActive(false);
+            }}
+            className="pl-10"
+          />
         </div>
 
         <div className="flex gap-2">
