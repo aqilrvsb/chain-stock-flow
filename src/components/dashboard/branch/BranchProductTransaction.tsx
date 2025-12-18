@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Package, Loader2, TrendingUp, TrendingDown, RotateCcw, Truck, Store, Play, ShoppingBag, Globe } from "lucide-react";
+import { Package, Loader2, TrendingUp, TrendingDown, RotateCcw, Truck, Store, Play, ShoppingBag, Globe, DollarSign } from "lucide-react";
 import { format, parseISO, isWithinInterval } from "date-fns";
 
 const BranchProductTransaction = () => {
@@ -68,7 +68,7 @@ const BranchProductTransaction = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_purchases")
-        .select("id, product_id, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id")
+        .select("id, product_id, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price")
         .eq("seller_id", user?.id);
 
       if (error) throw error;
@@ -116,6 +116,9 @@ const BranchProductTransaction = () => {
       const shippedUnits = shippedPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const shippedTransactions = shippedPurchases.length;
 
+      // Total Sales - sum of total_price for shipped orders
+      const totalSales = shippedPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
+
       // Return - delivery_status = 'Return', filter by date_return
       const returnPurchases = productPurchases.filter(
         (p) => p.delivery_status === "Return" && isInDateRange(p.date_return)
@@ -158,6 +161,7 @@ const BranchProductTransaction = () => {
 
       return {
         ...product,
+        totalSales,
         stockIn,
         stockOut,
         shippedUnits,
@@ -174,6 +178,7 @@ const BranchProductTransaction = () => {
 
   // Summary stats
   const summaryStats = useMemo(() => {
+    const grandTotalSales = productTransactions.reduce((sum, p) => sum + p.totalSales, 0);
     const totalStockIn = productTransactions.reduce((sum, p) => sum + p.stockIn, 0);
     const totalStockOut = productTransactions.reduce((sum, p) => sum + p.stockOut, 0);
     const totalShipped = productTransactions.reduce((sum, p) => sum + p.shippedUnits, 0);
@@ -184,6 +189,7 @@ const BranchProductTransaction = () => {
     const totalOnline = productTransactions.reduce((sum, p) => sum + p.online.units, 0);
 
     return {
+      grandTotalSales,
       totalStockIn,
       totalStockOut,
       totalShipped,
@@ -254,7 +260,17 @@ const BranchProductTransaction = () => {
       </Card>
 
       {/* Summary Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3">
+        <Card className="border-l-4 border-l-yellow-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 text-yellow-600 mb-1">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs font-medium">Total Sales</span>
+            </div>
+            <p className="text-xl font-bold">RM {summaryStats.grandTotalSales.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+
         <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 text-emerald-600 mb-1">
@@ -345,6 +361,7 @@ const BranchProductTransaction = () => {
                 <TableRow>
                   <TableHead className="sticky left-0 bg-background z-10">SKU</TableHead>
                   <TableHead className="sticky left-16 bg-background z-10">Product Name</TableHead>
+                  <TableHead className="text-center text-yellow-600">Total Sales</TableHead>
                   <TableHead className="text-center text-emerald-600">Stock In</TableHead>
                   <TableHead className="text-center text-red-600">Stock Out</TableHead>
                   <TableHead className="text-center text-blue-600">Shipped Out</TableHead>
@@ -377,6 +394,7 @@ const BranchProductTransaction = () => {
                 <TableRow>
                   <TableHead className="sticky left-0 bg-background z-10"></TableHead>
                   <TableHead className="sticky left-16 bg-background z-10"></TableHead>
+                  <TableHead className="text-center text-xs text-muted-foreground">RM</TableHead>
                   <TableHead className="text-center text-xs text-muted-foreground">Units</TableHead>
                   <TableHead className="text-center text-xs text-muted-foreground">Units</TableHead>
                   <TableHead className="text-center text-xs text-muted-foreground">Units</TableHead>
@@ -405,6 +423,7 @@ const BranchProductTransaction = () => {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium sticky left-0 bg-background z-10">{product.sku}</TableCell>
                       <TableCell className="sticky left-16 bg-background z-10">{product.name}</TableCell>
+                      <TableCell className="text-center font-semibold text-yellow-600">{product.totalSales.toFixed(2)}</TableCell>
                       <TableCell className="text-center font-semibold text-emerald-600">{product.stockIn}</TableCell>
                       <TableCell className="text-center font-semibold text-red-600">{product.stockOut}</TableCell>
                       <TableCell className="text-center font-semibold text-blue-600">{product.shippedUnits}</TableCell>
@@ -429,7 +448,7 @@ const BranchProductTransaction = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
                       No products available.
                     </TableCell>
                   </TableRow>
@@ -439,6 +458,7 @@ const BranchProductTransaction = () => {
                   <TableRow className="bg-muted/50 font-bold">
                     <TableCell className="sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
                     <TableCell className="sticky left-16 bg-muted/50 z-10"></TableCell>
+                    <TableCell className="text-center text-yellow-600">{summaryStats.grandTotalSales.toFixed(2)}</TableCell>
                     <TableCell className="text-center text-emerald-600">{summaryStats.totalStockIn}</TableCell>
                     <TableCell className="text-center text-red-600">{summaryStats.totalStockOut}</TableCell>
                     <TableCell className="text-center text-blue-600">{summaryStats.totalShipped}</TableCell>
