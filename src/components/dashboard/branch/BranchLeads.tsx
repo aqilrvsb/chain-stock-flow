@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -331,40 +332,74 @@ const BranchLeads = () => {
 
     setIsImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.split("\n").filter((line) => line.trim());
+      // Read file as ArrayBuffer for XLSX parsing
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
-      if (lines.length < 2) {
+      // Get first sheet
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      // Convert to JSON with header row
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+      if (jsonData.length < 2) {
         toast.error("File contains no data.");
+        setIsImporting(false);
         return;
       }
 
-      const header = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/"/g, ""));
+      // Get header row and find column indices
+      const header = jsonData[0].map((h: any) => String(h || "").trim().toLowerCase());
       const namaIdx = header.findIndex((h) => h.includes("nama"));
       const phoneIdx = header.findIndex((h) => h.includes("telefon") || h.includes("phone"));
       const nicheIdx = header.findIndex((h) => h.includes("niche") || h.includes("product"));
-      const tarikhIdx = header.findIndex((h) => h.includes("tarikh"));
+      const tarikhIdx = header.findIndex((h) => h.includes("tarikh") || h.includes("date"));
+
+      console.log("Header found:", header);
+      console.log("Column indices:", { namaIdx, phoneIdx, nicheIdx, tarikhIdx });
 
       let successCount = 0;
       let errorCount = 0;
 
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map((v) => v.trim().replace(/"/g, ""));
+      // Process data rows (skip header)
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.length === 0) continue;
 
-        const nama = namaIdx >= 0 ? values[namaIdx]?.toUpperCase() : "";
-        const phone = phoneIdx >= 0 ? values[phoneIdx] : "";
-        const nicheValue = nicheIdx >= 0 ? values[nicheIdx]?.toUpperCase() : "";
-        const tarikh = tarikhIdx >= 0 ? values[tarikhIdx] : "";
+        const nama = namaIdx >= 0 ? String(row[namaIdx] || "").trim().toUpperCase() : "";
+        let phone = phoneIdx >= 0 ? String(row[phoneIdx] || "").trim() : "";
+        const nicheValue = nicheIdx >= 0 ? String(row[nicheIdx] || "").trim().toUpperCase() : "";
+        let tarikh = tarikhIdx >= 0 ? row[tarikhIdx] : "";
 
+        // Handle Excel date serial number (Excel stores dates as numbers)
+        if (typeof tarikh === "number") {
+          // Convert Excel date serial to JS date
+          const excelDate = XLSX.SSF.parse_date_code(tarikh);
+          if (excelDate) {
+            tarikh = `${excelDate.y}-${String(excelDate.m).padStart(2, "0")}-${String(excelDate.d).padStart(2, "0")}`;
+          }
+        } else {
+          tarikh = String(tarikh || "").trim();
+        }
+
+        // Normalize phone number - remove any non-digit characters
+        phone = phone.replace(/\D/g, "");
+
+        // Match product from list
         const product = products.find((p: any) => p.name.toUpperCase() === nicheValue);
         const niche = product ? product.name : nicheValue;
 
+        console.log(`Row ${i}:`, { nama, phone, niche, tarikh });
+
         if (!nama || !phone || !niche || !tarikh) {
+          console.log(`Row ${i} skipped: missing required field`);
           errorCount++;
           continue;
         }
 
         if (!phone.startsWith("6")) {
+          console.log(`Row ${i} skipped: phone doesn't start with 6`);
           errorCount++;
           continue;
         }
@@ -381,9 +416,13 @@ const BranchLeads = () => {
             price_closed: 0,
             count_order: 0,
           });
-          if (error) throw error;
+          if (error) {
+            console.error(`Row ${i} insert error:`, error);
+            throw error;
+          }
           successCount++;
-        } catch {
+        } catch (err) {
+          console.error(`Row ${i} failed:`, err);
           errorCount++;
         }
       }
