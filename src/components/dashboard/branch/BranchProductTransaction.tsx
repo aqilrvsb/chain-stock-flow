@@ -68,7 +68,7 @@ const BranchProductTransaction = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_purchases")
-        .select("id, product_id, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price")
+        .select("id, product_id, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk")
         .eq("seller_id", user?.id);
 
       if (error) throw error;
@@ -91,11 +91,17 @@ const BranchProductTransaction = () => {
     }
   };
 
+  // Helper function to check if SKU/name is a combo (contains " + ")
+  const isCombo = (text: string | null | undefined): boolean => {
+    return text ? text.includes(' + ') : false;
+  };
+
   // Calculate product transaction data
   const productTransactions = useMemo(() => {
     if (!products) return [];
 
-    return products.map((product) => {
+    // First, get regular products
+    const regularProducts = products.map((product) => {
       // Stock In - filter by date
       const stockIn = stockInData
         ?.filter((s) => s.product_id === product.id && isInDateRange(s.date))
@@ -175,8 +181,58 @@ const BranchProductTransaction = () => {
         tiktok: { units: tiktokUnits, transactions: tiktokTransactions, pct: tiktokPct },
         shopee: { units: shopeeUnits, transactions: shopeeTransactions, pct: shopeePct },
         online: { units: onlineUnits, transactions: onlineTransactions, pct: onlinePct },
+        isCombo: false,
       };
     });
+
+    // Now get combo products from purchases (where product_id is NULL and storehub_product or produk contains " + ")
+    // This ensures no double counting - combos are only counted when product_id is NULL
+    const comboPurchases = purchasesData?.filter((p) => {
+      const productName = p.storehub_product || p.produk || "";
+      // Only count as combo if product_id is NULL (not linked to a specific product)
+      return !p.product_id && isCombo(productName) && isInDateRange(p.date_order);
+    }) || [];
+
+    // Group combo purchases by product name - also track units
+    const comboMap = new Map<string, { name: string; totalSales: number; units: number }>();
+    comboPurchases.forEach((p) => {
+      const comboName = p.storehub_product || p.produk || "Unknown Combo";
+      const existing = comboMap.get(comboName);
+      if (existing) {
+        existing.totalSales += Number(p.total_price) || 0;
+        existing.units += Number(p.quantity) || 0;
+      } else {
+        comboMap.set(comboName, {
+          name: comboName,
+          totalSales: Number(p.total_price) || 0,
+          units: Number(p.quantity) || 0,
+        });
+      }
+    });
+
+    // Convert combo map to array with same structure as regular products
+    const comboProducts = Array.from(comboMap.values()).map((combo, index) => ({
+      id: `combo-${index}`,
+      sku: `COMBO - ${combo.name}`, // Prefix with COMBO
+      name: combo.name,
+      totalSales: combo.totalSales,
+      stockIn: 0,
+      stockOut: 0,
+      shippedUnits: combo.units, // Show combo units in Shipped Out column
+      shippedTransactions: 0,
+      returnUnits: 0,
+      returnTransactions: 0,
+      storehub: { units: 0, transactions: 0, pct: 0 },
+      tiktok: { units: 0, transactions: 0, pct: 0 },
+      shopee: { units: 0, transactions: 0, pct: 0 },
+      online: { units: 0, transactions: 0, pct: 0 },
+      isCombo: true,
+    }));
+
+    // Filter out combos with 0 sales and combine with regular products
+    const filteredCombos = comboProducts.filter((c) => c.totalSales > 0);
+
+    return [...regularProducts, ...filteredCombos];
   }, [products, stockInData, stockOutData, purchasesData, startDate, endDate]);
 
   // Summary stats
