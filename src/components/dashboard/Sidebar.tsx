@@ -636,6 +636,15 @@ export function AppSidebar({ userRole, activeView, onViewChange }: AppSidebarPro
                             <span>Stock Out</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => onViewChange("bundle-management")}
+                            isActive={activeView === "bundle-management"}
+                            className="cursor-pointer"
+                          >
+                            <span>Bundle</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>

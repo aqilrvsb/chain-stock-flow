@@ -312,6 +312,52 @@ const LogisticsOrder = () => {
 
   const isAllSelected = paginatedOrders.length > 0 && paginatedOrders.every((o: any) => selectedOrders.has(o.id));
 
+  // Helper function to parse bundle SKU and deduct inventory for each item
+  const deductBundleInventory = async (sku: string, orderQuantity: number) => {
+    // Bundle SKU format: "SKU-qty + SKU-qty" (e.g., "ABC001-2 + XYZ002-1")
+    const skuParts = sku.split(' + ');
+
+    for (const skuPart of skuParts) {
+      const trimmedPart = skuPart.trim();
+      // Parse SKU-quantity format
+      const lastHyphenIndex = trimmedPart.lastIndexOf('-');
+      let baseSku = trimmedPart;
+      let skuQty = 1;
+
+      if (lastHyphenIndex !== -1) {
+        const potentialQty = parseInt(trimmedPart.substring(lastHyphenIndex + 1), 10);
+        if (!isNaN(potentialQty) && potentialQty > 0) {
+          baseSku = trimmedPart.substring(0, lastHyphenIndex);
+          skuQty = potentialQty;
+        }
+      }
+
+      // Find product by SKU
+      const product = allProducts.find((p: any) => p.sku === baseSku);
+      if (product) {
+        const totalDeduct = skuQty * orderQuantity;
+        // Get current inventory
+        const { data: inventoryData } = await supabase
+          .from("inventory")
+          .select("id, quantity")
+          .eq("user_id", user?.id)
+          .eq("product_id", product.id)
+          .single();
+
+        if (inventoryData) {
+          const newQuantity = Math.max(0, inventoryData.quantity - totalDeduct);
+          await supabase
+            .from("inventory")
+            .update({ quantity: newQuantity })
+            .eq("id", inventoryData.id);
+          console.log(`Bundle deduct ${baseSku}: ${inventoryData.quantity} -> ${newQuantity} (deducted ${totalDeduct})`);
+        }
+      } else {
+        console.warn(`Bundle item SKU not found: ${baseSku}`);
+      }
+    }
+  };
+
   // Bulk Ship action - also deducts inventory
   const handleBulkShipped = async () => {
     if (selectedOrders.size === 0) {
@@ -342,16 +388,21 @@ const LogisticsOrder = () => {
 
       // Deduct inventory for each order
       for (const order of selectedOrdersList) {
-        const productId = order.product_id;
-        const quantity = order.quantity || 0;
+        const orderSku = order.sku || "";
+        const quantity = order.quantity || 1;
 
-        if (productId && quantity > 0) {
-          // Get current inventory
+        // Check if this is a bundle SKU (contains " + ")
+        if (orderSku.includes(' + ')) {
+          // Bundle: foreach deduct each product
+          console.log(`Processing bundle SKU: ${orderSku}`);
+          await deductBundleInventory(orderSku, quantity);
+        } else if (order.product_id && quantity > 0) {
+          // Single product: deduct normally
           const { data: inventoryData } = await supabase
             .from("inventory")
             .select("id, quantity")
             .eq("user_id", user?.id)
-            .eq("product_id", productId)
+            .eq("product_id", order.product_id)
             .single();
 
           if (inventoryData) {
@@ -467,7 +518,16 @@ const LogisticsOrder = () => {
         .eq("id", orderId);
 
       // Deduct inventory
-      if (order?.product_id && order?.quantity > 0) {
+      const orderSku = order?.sku || "";
+      const quantity = order?.quantity || 1;
+
+      // Check if this is a bundle SKU (contains " + ")
+      if (orderSku.includes(' + ')) {
+        // Bundle: foreach deduct each product
+        console.log(`Processing bundle SKU: ${orderSku}`);
+        await deductBundleInventory(orderSku, quantity);
+      } else if (order?.product_id && quantity > 0) {
+        // Single product: deduct normally
         const { data: inventoryData } = await supabase
           .from("inventory")
           .select("id, quantity")
@@ -476,7 +536,7 @@ const LogisticsOrder = () => {
           .single();
 
         if (inventoryData) {
-          const newQuantity = Math.max(0, inventoryData.quantity - order.quantity);
+          const newQuantity = Math.max(0, inventoryData.quantity - quantity);
           await supabase
             .from("inventory")
             .update({ quantity: newQuantity })

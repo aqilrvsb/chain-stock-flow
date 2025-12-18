@@ -320,30 +320,80 @@ function formatPhoneNumber(phone: string): string {
   return formatted;
 }
 
-// Parse WooCommerce SKU format: "ZP250-6" -> { sku: "ZP250", quantity: 6 }
-// The format is: ACTUALSKU-QUANTITY
-function parseWooCommerceSku(wooSku: string): { sku: string; quantity: number } {
-  if (!wooSku) {
-    return { sku: '', quantity: 1 };
+// Parse single SKU format: "ZP250-6" -> { sku: "ZP250", quantity: 6, hasQuantity: true }
+// Or "ZP250" -> { sku: "ZP250", quantity: 1, hasQuantity: false }
+function parseSingleSku(skuPart: string): { sku: string; quantity: number; hasQuantity: boolean } {
+  const trimmed = skuPart.trim();
+  if (!trimmed) {
+    return { sku: '', quantity: 1, hasQuantity: false };
   }
 
   // Split by last hyphen to handle SKUs that might contain hyphens
-  const lastHyphenIndex = wooSku.lastIndexOf('-');
+  const lastHyphenIndex = trimmed.lastIndexOf('-');
   if (lastHyphenIndex === -1) {
-    return { sku: wooSku, quantity: 1 };
+    // No hyphen - SKU without quantity (e.g., "ZP250")
+    return { sku: trimmed, quantity: 1, hasQuantity: false };
   }
 
-  const potentialQuantity = wooSku.substring(lastHyphenIndex + 1);
+  const potentialQuantity = trimmed.substring(lastHyphenIndex + 1);
   const quantity = parseInt(potentialQuantity, 10);
 
   // If the part after hyphen is a valid number, use it as quantity
   if (!isNaN(quantity) && quantity > 0) {
-    const sku = wooSku.substring(0, lastHyphenIndex);
-    return { sku, quantity };
+    const sku = trimmed.substring(0, lastHyphenIndex);
+    return { sku, quantity, hasQuantity: true };
   }
 
   // Otherwise, treat the whole thing as SKU with quantity 1
-  return { sku: wooSku, quantity: 1 };
+  return { sku: trimmed, quantity: 1, hasQuantity: false };
+}
+
+// Parse WooCommerce SKU format
+// Single product with quantity: "ZP250-6" -> { isBundle: false, sku: "ZP250", quantity: 6, hasQuantity: true, items: [] }
+// Single product without quantity: "ZP250" -> { isBundle: false, sku: "ZP250", quantity: 1, hasQuantity: false, items: [] }
+// Bundle: "ABC001-2 + XYZ002-1" -> { isBundle: true, sku: "ABC001-2 + XYZ002-1", quantity: 1, hasQuantity: true, items: [{sku: "ABC001", quantity: 2}, {sku: "XYZ002", quantity: 1}] }
+function parseWooCommerceSku(wooSku: string, orderQuantity: number = 1): {
+  isBundle: boolean;
+  sku: string;
+  quantity: number;
+  hasQuantity: boolean;
+  items: Array<{ sku: string; quantity: number }>
+} {
+  if (!wooSku) {
+    return { isBundle: false, sku: '', quantity: orderQuantity, hasQuantity: false, items: [] };
+  }
+
+  // Check if this is a bundle SKU (contains " + ")
+  // Bundle SKU always has unit format: "ABC001-2 + XYZ002-1"
+  if (wooSku.includes(' + ')) {
+    const parts = wooSku.split(' + ');
+    const items = parts.map(part => {
+      const parsed = parseSingleSku(part);
+      return { sku: parsed.sku, quantity: parsed.quantity };
+    });
+    return {
+      isBundle: true,
+      sku: wooSku, // Keep original bundle SKU
+      quantity: 1, // Bundle is treated as 1 unit
+      hasQuantity: true, // Bundle always has quantity in format
+      items
+    };
+  }
+
+  // Single product SKU
+  const { sku, quantity, hasQuantity } = parseSingleSku(wooSku);
+
+  // If SKU doesn't have quantity suffix (e.g., "ZP250"), use order quantity
+  // This combines "ZP250" + order qty 3 -> effectively "ZP250-3"
+  const finalQuantity = hasQuantity ? quantity : orderQuantity;
+
+  return {
+    isBundle: false,
+    sku,
+    quantity: finalQuantity,
+    hasQuantity,
+    items: []
+  };
 }
 
 // Map Malaysian state names
@@ -561,25 +611,63 @@ serve(async (req) => {
     const wooProductNames = wooOrder.line_items.map(item => item.name).join(', ');
     const totalPrice = parseFloat(wooOrder.total);
 
-    // Parse WooCommerce SKU format: "ZP250-6" -> { sku: "ZP250", quantity: 6 }
-    // Use first line item's SKU to determine product and quantity
+    // Parse WooCommerce SKU format
+    // Single product with quantity: "ZP250-6" -> deduct ZP250 x 6
+    // Single product without quantity: "ZP250" with order qty 3 -> deduct ZP250 x 3
+    // Bundle: "ABC001-2 + XYZ002-1" -> deduct ABC001 x 2 AND XYZ002 x 1
     const firstLineItem = wooOrder.line_items[0];
     const wooSku = firstLineItem?.sku || '';
-    const { sku: actualSku, quantity: skuQuantity } = parseWooCommerceSku(wooSku);
+    const orderQuantity = firstLineItem?.quantity || 1; // Get order quantity for single products without quantity in SKU
+    const parsedSku = parseWooCommerceSku(wooSku, orderQuantity);
 
-    console.log('Parsed WooCommerce SKU:', { wooSku, actualSku, skuQuantity });
+    console.log('Parsed WooCommerce SKU:', { wooSku, orderQuantity, parsedSku });
 
-    // Look up product by actual SKU in database
-    let productSku = actualSku;
+    // Prepare variables for order creation
+    let productSku = parsedSku.sku;
     let productName = '';
     let productId = '';
-    let totalQuantity = skuQuantity;
+    let totalQuantity = parsedSku.quantity;
 
-    if (actualSku) {
+    // Bundle items for inventory deduction (only used if isBundle = true)
+    const bundleItems: Array<{ productId: string; sku: string; name: string; quantity: number }> = [];
+
+    if (parsedSku.isBundle) {
+      // Bundle SKU - look up each product and prepare for foreach deduction
+      console.log('Processing bundle SKU with items:', parsedSku.items);
+
+      for (const item of parsedSku.items) {
+        if (!item.sku) continue;
+
+        const { data: productData } = await supabase
+          .from('products')
+          .select('id, name, sku')
+          .eq('sku', item.sku)
+          .maybeSingle();
+
+        if (productData) {
+          bundleItems.push({
+            productId: productData.id,
+            sku: productData.sku,
+            name: productData.name,
+            quantity: item.quantity
+          });
+          console.log(`Bundle item found: ${productData.sku} x ${item.quantity}`);
+        } else {
+          console.warn(`Bundle item SKU not found: ${item.sku}`);
+        }
+      }
+
+      // Use bundle SKU and first item name for display
+      productName = bundleItems.length > 0
+        ? bundleItems.map(bi => `${bi.name} x${bi.quantity}`).join(' + ')
+        : wooProductNames;
+      totalQuantity = 1; // Bundle is treated as 1 unit
+    } else if (parsedSku.sku) {
+      // Single product SKU
       const { data: productData } = await supabase
         .from('products')
         .select('id, name, sku')
-        .eq('sku', actualSku)
+        .eq('sku', parsedSku.sku)
         .maybeSingle();
 
       if (productData) {
@@ -588,7 +676,7 @@ serve(async (req) => {
         productName = productData.name;
         console.log('Product found by SKU:', { productId, productSku, productName });
       } else {
-        console.warn('Product not found for SKU:', actualSku);
+        console.warn('Product not found for SKU:', parsedSku.sku);
         // Use WooCommerce product name as fallback
         productName = firstLineItem?.name || '';
       }
@@ -599,7 +687,7 @@ serve(async (req) => {
       console.warn('No SKU in WooCommerce order, using line item quantity:', totalQuantity);
     }
 
-    console.log('Using product:', { productSku, productName, totalQuantity });
+    console.log('Using product:', { productSku, productName, totalQuantity, isBundle: parsedSku.isBundle, bundleItems });
 
     // Determine payment method (COD or CASH - online payment)
     // WooCommerce payment methods: 'cod', 'bacs', 'paypal', 'stripe', etc.

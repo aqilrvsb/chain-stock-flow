@@ -18,6 +18,26 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, FileText, X } from "lucide-react";
 
+interface BundleItem {
+  product_id: string;
+  quantity: number;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+  };
+}
+
+interface Bundle {
+  id: string;
+  name: string;
+  description?: string;
+  sku?: string; // Auto-generated SKU: SKU_A-unit + SKU_B-unit format
+  total_price: number;
+  is_active: boolean;
+  items: BundleItem[];
+}
+
 interface AddCustomerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,6 +48,7 @@ interface AddCustomerModalProps {
     name: string;
     sku: string;
   }>;
+  bundles?: Bundle[];
   userType: "master_agent" | "agent" | "branch";
 }
 
@@ -46,6 +67,12 @@ export interface CustomerPurchaseData {
   trackingNumber?: string;
   orderFrom?: string;
   attachmentFile?: File;
+  // Bundle fields
+  isBundle?: boolean;
+  bundleId?: string;
+  bundleName?: string;
+  bundleSku?: string; // Auto-generated SKU for NinjaVan waybill
+  bundleItems?: BundleItem[];
 }
 
 const MALAYSIAN_STATES = [
@@ -103,6 +130,7 @@ const AddCustomerModal = ({
   onSubmit,
   isLoading = false,
   products,
+  bundles = [],
   userType,
 }: AddCustomerModalProps) => {
   const [customerName, setCustomerName] = useState("");
@@ -120,6 +148,23 @@ const AddCustomerModal = ({
   const [orderFrom, setOrderFrom] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Bundle selection
+  const [selectionType, setSelectionType] = useState<"product" | "bundle">("product");
+  const [bundleId, setBundleId] = useState("");
+
+  // Get selected bundle
+  const selectedBundle = bundles.find(b => b.id === bundleId);
+
+  // When bundle is selected, auto-fill price
+  const handleBundleChange = (id: string) => {
+    setBundleId(id);
+    const bundle = bundles.find(b => b.id === id);
+    if (bundle) {
+      setPrice(bundle.total_price.toString());
+      setQuantity("1"); // Bundle always quantity 1
+    }
+  };
 
   // Check if order source requires manual tracking (Tiktok/Shopee)
   const requiresManualTracking = MANUAL_TRACKING_SOURCES.includes(orderFrom);
@@ -142,7 +187,15 @@ const AddCustomerModal = ({
 
   const handleSubmit = () => {
     // Basic validation - phone is optional for non-NinjaVan sources
-    if (!customerName || !customerState || !paymentMethod || !closingType || !productId || !quantity || !price) {
+    const isProductSelected = selectionType === "product" && productId;
+    const isBundleSelected = selectionType === "bundle" && bundleId;
+
+    if (!customerName || !customerState || !paymentMethod || !closingType || !quantity || !price) {
+      return;
+    }
+
+    // Must have either product or bundle selected
+    if (!isProductSelected && !isBundleSelected) {
       return;
     }
 
@@ -170,12 +223,18 @@ const AddCustomerModal = ({
       customerState,
       paymentMethod,
       closingType,
-      productId,
+      productId: isProductSelected ? productId : "", // Empty if bundle
       quantity: parseInt(quantity),
       price: parseFloat(price),
       trackingNumber: trackingNumber || undefined,
       orderFrom: orderFrom || undefined,
       attachmentFile: attachmentFile || undefined,
+      // Bundle fields
+      isBundle: isBundleSelected,
+      bundleId: isBundleSelected ? bundleId : undefined,
+      bundleName: isBundleSelected ? selectedBundle?.name : undefined,
+      bundleSku: isBundleSelected ? selectedBundle?.sku : undefined,
+      bundleItems: isBundleSelected ? selectedBundle?.items : undefined,
     });
 
     // Reset form
@@ -193,17 +252,22 @@ const AddCustomerModal = ({
     setTrackingNumber("");
     setOrderFrom("");
     setAttachmentFile(null);
+    setSelectionType("product");
+    setBundleId("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
+
+  const isProductSelected = selectionType === "product" && productId;
+  const isBundleSelected = selectionType === "bundle" && bundleId;
 
   const isFormValid =
     customerName &&
     customerState &&
     paymentMethod &&
     closingType &&
-    productId &&
+    (isProductSelected || isBundleSelected) &&
     quantity &&
     parseInt(quantity) > 0 &&
     price &&
@@ -367,24 +431,104 @@ const AddCustomerModal = ({
             </Select>
           </div>
 
-          {/* Product */}
-          <div className="space-y-2">
-            <Label htmlFor="product">Product *</Label>
-            <Select value={productId} onValueChange={setProductId}>
-              <SelectTrigger id="product">
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products?.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} ({product.sku})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Product/Bundle Selection Type - Only show if bundles available */}
+          {userType === "branch" && bundles.length > 0 && (
+            <div className="space-y-2">
+              <Label>Item Type *</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="selectionType"
+                    value="product"
+                    checked={selectionType === "product"}
+                    onChange={() => {
+                      setSelectionType("product");
+                      setBundleId("");
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span>Product</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="selectionType"
+                    value="bundle"
+                    checked={selectionType === "bundle"}
+                    onChange={() => {
+                      setSelectionType("bundle");
+                      setProductId("");
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span>Bundle</span>
+                </label>
+              </div>
+            </div>
+          )}
 
-          {/* Unit/Quantity */}
+          {/* Product Selection */}
+          {selectionType === "product" && (
+            <div className="space-y-2">
+              <Label htmlFor="product">Product *</Label>
+              <Select value={productId} onValueChange={setProductId}>
+                <SelectTrigger id="product">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.sku})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Bundle Selection */}
+          {selectionType === "bundle" && (
+            <div className="space-y-2">
+              <Label htmlFor="bundle">Bundle *</Label>
+              <Select value={bundleId} onValueChange={handleBundleChange}>
+                <SelectTrigger id="bundle">
+                  <SelectValue placeholder="Select bundle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bundles.filter(b => b.is_active).map((bundle) => (
+                    <SelectItem key={bundle.id} value={bundle.id}>
+                      {bundle.name} - RM {bundle.total_price.toFixed(2)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Show bundle items when selected */}
+              {selectedBundle && (
+                <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm">
+                  {selectedBundle.sku && (
+                    <div className="mb-2 p-2 bg-blue-50 rounded">
+                      <p className="text-xs text-blue-600">Bundle SKU:</p>
+                      <code className="text-xs font-mono font-bold text-blue-900">
+                        {selectedBundle.sku}
+                      </code>
+                    </div>
+                  )}
+                  <p className="font-medium mb-2">Bundle Contents:</p>
+                  <ul className="space-y-1">
+                    {selectedBundle.items.map((item, index) => (
+                      <li key={index} className="flex justify-between">
+                        <span>{item.product?.name || 'Unknown Product'}</span>
+                        <span className="text-muted-foreground">x {item.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Unit/Quantity - Only editable for product, fixed to 1 for bundle */}
           <div className="space-y-2">
             <Label htmlFor="quantity">Unit *</Label>
             <Input
@@ -394,7 +538,13 @@ const AddCustomerModal = ({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="Enter unit quantity"
+              disabled={selectionType === "bundle"}
             />
+            {selectionType === "bundle" && (
+              <p className="text-xs text-muted-foreground">
+                Bundle quantity is fixed to 1.
+              </p>
+            )}
           </div>
 
           {/* Price */}

@@ -37,6 +37,34 @@ const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
 const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
 const PAGE_SIZE_OPTIONS = [10, 50, 100, "All"] as const;
 
+// Helper function to check if SKU is a bundle SKU (contains " + ")
+const isBundleSku = (sku: string | null | undefined): boolean => {
+  return sku ? sku.includes(' + ') : false;
+};
+
+// Helper function to parse bundle SKU and get individual products with quantities
+// e.g., "ZP250-2 + ZP100-1" -> [{ sku: "ZP250", quantity: 2 }, { sku: "ZP100", quantity: 1 }]
+const parseBundleSku = (bundleSku: string): Array<{ sku: string; quantity: number }> => {
+  if (!bundleSku) return [];
+
+  const parts = bundleSku.split(' + ');
+  return parts.map((part) => {
+    const trimmed = part.trim();
+    const lastHyphenIndex = trimmed.lastIndexOf('-');
+
+    if (lastHyphenIndex === -1) {
+      return { sku: trimmed, quantity: 1 };
+    }
+
+    const potentialQty = parseInt(trimmed.substring(lastHyphenIndex + 1), 10);
+    if (!isNaN(potentialQty) && potentialQty > 0) {
+      return { sku: trimmed.substring(0, lastHyphenIndex), quantity: potentialQty };
+    }
+
+    return { sku: trimmed, quantity: 1 };
+  });
+};
+
 const LogisticsProcessed = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -328,25 +356,62 @@ const LogisticsProcessed = () => {
       await Promise.all(updatePromises);
 
       // Restore inventory for each order (add back the quantity)
+      // Handle both single products and bundles
       for (const order of selectedOrdersList) {
-        const productId = order.product_id;
-        const quantity = order.quantity || 0;
+        const orderSku = order.sku;
+        const orderQuantity = order.quantity || 1;
 
-        if (productId && quantity > 0) {
-          // Get current inventory
-          const { data: inventoryData } = await supabase
-            .from("inventory")
-            .select("id, quantity")
-            .eq("user_id", user?.id)
-            .eq("product_id", productId)
-            .single();
+        if (isBundleSku(orderSku)) {
+          // Bundle: parse SKU and restore each product's inventory
+          const bundleItems = parseBundleSku(orderSku);
 
-          if (inventoryData) {
-            const newQuantity = inventoryData.quantity + quantity;
-            await supabase
+          // Get all products to find product IDs by SKU
+          const { data: allProducts } = await supabase
+            .from("products")
+            .select("id, sku");
+
+          for (const bundleItem of bundleItems) {
+            const product = allProducts?.find((p: any) => p.sku === bundleItem.sku);
+            if (product) {
+              const totalQty = bundleItem.quantity * orderQuantity;
+
+              const { data: inventoryData } = await supabase
+                .from("inventory")
+                .select("id, quantity")
+                .eq("user_id", user?.id)
+                .eq("product_id", product.id)
+                .single();
+
+              if (inventoryData) {
+                const newQty = inventoryData.quantity + totalQty;
+                await supabase
+                  .from("inventory")
+                  .update({ quantity: newQty })
+                  .eq("id", inventoryData.id);
+                console.log(`Restored bundle item ${bundleItem.sku}: +${totalQty} (${inventoryData.quantity} -> ${newQty})`);
+              }
+            }
+          }
+        } else {
+          // Single product: restore using product_id
+          const productId = order.product_id;
+          const quantity = order.quantity || 0;
+
+          if (productId && quantity > 0) {
+            const { data: inventoryData } = await supabase
               .from("inventory")
-              .update({ quantity: newQuantity })
-              .eq("id", inventoryData.id);
+              .select("id, quantity")
+              .eq("user_id", user?.id)
+              .eq("product_id", productId)
+              .single();
+
+            if (inventoryData) {
+              const newQuantity = inventoryData.quantity + quantity;
+              await supabase
+                .from("inventory")
+                .update({ quantity: newQuantity })
+                .eq("id", inventoryData.id);
+            }
           }
         }
       }
@@ -406,25 +471,62 @@ const LogisticsProcessed = () => {
       }
 
       // Restore inventory for each order (add back the quantity)
+      // Handle both single products and bundles
       for (const order of selectedOrdersList) {
-        const productId = order.product_id;
-        const quantity = order.quantity || 0;
+        const orderSku = order.sku;
+        const orderQuantity = order.quantity || 1;
 
-        if (productId && quantity > 0) {
-          // Get current inventory
-          const { data: inventoryData } = await supabase
-            .from("inventory")
-            .select("id, quantity")
-            .eq("user_id", user?.id)
-            .eq("product_id", productId)
-            .single();
+        if (isBundleSku(orderSku)) {
+          // Bundle: parse SKU and restore each product's inventory
+          const bundleItems = parseBundleSku(orderSku);
 
-          if (inventoryData) {
-            const newQuantity = inventoryData.quantity + quantity;
-            await supabase
+          // Get all products to find product IDs by SKU
+          const { data: allProducts } = await supabase
+            .from("products")
+            .select("id, sku");
+
+          for (const bundleItem of bundleItems) {
+            const product = allProducts?.find((p: any) => p.sku === bundleItem.sku);
+            if (product) {
+              const totalQty = bundleItem.quantity * orderQuantity;
+
+              const { data: inventoryData } = await supabase
+                .from("inventory")
+                .select("id, quantity")
+                .eq("user_id", user?.id)
+                .eq("product_id", product.id)
+                .single();
+
+              if (inventoryData) {
+                const newQty = inventoryData.quantity + totalQty;
+                await supabase
+                  .from("inventory")
+                  .update({ quantity: newQty })
+                  .eq("id", inventoryData.id);
+                console.log(`Restored bundle item ${bundleItem.sku}: +${totalQty} (${inventoryData.quantity} -> ${newQty})`);
+              }
+            }
+          }
+        } else {
+          // Single product: restore using product_id
+          const productId = order.product_id;
+          const quantity = order.quantity || 0;
+
+          if (productId && quantity > 0) {
+            const { data: inventoryData } = await supabase
               .from("inventory")
-              .update({ quantity: newQuantity })
-              .eq("id", inventoryData.id);
+              .select("id, quantity")
+              .eq("user_id", user?.id)
+              .eq("product_id", productId)
+              .single();
+
+            if (inventoryData) {
+              const newQuantity = inventoryData.quantity + quantity;
+              await supabase
+                .from("inventory")
+                .update({ quantity: newQuantity })
+                .eq("id", inventoryData.id);
+            }
           }
         }
       }

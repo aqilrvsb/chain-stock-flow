@@ -142,6 +142,10 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
     trackingNumber: "",
   });
 
+  // Bundle selection state
+  const [selectionType, setSelectionType] = useState<"product" | "bundle">("product");
+  const [bundleId, setBundleId] = useState("");
+
   // Pre-fill form in edit mode
   useEffect(() => {
     if (editOrder) {
@@ -200,6 +204,54 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
     },
     enabled: !!branchId,
   });
+
+  // Fetch bundles for this branch
+  const { data: bundles = [] } = useQuery({
+    queryKey: ["branch-bundles-marketer", branchId],
+    queryFn: async () => {
+      if (!branchId) return [];
+      const { data, error } = await supabase
+        .from("branch_bundles")
+        .select(`
+          id,
+          name,
+          description,
+          sku,
+          total_price,
+          is_active,
+          items:branch_bundle_items(
+            id,
+            quantity,
+            product:products(id, name, sku)
+          )
+        `)
+        .eq("branch_id", branchId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!branchId,
+  });
+
+  // Get selected bundle details
+  const selectedBundle = bundles.find((b: any) => b.id === bundleId);
+
+  // Handle bundle selection change
+  const handleBundleChange = (newBundleId: string) => {
+    setBundleId(newBundleId);
+    const bundle = bundles.find((b: any) => b.id === newBundleId);
+    if (bundle) {
+      // Auto-fill price from bundle
+      setFormData((prev) => ({
+        ...prev,
+        hargaJualan: bundle.total_price || 0,
+        quantity: 1, // Bundle quantity is always 1
+        produk: bundle.name, // Set product name as bundle name for display
+        productId: "", // Clear product ID as we're using bundle
+      }));
+    }
+  };
 
   // Fetch NinjaVan config for branch
   const { data: ninjavanConfig } = useQuery({
@@ -416,14 +468,25 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
     setWaybillFileName("");
     setDeterminedCustomerType("");
     setLeadInfo(null);
+    setSelectionType("product");
+    setBundleId("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Check if bundle is selected
+    const isBundleSelected = selectionType === "bundle" && bundleId;
+
     // Validation
-    if (!formData.namaPelanggan || !formData.noPhone || !formData.poskod || !formData.daerah || !formData.negeri || !formData.alamat || !formData.produk || !formData.jenisClosing || !formData.caraBayaran || !formData.jenisCustomer) {
+    if (!formData.namaPelanggan || !formData.noPhone || !formData.poskod || !formData.daerah || !formData.negeri || !formData.alamat || !formData.jenisClosing || !formData.caraBayaran || !formData.jenisCustomer) {
       toast.error("Sila lengkapkan semua medan yang diperlukan.");
+      return;
+    }
+
+    // Validate product or bundle is selected
+    if (!isBundleSelected && !formData.produk) {
+      toast.error("Sila pilih produk atau bundle.");
       return;
     }
 
@@ -734,13 +797,26 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
           onNavigate("history");
         }
       } else {
+        // Determine SKU and product name based on selection type
+        let orderSku = selectedProduct?.sku || "";
+        let orderProductName = formData.produk;
+        let orderProductId = formData.productId || null;
+
+        if (isBundleSelected && selectedBundle) {
+          // Use bundle SKU format: SKU_A-unit + SKU_B-unit
+          orderSku = selectedBundle.sku || "";
+          orderProductName = selectedBundle.name;
+          orderProductId = null; // No single product for bundle
+        }
+
         // Create new order - seller_id is the BRANCH so it appears in Branch logistics
         const { error: orderError } = await supabase
           .from("customer_purchases")
           .insert({
             customer_id: customerId,
             seller_id: branchId, // Branch ID so it appears in Branch logistics
-            product_id: formData.productId,
+            product_id: orderProductId,
+            branch_bundle_id: isBundleSelected ? bundleId : null, // Track bundle ID
             marketer_id: user?.id,
             marketer_id_staff: userProfile?.idstaff,
             marketer_name: formData.namaPelanggan,
@@ -749,8 +825,8 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
             poskod: formData.poskod,
             bandar: formData.daerah,
             negeri: formData.negeri,
-            produk: formData.produk,
-            sku: selectedProduct?.sku,
+            produk: orderProductName,
+            sku: orderSku,
             quantity: formData.quantity,
             unit_price: formData.hargaJualan / formData.quantity,
             total_price: formData.hargaJualan,
@@ -986,32 +1062,118 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
               />
             </div>
 
-            {/* Produk */}
-            <div>
-              <FormLabel required>Produk</FormLabel>
-              <Select
-                value={formData.produk}
-                onValueChange={(value) => handleChange("produk", value)}
-                disabled={productsLoading}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder={productsLoading ? "Loading..." : "Pilih Produk"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {productsLoading ? (
-                    <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                  ) : branchProducts.length === 0 ? (
-                    <SelectItem value="empty" disabled>No products available</SelectItem>
-                  ) : (
-                    branchProducts.map((product: any) => (
-                      <SelectItem key={product.id} value={product.name}>
-                        {product.name} ({product.sku})
+            {/* Item Type Selection - Only show if bundles available */}
+            {bundles.length > 0 && (
+              <div>
+                <FormLabel required>Jenis Item</FormLabel>
+                <div className="flex gap-4 mt-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="selectionType"
+                      value="product"
+                      checked={selectionType === "product"}
+                      onChange={() => {
+                        setSelectionType("product");
+                        setBundleId("");
+                        setFormData((prev) => ({ ...prev, quantity: 1 }));
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span>Produk</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="selectionType"
+                      value="bundle"
+                      checked={selectionType === "bundle"}
+                      onChange={() => {
+                        setSelectionType("bundle");
+                        setFormData((prev) => ({
+                          ...prev,
+                          produk: "",
+                          productId: "",
+                          quantity: 1,
+                        }));
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <span>Bundle</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Produk Selection */}
+            {selectionType === "product" && (
+              <div>
+                <FormLabel required>Produk</FormLabel>
+                <Select
+                  value={formData.produk}
+                  onValueChange={(value) => handleChange("produk", value)}
+                  disabled={productsLoading}
+                >
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder={productsLoading ? "Loading..." : "Pilih Produk"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {productsLoading ? (
+                      <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                    ) : branchProducts.length === 0 ? (
+                      <SelectItem value="empty" disabled>No products available</SelectItem>
+                    ) : (
+                      branchProducts.map((product: any) => (
+                        <SelectItem key={product.id} value={product.name}>
+                          {product.name} ({product.sku})
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Bundle Selection */}
+            {selectionType === "bundle" && (
+              <div className="lg:col-span-2">
+                <FormLabel required>Bundle</FormLabel>
+                <Select value={bundleId} onValueChange={handleBundleChange}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Pilih Bundle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bundles.map((bundle: any) => (
+                      <SelectItem key={bundle.id} value={bundle.id}>
+                        {bundle.name} - RM {bundle.total_price?.toFixed(2)}
                       </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* Show bundle contents */}
+                {selectedBundle && (
+                  <div className="mt-2 p-3 bg-muted/50 rounded-md text-sm">
+                    {selectedBundle.sku && (
+                      <div className="mb-2 p-2 bg-blue-50 rounded">
+                        <p className="text-xs text-blue-600">Bundle SKU:</p>
+                        <code className="text-xs font-mono font-bold text-blue-900">
+                          {selectedBundle.sku}
+                        </code>
+                      </div>
+                    )}
+                    <p className="font-medium mb-2">Kandungan Bundle:</p>
+                    <ul className="space-y-1">
+                      {selectedBundle.items?.map((item: any, idx: number) => (
+                        <li key={idx} className="flex justify-between">
+                          <span>{item.product?.name || 'Unknown'}</span>
+                          <span className="text-muted-foreground">x {item.quantity}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quantity */}
             <div>
@@ -1023,7 +1185,13 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
                 value={formData.quantity}
                 onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 1)}
                 className="bg-background"
+                disabled={selectionType === "bundle"}
               />
+              {selectionType === "bundle" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Kuantiti bundle ditetapkan kepada 1.
+                </p>
+              )}
             </div>
 
             {/* Harga Jualan */}

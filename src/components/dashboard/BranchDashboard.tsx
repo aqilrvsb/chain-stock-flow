@@ -2,6 +2,7 @@ import { useState } from "react";
 import DashboardLayout from "./DashboardLayout";
 import BranchProductManagement from "./branch/BranchProductManagement";
 import BranchProductTransaction from "./branch/BranchProductTransaction";
+import BranchBundleManagement from "./branch/BranchBundleManagement";
 import MyAgents from "./master-agent/MyAgents";
 import TransactionAgent from "./master-agent/TransactionAgent";
 import RewardAgentPlatinum from "./master-agent/RewardAgentPlatinum";
@@ -37,6 +38,8 @@ const BranchDashboard = () => {
         return <StockInBranch />;
       case "stock-out":
         return <StockOutBranch />;
+      case "bundle-management":
+        return <BranchBundleManagement />;
       case "agents":
         return <MyAgents />;
       case "customers":

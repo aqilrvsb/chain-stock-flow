@@ -59,6 +59,57 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
+  // Fetch bundles for Branch (with items and product info)
+  const { data: bundles } = useQuery({
+    queryKey: ["bundles-for-customer", user?.id],
+    queryFn: async () => {
+      // Get user's branch_id
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("branch_id")
+        .eq("id", user?.id)
+        .single();
+
+      if (!profile?.branch_id) return [];
+
+      const { data, error } = await supabase
+        .from("branch_bundles")
+        .select(`
+          id,
+          name,
+          description,
+          sku,
+          total_price,
+          is_active,
+          branch_bundle_items (
+            id,
+            product_id,
+            quantity,
+            products:product_id (
+              id,
+              name,
+              sku
+            )
+          )
+        `)
+        .eq("branch_id", profile.branch_id)
+        .eq("is_active", true);
+
+      if (error) throw error;
+
+      // Transform items to match the expected format
+      return (data || []).map((bundle: any) => ({
+        ...bundle,
+        items: (bundle.branch_bundle_items || []).map((item: any) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          product: item.products,
+        })),
+      }));
+    },
+    enabled: userType === "branch" && !!user?.id,
+  });
+
   // Fetch customer purchases
   const { data: purchases, isLoading } = useQuery({
     queryKey: ["customer_purchases", user?.id, startDate, endDate, platformFilter],
@@ -267,6 +318,29 @@ const Customers = ({ userType }: CustomersProps) => {
 
   const isAllSelected = groupedPurchases.length > 0 && groupedPurchases.every((p: any) => selectedOrders.has(p.id));
 
+  // Helper function to check if SKU is a bundle SKU (contains " + ")
+  const isBundleSku = (sku: string | null | undefined): boolean => {
+    return sku ? sku.includes(' + ') : false;
+  };
+
+  // Helper function to parse bundle SKU and get individual products with quantities
+  const parseBundleSku = (bundleSku: string): Array<{ sku: string; quantity: number }> => {
+    if (!bundleSku) return [];
+    const parts = bundleSku.split(' + ');
+    return parts.map((part) => {
+      const trimmed = part.trim();
+      const lastHyphenIndex = trimmed.lastIndexOf('-');
+      if (lastHyphenIndex === -1) {
+        return { sku: trimmed, quantity: 1 };
+      }
+      const potentialQty = parseInt(trimmed.substring(lastHyphenIndex + 1), 10);
+      if (!isNaN(potentialQty) && potentialQty > 0) {
+        return { sku: trimmed.substring(0, lastHyphenIndex), quantity: potentialQty };
+      }
+      return { sku: trimmed, quantity: 1 };
+    });
+  };
+
   // Delete selected orders
   const handleDeleteSelected = async () => {
     if (selectedOrders.size === 0) {
@@ -277,7 +351,7 @@ const Customers = ({ userType }: CustomersProps) => {
     const result = await Swal.fire({
       icon: "warning",
       title: "Delete Orders?",
-      text: `Are you sure you want to delete ${selectedOrders.size} order(s)? This action cannot be undone.`,
+      html: `<p>Are you sure you want to delete <strong>${selectedOrders.size}</strong> order(s)?</p><p class="text-red-600 mt-2">This action cannot be undone. Inventory will be restored.</p>`,
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       confirmButtonText: "Yes, Delete",
@@ -288,6 +362,67 @@ const Customers = ({ userType }: CustomersProps) => {
 
     setIsDeleting(true);
     try {
+      // Get selected orders for inventory restoration BEFORE deleting
+      const selectedOrdersList = groupedPurchases.filter((p: any) => selectedOrders.has(p.id));
+
+      // Restore inventory for each order (add back the quantity)
+      // Only restore if order was Shipped (inventory was deducted)
+      for (const order of selectedOrdersList) {
+        if (order.delivery_status !== "Shipped") continue; // Only restore shipped orders
+
+        const orderSku = order.sku;
+        const orderQuantity = order.quantity || 1;
+
+        if (isBundleSku(orderSku)) {
+          // Bundle: parse SKU and restore each product's inventory
+          const bundleItems = parseBundleSku(orderSku);
+
+          for (const bundleItem of bundleItems) {
+            const product = products?.find((p: any) => p.sku === bundleItem.sku);
+            if (product) {
+              const totalQty = bundleItem.quantity * orderQuantity;
+
+              const { data: inventoryData } = await supabase
+                .from("inventory")
+                .select("id, quantity")
+                .eq("user_id", user?.id)
+                .eq("product_id", product.id)
+                .single();
+
+              if (inventoryData) {
+                const newQty = inventoryData.quantity + totalQty;
+                await supabase
+                  .from("inventory")
+                  .update({ quantity: newQty })
+                  .eq("id", inventoryData.id);
+                console.log(`Restored bundle item ${bundleItem.sku}: +${totalQty}`);
+              }
+            }
+          }
+        } else {
+          // Single product: restore using product_id
+          const productId = order.product_id;
+          const quantity = order.quantity || 0;
+
+          if (productId && quantity > 0) {
+            const { data: inventoryData } = await supabase
+              .from("inventory")
+              .select("id, quantity")
+              .eq("user_id", user?.id)
+              .eq("product_id", productId)
+              .single();
+
+            if (inventoryData) {
+              const newQuantity = inventoryData.quantity + quantity;
+              await supabase
+                .from("inventory")
+                .update({ quantity: newQuantity })
+                .eq("id", inventoryData.id);
+            }
+          }
+        }
+      }
+
       // Delete all selected orders
       const deletePromises = Array.from(selectedOrders).map((orderId) =>
         supabase.from("customer_purchases").delete().eq("id", orderId)
@@ -295,9 +430,10 @@ const Customers = ({ userType }: CustomersProps) => {
 
       await Promise.all(deletePromises);
 
-      toast.success(`${selectedOrders.size} order(s) deleted successfully`);
+      toast.success(`${selectedOrders.size} order(s) deleted. Inventory restored.`);
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["branch-inventory"] });
       setSelectedOrders(new Set());
     } catch (error: any) {
       toast.error(error.message || "Failed to delete orders");
@@ -406,25 +542,56 @@ const Customers = ({ userType }: CustomersProps) => {
 
   const createCustomerPurchase = useMutation({
     mutationFn: async (data: CustomerPurchaseData) => {
-      // Check if seller has enough inventory
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from('inventory')
-        .select('quantity')
-        .eq('user_id', user?.id)
-        .eq('product_id', data.productId)
-        .single();
+      // Handle bundle vs single product
+      const isBundle = data.isBundle && data.bundleId && data.bundleItems;
 
-      if (inventoryError || !inventoryData) {
-        throw new Error('Inventory not found for this product');
+      let selectedProduct: any = null;
+      let productName = "Product";
+
+      if (isBundle) {
+        // For bundles: check inventory for ALL products in bundle
+        for (const bundleItem of data.bundleItems!) {
+          const { data: inventoryData, error: inventoryError } = await supabase
+            .from('inventory')
+            .select('quantity')
+            .eq('user_id', user?.id)
+            .eq('product_id', bundleItem.product_id)
+            .single();
+
+          if (inventoryError || !inventoryData) {
+            const itemProduct = bundleItem.product?.name || bundleItem.product_id;
+            throw new Error(`Inventory not found for product: ${itemProduct}`);
+          }
+
+          const requiredQty = bundleItem.quantity * data.quantity; // quantity = number of bundles
+          if (inventoryData.quantity < requiredQty) {
+            const itemProduct = bundleItem.product?.name || bundleItem.product_id;
+            throw new Error(`Insufficient inventory for ${itemProduct}. Available: ${inventoryData.quantity}, Required: ${requiredQty}`);
+          }
+        }
+        // Use bundle name as product name
+        productName = data.bundleName || "Bundle";
+      } else {
+        // For single product: check inventory
+        const { data: inventoryData, error: inventoryError } = await supabase
+          .from('inventory')
+          .select('quantity')
+          .eq('user_id', user?.id)
+          .eq('product_id', data.productId)
+          .single();
+
+        if (inventoryError || !inventoryData) {
+          throw new Error('Inventory not found for this product');
+        }
+
+        if (inventoryData.quantity < data.quantity) {
+          throw new Error(`Insufficient inventory. Available: ${inventoryData.quantity}, Required: ${data.quantity}`);
+        }
+
+        // Get product info for NinjaVan
+        selectedProduct = products?.find(p => p.id === data.productId);
+        productName = selectedProduct?.name || "Product";
       }
-
-      if (inventoryData.quantity < data.quantity) {
-        throw new Error(`Insufficient inventory. Available: ${inventoryData.quantity}, Required: ${data.quantity}`);
-      }
-
-      // Get product info for NinjaVan
-      const selectedProduct = products?.find(p => p.id === data.productId);
-      const productName = selectedProduct?.name || "Product";
 
       // Check if customer exists (only if phone provided)
       let customerId: string | null = null;
@@ -505,6 +672,21 @@ const Customers = ({ userType }: CustomersProps) => {
       if (ninjavanConfig && usesNinjaVan) {
         try {
           const { data: session } = await supabase.auth.getSession();
+
+          // For bundles: generate SKU with multiplied quantities (SKU-qty + SKU-qty format)
+          // Example: If bundle is ABC001-2 + XYZ002-1 and order quantity is 2
+          // Final SKU becomes: ABC001-4 + XYZ002-2
+          let skuForWaybill = selectedProduct?.sku;
+          if (isBundle && data.bundleItems) {
+            skuForWaybill = data.bundleItems
+              .map((item) => {
+                const itemSku = item.product?.sku || '';
+                const totalQty = item.quantity * data.quantity;
+                return `${itemSku}-${totalQty}`;
+              })
+              .join(' + ');
+          }
+
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
             body: {
               profileId: user?.id,
@@ -517,7 +699,7 @@ const Customers = ({ userType }: CustomersProps) => {
               price: data.price,
               paymentMethod: data.paymentMethod,
               productName: productName,
-              productSku: selectedProduct?.sku,
+              productSku: skuForWaybill, // Bundle SKU or product SKU
               quantity: data.quantity,
               nota: "", // No nota field in customer purchase form
             },
@@ -573,53 +755,183 @@ const Customers = ({ userType }: CustomersProps) => {
         deliveryStatus
       });
 
-      // Create customer purchase record
-      const { error: purchaseError } = await supabase
-        .from('customer_purchases')
-        .insert({
-          customer_id: customerId,
-          seller_id: user?.id,
-          product_id: data.productId,
-          quantity: data.quantity,
-          unit_price: data.price / data.quantity,
-          total_price: data.price,
-          payment_method: data.paymentMethod,
-          closing_type: data.closingType,
-          tracking_number: trackingNumber,
-          remarks: 'Customer purchase',
-          platform: platform,
-          jenis_platform: jenisPlatform,
-          ninjavan_order_id: ninjavanOrderId,
-          order_from: data.orderFrom || null,
-          attachment_url: attachmentUrl,
-          delivery_status: deliveryStatus,
-          date_processed: dateProcessed,
-          // Save direct columns for display (since we use select("*") without joins)
-          marketer_name: data.customerName,
-          no_phone: data.customerPhone,
-          alamat: data.customerAddress,
-          poskod: data.customerPostcode || null,
-          bandar: data.customerCity || null,
-          negeri: data.customerState,
-          produk: productName,
-          sku: selectedProduct?.sku || null,
-          cara_bayaran: data.paymentMethod,
-          jenis_closing: data.closingType,
-          date_order: getMalaysiaDate(), // Use Malaysia timezone for order date
-        } as any);
+      // Create customer purchase record(s)
+      // For bundles: we create one main purchase record with bundle info
+      // and then create individual product transactions for reporting
+      if (isBundle) {
+        // Generate multiplied SKU for bundle based on order quantity
+        // Example: If bundle base is ABC001-2 + XYZ002-1 and quantity is 2
+        // Final SKU becomes: ABC001-4 + XYZ002-2
+        const multipliedBundleSku = data.bundleItems
+          ? data.bundleItems
+              .map((item) => {
+                const itemSku = item.product?.sku || '';
+                const totalQty = item.quantity * data.quantity;
+                return `${itemSku}-${totalQty}`;
+              })
+              .join(' + ')
+          : data.bundleSku;
 
-      if (purchaseError) throw purchaseError;
+        // Create main bundle purchase record
+        const { data: bundlePurchase, error: purchaseError } = await supabase
+          .from('customer_purchases')
+          .insert({
+            customer_id: customerId,
+            seller_id: user?.id,
+            product_id: null, // No single product for bundle
+            branch_bundle_id: data.bundleId, // Link to bundle
+            quantity: data.quantity,
+            unit_price: data.price / data.quantity,
+            total_price: data.price,
+            payment_method: data.paymentMethod,
+            closing_type: data.closingType,
+            tracking_number: trackingNumber,
+            remarks: `Bundle: ${data.bundleName}`,
+            platform: platform,
+            jenis_platform: jenisPlatform,
+            ninjavan_order_id: ninjavanOrderId,
+            order_from: data.orderFrom || null,
+            attachment_url: attachmentUrl,
+            delivery_status: deliveryStatus,
+            date_processed: dateProcessed,
+            // Save direct columns for display
+            marketer_name: data.customerName,
+            no_phone: data.customerPhone,
+            alamat: data.customerAddress,
+            poskod: data.customerPostcode || null,
+            bandar: data.customerCity || null,
+            negeri: data.customerState,
+            produk: data.bundleName, // Bundle name as product
+            sku: multipliedBundleSku || null, // Bundle SKU with multiplied quantities
+            cara_bayaran: data.paymentMethod,
+            jenis_closing: data.closingType,
+            date_order: getMalaysiaDate(),
+          } as any)
+          .select('id')
+          .single();
 
-      // Only deduct inventory for auto-shipped orders (Tiktok HQ, Shopee HQ, StoreHub)
-      // NinjaVan orders (Facebook/Database/Google) will deduct when moved to "Shipped" in Logistics Order
-      if (isDirectShipped) {
-        const { error: updateError } = await supabase
-          .from('inventory')
-          .update({ quantity: inventoryData.quantity - data.quantity })
-          .eq('user_id', user?.id)
-          .eq('product_id', data.productId);
+        if (purchaseError) throw purchaseError;
 
-        if (updateError) throw updateError;
+        // For bundles: create individual product transaction records for reporting
+        // These records track the actual products sold (for Product Transaction report)
+        for (const bundleItem of data.bundleItems!) {
+          const itemProduct = products?.find(p => p.id === bundleItem.product_id);
+          const totalItemQty = bundleItem.quantity * data.quantity; // Quantity per bundle * number of bundles
+
+          await supabase
+            .from('customer_purchases')
+            .insert({
+              customer_id: customerId,
+              seller_id: user?.id,
+              product_id: bundleItem.product_id,
+              branch_bundle_id: data.bundleId,
+              quantity: totalItemQty,
+              unit_price: 0, // Price is in the main bundle record
+              total_price: 0, // Price is in the main bundle record
+              payment_method: data.paymentMethod,
+              closing_type: data.closingType,
+              tracking_number: trackingNumber,
+              remarks: `Bundle Item: ${data.bundleName}`,
+              platform: platform,
+              jenis_platform: jenisPlatform,
+              order_from: data.orderFrom || null,
+              delivery_status: deliveryStatus,
+              date_processed: dateProcessed,
+              marketer_name: data.customerName,
+              no_phone: data.customerPhone,
+              alamat: data.customerAddress,
+              poskod: data.customerPostcode || null,
+              bandar: data.customerCity || null,
+              negeri: data.customerState,
+              produk: itemProduct?.name || 'Unknown',
+              sku: itemProduct?.sku || null,
+              cara_bayaran: data.paymentMethod,
+              jenis_closing: data.closingType,
+              date_order: getMalaysiaDate(),
+            } as any);
+        }
+
+        // Only deduct inventory for auto-shipped orders
+        if (isDirectShipped) {
+          for (const bundleItem of data.bundleItems!) {
+            const totalItemQty = bundleItem.quantity * data.quantity;
+
+            // Get current inventory
+            const { data: invData } = await supabase
+              .from('inventory')
+              .select('quantity')
+              .eq('user_id', user?.id)
+              .eq('product_id', bundleItem.product_id)
+              .single();
+
+            if (invData) {
+              await supabase
+                .from('inventory')
+                .update({ quantity: invData.quantity - totalItemQty })
+                .eq('user_id', user?.id)
+                .eq('product_id', bundleItem.product_id);
+            }
+          }
+        }
+      } else {
+        // Single product purchase (original logic)
+        const { error: purchaseError } = await supabase
+          .from('customer_purchases')
+          .insert({
+            customer_id: customerId,
+            seller_id: user?.id,
+            product_id: data.productId,
+            quantity: data.quantity,
+            unit_price: data.price / data.quantity,
+            total_price: data.price,
+            payment_method: data.paymentMethod,
+            closing_type: data.closingType,
+            tracking_number: trackingNumber,
+            remarks: 'Customer purchase',
+            platform: platform,
+            jenis_platform: jenisPlatform,
+            ninjavan_order_id: ninjavanOrderId,
+            order_from: data.orderFrom || null,
+            attachment_url: attachmentUrl,
+            delivery_status: deliveryStatus,
+            date_processed: dateProcessed,
+            // Save direct columns for display (since we use select("*") without joins)
+            marketer_name: data.customerName,
+            no_phone: data.customerPhone,
+            alamat: data.customerAddress,
+            poskod: data.customerPostcode || null,
+            bandar: data.customerCity || null,
+            negeri: data.customerState,
+            produk: productName,
+            sku: selectedProduct?.sku || null,
+            cara_bayaran: data.paymentMethod,
+            jenis_closing: data.closingType,
+            date_order: getMalaysiaDate(), // Use Malaysia timezone for order date
+          } as any);
+
+        if (purchaseError) throw purchaseError;
+
+        // Only deduct inventory for auto-shipped orders (Tiktok HQ, Shopee HQ, StoreHub)
+        // NinjaVan orders (Facebook/Database/Google) will deduct when moved to "Shipped" in Logistics Order
+        if (isDirectShipped) {
+          // Get current inventory
+          const { data: invData } = await supabase
+            .from('inventory')
+            .select('quantity')
+            .eq('user_id', user?.id)
+            .eq('product_id', data.productId)
+            .single();
+
+          if (invData) {
+            const { error: updateError } = await supabase
+              .from('inventory')
+              .update({ quantity: invData.quantity - data.quantity })
+              .eq('user_id', user?.id)
+              .eq('product_id', data.productId);
+
+            if (updateError) throw updateError;
+          }
+        }
       }
 
       // For Branch: Track prospect status (NP/EP/EC) for leads reporting (only if phone provided)
@@ -910,26 +1222,114 @@ const Customers = ({ userType }: CustomersProps) => {
             continue;
           }
 
-          // Try to match StoreHub product name with local products table
-          // Use case-insensitive partial match (product name contains storehub name or vice versa)
-          const matchedProduct = products?.find((p) => {
-            const localName = p.name.toLowerCase();
-            const storehubName = storehubProductName.toLowerCase();
-            return localName.includes(storehubName) || storehubName.includes(localName);
-          });
+          // Get StoreHub product SKU if available
+          const storehubSku = storehubProduct?.sku || item.sku || "";
+          const itemQuantity = item.quantity || 1;
+
+          // Check if this is a bundle SKU (contains " + ")
+          const isBundleSku = storehubSku.includes(' + ');
 
           let matchedProductId: string | null = null;
           let matchedSku: string | null = null;
-          const itemQuantity = item.quantity || 1;
+          let bundleItemsForDeduction: Array<{ productId: string; sku: string; quantity: number }> = [];
 
-          if (matchedProduct) {
-            matchedProductId = matchedProduct.id;
-            matchedSku = matchedProduct.sku;
-            console.log(`MATCHED: StoreHub "${storehubProductName}" -> Local "${matchedProduct.name}" (SKU: ${matchedSku})`);
-            // Note: Inventory deduction is handled automatically by database trigger
-            // when customer_purchases record is inserted with delivery_status = 'Shipped'
+          if (isBundleSku) {
+            // Bundle SKU format: "SKU-qty + SKU-qty"
+            // Parse and look up each product
+            console.log(`BUNDLE SKU detected: ${storehubSku}`);
+            const skuParts = storehubSku.split(' + ');
+
+            for (const skuPart of skuParts) {
+              const trimmedPart = skuPart.trim();
+              // Parse SKU-quantity format (e.g., "ABC001-2")
+              const lastHyphenIndex = trimmedPart.lastIndexOf('-');
+              let baseSku = trimmedPart;
+              let skuQty = 1;
+
+              if (lastHyphenIndex !== -1) {
+                const potentialQty = parseInt(trimmedPart.substring(lastHyphenIndex + 1), 10);
+                if (!isNaN(potentialQty) && potentialQty > 0) {
+                  baseSku = trimmedPart.substring(0, lastHyphenIndex);
+                  skuQty = potentialQty;
+                }
+              }
+
+              // Find product by SKU
+              const bundleProduct = products?.find((p) => p.sku === baseSku);
+              if (bundleProduct) {
+                bundleItemsForDeduction.push({
+                  productId: bundleProduct.id,
+                  sku: bundleProduct.sku,
+                  quantity: skuQty * itemQuantity // Multiply by order quantity
+                });
+                console.log(`Bundle item found: ${baseSku} x ${skuQty * itemQuantity}`);
+              } else {
+                console.warn(`Bundle item SKU not found: ${baseSku}`);
+              }
+            }
+
+            // Use bundle SKU as the stored SKU
+            matchedSku = storehubSku;
           } else {
-            console.log(`NO MATCH: StoreHub "${storehubProductName}" - no local product found`);
+            // Single product - try to match by SKU first, then by name
+            let matchedProduct = null;
+            let skuHasQuantity = false;
+
+            // First try exact SKU match
+            if (storehubSku) {
+              // Parse SKU-quantity format (e.g., "ZP250-6")
+              // Or handle SKU without quantity (e.g., "ZP250") - will use itemQuantity from order
+              const lastHyphenIndex = storehubSku.lastIndexOf('-');
+              let baseSku = storehubSku;
+
+              if (lastHyphenIndex !== -1) {
+                const potentialQty = parseInt(storehubSku.substring(lastHyphenIndex + 1), 10);
+                if (!isNaN(potentialQty) && potentialQty > 0) {
+                  baseSku = storehubSku.substring(0, lastHyphenIndex);
+                  skuHasQuantity = true;
+                }
+              }
+
+              matchedProduct = products?.find((p) => p.sku === baseSku);
+              if (matchedProduct) {
+                // If SKU doesn't have quantity suffix, combine with order quantity
+                // e.g., "ZP250" with itemQuantity 3 -> stored as "ZP250-3"
+                if (!skuHasQuantity && itemQuantity > 0) {
+                  matchedSku = `${matchedProduct.sku}-${itemQuantity}`;
+                  console.log(`MATCHED by SKU (no qty): StoreHub "${storehubSku}" + qty ${itemQuantity} -> "${matchedSku}"`);
+                } else {
+                  matchedSku = storehubSku; // Keep original SKU with quantity
+                  console.log(`MATCHED by SKU: StoreHub "${storehubSku}" -> Local "${matchedProduct.name}" (SKU: ${matchedProduct.sku})`);
+                }
+              }
+            }
+
+            // Fallback to name match if SKU match failed
+            if (!matchedProduct) {
+              matchedProduct = products?.find((p) => {
+                const localName = p.name.toLowerCase();
+                const storehubName = storehubProductName.toLowerCase();
+                return localName.includes(storehubName) || storehubName.includes(localName);
+              });
+
+              if (matchedProduct) {
+                // For name-matched products, always combine SKU with order quantity
+                // since they don't have SKU in StoreHub format
+                matchedSku = `${matchedProduct.sku}-${itemQuantity}`;
+                console.log(`MATCHED by name: StoreHub "${storehubProductName}" -> "${matchedSku}"`);
+              }
+            }
+
+            if (matchedProduct) {
+              matchedProductId = matchedProduct.id;
+              // matchedSku is already set above (either from SKU match or name match)
+              if (!matchedSku) {
+                // Fallback: if matchedSku wasn't set, use product SKU with quantity
+                matchedSku = `${matchedProduct.sku}-${itemQuantity}`;
+              }
+            } else {
+              console.log(`NO MATCH: StoreHub "${storehubProductName}" (SKU: ${storehubSku}) - no local product found`);
+            }
           }
 
           // Determine payment method (must be: 'Online Transfer', 'COD', or 'Cash')
@@ -953,15 +1353,28 @@ const Customers = ({ userType }: CustomersProps) => {
           // Use the user-selected sync date (the date they picked in the popup)
           // This is more reliable than extracting from transactionTime which has timezone issues
 
+          // Get matched product name for display
+          const matchedProductName = matchedProductId
+            ? products?.find((p) => p.id === matchedProductId)?.name || null
+            : null;
+
+          // For bundles: generate product name from bundle items
+          const displayProductName = isBundleSku && bundleItemsForDeduction.length > 0
+            ? bundleItemsForDeduction.map((bi) => {
+                const prod = products?.find((p) => p.id === bi.productId);
+                return `${prod?.name || bi.sku} x${bi.quantity}`;
+              }).join(' + ')
+            : matchedProductName;
+
           // Create customer purchase record with storehub_product
           const { error: purchaseError } = await supabase
             .from("customer_purchases")
             .insert({
               customer_id: customerId,
               seller_id: user?.id,
-              product_id: matchedProductId, // Link to local product if matched
-              sku: matchedSku, // SKU from matched product
-              produk: matchedProduct?.name || null, // Local product name if matched
+              product_id: isBundleSku ? null : matchedProductId, // No single product for bundle
+              sku: matchedSku, // SKU from matched product or bundle SKU
+              produk: displayProductName, // Local product name or bundle description
               storehub_product: storehubProductName, // Store StoreHub product name
               quantity: itemQuantity,
               unit_price: item.unitPrice || item.subTotal / itemQuantity,
@@ -975,6 +1388,11 @@ const Customers = ({ userType }: CustomersProps) => {
               date_order: syncDate, // Store the user-selected sync date
               delivery_status: "Shipped", // StoreHub orders are already fulfilled
               date_processed: syncDate, // Mark as processed on sync date
+              // Customer info from StoreHub
+              marketer_name: customerName, // Customer name
+              no_phone: customerPhone, // Customer phone
+              alamat: customerAddress, // Customer address
+              negeri: customerState, // Customer state
             } as any);
 
           if (purchaseError) {
@@ -982,6 +1400,33 @@ const Customers = ({ userType }: CustomersProps) => {
             skippedCount++;
           } else {
             importedCount++;
+
+            // Deduct inventory for bundles (foreach each product in bundle)
+            // StoreHub orders are already "Shipped", so deduct immediately
+            if (isBundleSku && bundleItemsForDeduction.length > 0) {
+              console.log(`Deducting inventory for bundle: ${storehubSku}`);
+              for (const bundleItem of bundleItemsForDeduction) {
+                // Get current inventory
+                const { data: invData } = await supabase
+                  .from('inventory')
+                  .select('quantity')
+                  .eq('user_id', user?.id)
+                  .eq('product_id', bundleItem.productId)
+                  .single();
+
+                if (invData) {
+                  const newQty = invData.quantity - bundleItem.quantity;
+                  await supabase
+                    .from('inventory')
+                    .update({ quantity: newQty })
+                    .eq('user_id', user?.id)
+                    .eq('product_id', bundleItem.productId);
+                  console.log(`Deducted ${bundleItem.sku}: ${invData.quantity} -> ${newQty}`);
+                }
+              }
+            }
+            // Note: Single product inventory deduction is handled by database trigger
+            // when delivery_status = 'Shipped' and product_id is set
           }
         }
       }
@@ -1278,6 +1723,7 @@ const Customers = ({ userType }: CustomersProps) => {
         onSubmit={(data) => createCustomerPurchase.mutate(data)}
         isLoading={createCustomerPurchase.isPending}
         products={products || []}
+        bundles={bundles || []}
         userType={userType}
       />
     </div>
