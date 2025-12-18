@@ -242,10 +242,8 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
     setBundleId(newBundleId);
     const bundle = bundles.find((b: any) => b.id === newBundleId);
     if (bundle) {
-      // Auto-fill price from bundle
       setFormData((prev) => ({
         ...prev,
-        hargaJualan: bundle.total_price || 0,
         quantity: 1, // Bundle quantity is always 1
         produk: bundle.name, // Set product name as bundle name for display
         productId: "", // Clear product ID as we're using bundle
@@ -1145,7 +1143,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
                   <SelectContent>
                     {bundles.map((bundle: any) => (
                       <SelectItem key={bundle.id} value={bundle.id}>
-                        {bundle.name} - RM {bundle.total_price?.toFixed(2)}
+                        {bundle.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

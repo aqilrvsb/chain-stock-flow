@@ -33,7 +33,7 @@ interface Bundle {
   name: string;
   description?: string;
   sku?: string; // Auto-generated SKU: SKU_A-unit + SKU_B-unit format
-  total_price: number;
+  total_price?: number;
   is_active: boolean;
   items: BundleItem[];
 }
@@ -156,14 +156,10 @@ const AddCustomerModal = ({
   // Get selected bundle
   const selectedBundle = bundles.find(b => b.id === bundleId);
 
-  // When bundle is selected, auto-fill price
+  // When bundle is selected
   const handleBundleChange = (id: string) => {
     setBundleId(id);
-    const bundle = bundles.find(b => b.id === id);
-    if (bundle) {
-      setPrice(bundle.total_price.toString());
-      setQuantity("1"); // Bundle always quantity 1
-    }
+    setQuantity("1"); // Bundle always quantity 1
   };
 
   // Check if order source requires manual tracking (Tiktok/Shopee)
@@ -498,7 +494,7 @@ const AddCustomerModal = ({
                 <SelectContent>
                   {bundles.filter(b => b.is_active).map((bundle) => (
                     <SelectItem key={bundle.id} value={bundle.id}>
-                      {bundle.name} - RM {bundle.total_price.toFixed(2)}
+                      {bundle.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

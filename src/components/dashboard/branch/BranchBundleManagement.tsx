@@ -54,7 +54,6 @@ const BranchBundleManagement = () => {
   // Form states
   const [bundleName, setBundleName] = useState("");
   const [bundleDescription, setBundleDescription] = useState("");
-  const [bundlePrice, setBundlePrice] = useState(0);
   const [bundleItems, setBundleItems] = useState<BundleItem[]>([]);
 
   // Add item form
@@ -113,7 +112,6 @@ const BranchBundleManagement = () => {
   const resetForm = () => {
     setBundleName("");
     setBundleDescription("");
-    setBundlePrice(0);
     setBundleItems([]);
     setSelectedProductId("");
     setItemQuantity(1);
@@ -133,7 +131,6 @@ const BranchBundleManagement = () => {
     setEditingBundleId(bundle.id);
     setBundleName(bundle.name);
     setBundleDescription(bundle.description || "");
-    setBundlePrice(bundle.total_price || 0);
     setBundleItems(
       bundle.items.map((item: any) => ({
         productId: item.product_id,
@@ -216,7 +213,6 @@ const BranchBundleManagement = () => {
             name: bundleName.trim(),
             description: bundleDescription.trim() || null,
             sku: generatedSku,
-            total_price: bundlePrice,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingBundleId);
@@ -251,7 +247,6 @@ const BranchBundleManagement = () => {
             name: bundleName.trim(),
             description: bundleDescription.trim() || null,
             sku: generatedSku,
-            total_price: bundlePrice,
           })
           .select()
           .single();
@@ -372,7 +367,6 @@ const BranchBundleManagement = () => {
                   <TableHead>Bundle Name</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Products</TableHead>
-                  <TableHead>Price (RM)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -404,7 +398,6 @@ const BranchBundleManagement = () => {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell>RM {Number(bundle.total_price || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Switch
@@ -474,18 +467,6 @@ const BranchBundleManagement = () => {
                   value={bundleDescription}
                   onChange={(e) => setBundleDescription(e.target.value)}
                   placeholder="Bundle description..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bundlePrice">Bundle Price (RM)</Label>
-                <Input
-                  id="bundlePrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={bundlePrice}
-                  onChange={(e) => setBundlePrice(parseFloat(e.target.value) || 0)}
                 />
               </div>
             </div>
