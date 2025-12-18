@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, FileText, Trash2, Loader2 } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, FileText, Trash2, Loader2, Search, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMalaysiaDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -25,6 +25,10 @@ const CustomerMarketer = () => {
   const [marketerFilter, setMarketerFilter] = useState("all");
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Quick search state (search without date filter)
+  const [quickSearch, setQuickSearch] = useState("");
+  const [isQuickSearchActive, setIsQuickSearchActive] = useState(false);
 
   // Payment details modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -81,11 +85,23 @@ const CustomerMarketer = () => {
     enabled: !!user?.id && !!marketers,
   });
 
+  // Quick search filter function
+  const quickSearchFilteredPurchases = isQuickSearchActive && quickSearch
+    ? (purchases || []).filter((p: any) => {
+        const searchTerm = quickSearch.toLowerCase();
+        return (
+          p.marketer_name?.toLowerCase().includes(searchTerm) ||
+          p.no_phone?.includes(quickSearch) ||
+          p.tracking_number?.toLowerCase().includes(searchTerm)
+        );
+      })
+    : purchases || [];
+
   // Calculate statistics - exclude products named "COD" from stats
-  const filteredPurchases = purchases?.filter(p => {
+  const filteredPurchases = quickSearchFilteredPurchases.filter(p => {
     const productName = p.produk || p.storehub_product || "";
     return !productName.toUpperCase().includes("COD");
-  }) || [];
+  });
 
   const totalCustomers = new Set(filteredPurchases.map(p => p.customer_id)).size || 0;
   const totalTransactions = filteredPurchases.length;
@@ -165,7 +181,7 @@ const CustomerMarketer = () => {
   // Checkbox handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedOrders(new Set((purchases || []).map((p: any) => p.id)));
+      setSelectedOrders(new Set(quickSearchFilteredPurchases.map((p: any) => p.id)));
     } else {
       setSelectedOrders(new Set());
     }
@@ -181,7 +197,20 @@ const CustomerMarketer = () => {
     setSelectedOrders(newSelection);
   };
 
-  const isAllSelected = (purchases || []).length > 0 && (purchases || []).every((p: any) => selectedOrders.has(p.id));
+  const isAllSelected = quickSearchFilteredPurchases.length > 0 && quickSearchFilteredPurchases.every((p: any) => selectedOrders.has(p.id));
+
+  // Handle quick search button click
+  const handleQuickSearch = () => {
+    if (quickSearch.trim()) {
+      setIsQuickSearchActive(true);
+    }
+  };
+
+  // Clear quick search
+  const clearQuickSearch = () => {
+    setQuickSearch("");
+    setIsQuickSearchActive(false);
+  };
 
   // Delete selected orders
   const handleDeleteSelected = async () => {
@@ -304,6 +333,50 @@ const CustomerMarketer = () => {
           <CardTitle>Marketer Orders</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Quick Search - Search by Name/Phone/Tracking without Date */}
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Quick Search</span>
+                </div>
+                <div className="flex flex-1 gap-2 items-center">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Enter name, phone, or tracking number..."
+                      value={quickSearch}
+                      onChange={(e) => {
+                        setQuickSearch(e.target.value);
+                        if (!e.target.value) setIsQuickSearchActive(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleQuickSearch();
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button onClick={handleQuickSearch} className="bg-primary hover:bg-primary/90">
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </Button>
+                  {isQuickSearchActive && (
+                    <Button variant="outline" onClick={clearQuickSearch}>
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {isQuickSearchActive && (
+                  <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+                    Showing results for: "{quickSearch}"
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Filters */}
           <Card className="border-dashed">
             <CardContent className="pt-6">
@@ -315,7 +388,10 @@ const CustomerMarketer = () => {
                     <Input
                       type="date"
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setIsQuickSearchActive(false);
+                      }}
                     />
                   </div>
                   <div>
@@ -323,12 +399,15 @@ const CustomerMarketer = () => {
                     <Input
                       type="date"
                       value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setIsQuickSearchActive(false);
+                      }}
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Jenis Platform</label>
-                    <Select value={platformFilter} onValueChange={setPlatformFilter}>
+                    <Select value={platformFilter} onValueChange={(v) => { setPlatformFilter(v); setIsQuickSearchActive(false); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="All Platforms" />
                       </SelectTrigger>
@@ -342,7 +421,7 @@ const CustomerMarketer = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Marketer</label>
-                    <Select value={marketerFilter} onValueChange={setMarketerFilter}>
+                    <Select value={marketerFilter} onValueChange={(v) => { setMarketerFilter(v); setIsQuickSearchActive(false); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="All Marketers" />
                       </SelectTrigger>
@@ -393,7 +472,7 @@ const CustomerMarketer = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(purchases || []).map((purchase: any, index) => (
+                {quickSearchFilteredPurchases.map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
                     <TableCell>
                       <Checkbox

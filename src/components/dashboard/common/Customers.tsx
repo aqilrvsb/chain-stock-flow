@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
-import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText, Trash2 } from "lucide-react";
+import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText, Trash2, Search, XCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -31,6 +31,10 @@ const Customers = ({ userType }: CustomersProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Quick search state (search without date filter)
+  const [quickSearch, setQuickSearch] = useState("");
+  const [isQuickSearchActive, setIsQuickSearchActive] = useState(false);
 
   // Payment details modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -249,6 +253,18 @@ const Customers = ({ userType }: CustomersProps) => {
     });
   })();
 
+  // Quick search filtered purchases
+  const quickSearchFilteredPurchases = isQuickSearchActive && quickSearch
+    ? groupedPurchases.filter((p: any) => {
+        const searchTerm = quickSearch.toLowerCase();
+        return (
+          p.customerName?.toLowerCase().includes(searchTerm) ||
+          p.customerPhone?.includes(quickSearch) ||
+          p.tracking_number?.toLowerCase().includes(searchTerm)
+        );
+      })
+    : groupedPurchases;
+
   // Count unique transactions (by invoice number from remarks) to match StoreHub
   const totalTransactions = groupedPurchases.length;
 
@@ -325,7 +341,7 @@ const Customers = ({ userType }: CustomersProps) => {
   // Checkbox handlers
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedOrders(new Set(groupedPurchases.map((p: any) => p.id)));
+      setSelectedOrders(new Set(quickSearchFilteredPurchases.map((p: any) => p.id)));
     } else {
       setSelectedOrders(new Set());
     }
@@ -341,7 +357,20 @@ const Customers = ({ userType }: CustomersProps) => {
     setSelectedOrders(newSelection);
   };
 
-  const isAllSelected = groupedPurchases.length > 0 && groupedPurchases.every((p: any) => selectedOrders.has(p.id));
+  const isAllSelected = quickSearchFilteredPurchases.length > 0 && quickSearchFilteredPurchases.every((p: any) => selectedOrders.has(p.id));
+
+  // Handle quick search button click
+  const handleQuickSearch = () => {
+    if (quickSearch.trim()) {
+      setIsQuickSearchActive(true);
+    }
+  };
+
+  // Clear quick search
+  const clearQuickSearch = () => {
+    setQuickSearch("");
+    setIsQuickSearchActive(false);
+  };
 
   // Helper function to check if SKU is a bundle SKU (contains " + ")
   const isBundleSku = (sku: string | null | undefined): boolean => {
@@ -1551,6 +1580,50 @@ const Customers = ({ userType }: CustomersProps) => {
           <CardTitle>Customer Purchases</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Quick Search - Search by Name/Phone/Tracking without Date */}
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">Quick Search</span>
+                </div>
+                <div className="flex flex-1 gap-2 items-center">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Enter name, phone, or tracking number..."
+                      value={quickSearch}
+                      onChange={(e) => {
+                        setQuickSearch(e.target.value);
+                        if (!e.target.value) setIsQuickSearchActive(false);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleQuickSearch();
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button onClick={handleQuickSearch} className="bg-primary hover:bg-primary/90">
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </Button>
+                  {isQuickSearchActive && (
+                    <Button variant="outline" onClick={clearQuickSearch}>
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {isQuickSearchActive && (
+                  <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+                    Showing results for: "{quickSearch}"
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Filters */}
           <Card className="border-dashed">
             <CardContent className="pt-6">
@@ -1562,7 +1635,10 @@ const Customers = ({ userType }: CustomersProps) => {
                     <Input
                       type="date"
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setIsQuickSearchActive(false);
+                      }}
                     />
                   </div>
                   <div>
@@ -1570,12 +1646,15 @@ const Customers = ({ userType }: CustomersProps) => {
                     <Input
                       type="date"
                       value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setIsQuickSearchActive(false);
+                      }}
                     />
                   </div>
                   <div>
                     <label className="text-sm font-medium mb-2 block">Jenis Platform</label>
-                    <Select value={platformFilter} onValueChange={setPlatformFilter}>
+                    <Select value={platformFilter} onValueChange={(v) => { setPlatformFilter(v); setIsQuickSearchActive(false); }}>
                       <SelectTrigger>
                         <SelectValue placeholder="All Jenis Platform" />
                       </SelectTrigger>
@@ -1625,7 +1704,7 @@ const Customers = ({ userType }: CustomersProps) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {groupedPurchases.map((purchase: any, index) => (
+                {quickSearchFilteredPurchases.map((purchase: any, index) => (
                   <TableRow key={purchase.id}>
                     <TableCell>
                       <Checkbox
