@@ -805,45 +805,6 @@ const Customers = ({ userType }: CustomersProps) => {
 
         if (purchaseError) throw purchaseError;
 
-        // For bundles: create individual product transaction records for reporting
-        // These records track the actual products sold (for Product Transaction report)
-        for (const bundleItem of data.bundleItems!) {
-          const itemProduct = products?.find(p => p.id === bundleItem.product_id);
-          const totalItemQty = bundleItem.quantity * data.quantity; // Quantity per bundle * number of bundles
-
-          await supabase
-            .from('customer_purchases')
-            .insert({
-              customer_id: customerId,
-              seller_id: user?.id,
-              product_id: bundleItem.product_id,
-              branch_bundle_id: data.bundleId,
-              quantity: totalItemQty,
-              unit_price: 0, // Price is in the main bundle record
-              total_price: 0, // Price is in the main bundle record
-              payment_method: data.paymentMethod,
-              closing_type: data.closingType,
-              tracking_number: trackingNumber,
-              remarks: `Bundle Item: ${data.bundleName}`,
-              platform: platform,
-              jenis_platform: jenisPlatform,
-              order_from: data.orderFrom || null,
-              delivery_status: deliveryStatus,
-              date_processed: dateProcessed,
-              marketer_name: data.customerName,
-              no_phone: data.customerPhone,
-              alamat: data.customerAddress,
-              poskod: data.customerPostcode || null,
-              bandar: data.customerCity || null,
-              negeri: data.customerState,
-              produk: itemProduct?.name || 'Unknown',
-              sku: itemProduct?.sku || null,
-              cara_bayaran: data.paymentMethod,
-              jenis_closing: data.closingType,
-              date_order: getMalaysiaDate(),
-            } as any);
-        }
-
         // Only deduct inventory for auto-shipped orders
         if (isDirectShipped) {
           for (const bundleItem of data.bundleItems!) {
