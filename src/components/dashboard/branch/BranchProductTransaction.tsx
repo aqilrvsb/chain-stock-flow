@@ -109,15 +109,18 @@ const BranchProductTransaction = () => {
       // Get purchases for this product
       const productPurchases = purchasesData?.filter((p) => p.product_id === product.id) || [];
 
+      // Total Sales - sum of total_price for ALL orders by date_order (same as Dashboard)
+      const allOrdersByDateOrder = productPurchases.filter(
+        (p) => isInDateRange(p.date_order)
+      );
+      const totalSales = allOrdersByDateOrder.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
+
       // Shipped Out - delivery_status = 'Shipped', filter by date_processed
       const shippedPurchases = productPurchases.filter(
         (p) => p.delivery_status === "Shipped" && isInDateRange(p.date_processed)
       );
       const shippedUnits = shippedPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const shippedTransactions = shippedPurchases.length;
-
-      // Total Sales - sum of total_price for shipped orders
-      const totalSales = shippedPurchases.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
 
       // Return - delivery_status = 'Return', filter by date_return
       const returnPurchases = productPurchases.filter(
