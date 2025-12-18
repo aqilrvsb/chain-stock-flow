@@ -665,18 +665,15 @@ const Customers = ({ userType }: CustomersProps) => {
         try {
           const { data: session } = await supabase.auth.getSession();
 
-          // For bundles: generate SKU with multiplied quantities (SKU-qty + SKU-qty format)
-          // Example: If bundle is ABC001-2 + XYZ002-1 and order quantity is 2
-          // Final SKU becomes: ABC001-4 + XYZ002-2
-          let skuForWaybill = selectedProduct?.sku;
-          if (isBundle && data.bundleItems) {
-            skuForWaybill = data.bundleItems
-              .map((item) => {
-                const itemSku = item.product?.sku || '';
-                const totalQty = item.quantity * data.quantity;
-                return `${itemSku}-${totalQty}`;
-              })
-              .join(' + ');
+          // For bundles: use bundleSku directly (already in SKU-qty + SKU-qty format)
+          // For single products: use product SKU with quantity
+          let skuForWaybill = '';
+          if (isBundle && data.bundleSku) {
+            // Use bundle SKU directly: "ZP250-2 + ZP100-1"
+            skuForWaybill = data.bundleSku;
+          } else if (selectedProduct?.sku) {
+            // Single product: "ZP250-3" format
+            skuForWaybill = `${selectedProduct.sku}-${data.quantity}`;
           }
 
           const ninjavanResponse = await supabase.functions.invoke("ninjavan-order", {
@@ -691,7 +688,7 @@ const Customers = ({ userType }: CustomersProps) => {
               price: data.price,
               paymentMethod: data.paymentMethod,
               productName: productName,
-              productSku: skuForWaybill, // Bundle SKU or product SKU
+              productSku: skuForWaybill, // Bundle SKU (ZP250-2 + ZP100-1) or product SKU (ZP250-3)
               quantity: data.quantity,
               nota: "", // No nota field in customer purchase form
               marketerIdStaff: profile?.idstaff || "", // Branch's idstaff for delivery instructions
