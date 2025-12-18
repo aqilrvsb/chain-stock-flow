@@ -31,13 +31,13 @@ const Customers = ({ userType }: CustomersProps) => {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch profile for StoreHub credentials (Branch only)
+  // Fetch profile for StoreHub credentials and idstaff (Branch only)
   const { data: profile } = useQuery({
     queryKey: ["profile-storehub", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("storehub_username, storehub_password")
+        .select("storehub_username, storehub_password, idstaff")
         .eq("id", user?.id)
         .single();
       if (error) throw error;
@@ -694,6 +694,7 @@ const Customers = ({ userType }: CustomersProps) => {
               productSku: skuForWaybill, // Bundle SKU or product SKU
               quantity: data.quantity,
               nota: "", // No nota field in customer purchase form
+              marketerIdStaff: profile?.idstaff || "", // Branch's idstaff for delivery instructions
             },
             headers: {
               Authorization: `Bearer ${session?.session?.access_token}`,
