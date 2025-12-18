@@ -159,7 +159,6 @@ const AddCustomerModal = ({
   // When bundle is selected
   const handleBundleChange = (id: string) => {
     setBundleId(id);
-    setQuantity("1"); // Bundle always quantity 1
   };
 
   // Check if order source requires manual tracking (Tiktok/Shopee)
@@ -524,7 +523,7 @@ const AddCustomerModal = ({
             </div>
           )}
 
-          {/* Unit/Quantity - Only editable for product, fixed to 1 for bundle */}
+          {/* Unit/Quantity */}
           <div className="space-y-2">
             <Label htmlFor="quantity">Unit *</Label>
             <Input
@@ -534,13 +533,7 @@ const AddCustomerModal = ({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="Enter unit quantity"
-              disabled={selectionType === "bundle"}
             />
-            {selectionType === "bundle" && (
-              <p className="text-xs text-muted-foreground">
-                Bundle quantity is fixed to 1.
-              </p>
-            )}
           </div>
 
           {/* Price */}

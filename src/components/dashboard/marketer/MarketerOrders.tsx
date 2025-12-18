@@ -244,7 +244,6 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
     if (bundle) {
       setFormData((prev) => ({
         ...prev,
-        quantity: 1, // Bundle quantity is always 1
         produk: bundle.name, // Set product name as bundle name for display
         productId: "", // Clear product ID as we're using bundle
       }));
@@ -1074,7 +1073,6 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
                       onChange={() => {
                         setSelectionType("product");
                         setBundleId("");
-                        setFormData((prev) => ({ ...prev, quantity: 1 }));
                       }}
                       className="w-4 h-4"
                     />
@@ -1092,7 +1090,6 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
                           ...prev,
                           produk: "",
                           productId: "",
-                          quantity: 1,
                         }));
                       }}
                       className="w-4 h-4"
@@ -1183,13 +1180,7 @@ const MarketerOrders = ({ onNavigate, editOrder, onCancelEdit }: MarketerOrdersP
                 value={formData.quantity}
                 onChange={(e) => handleChange("quantity", parseInt(e.target.value) || 1)}
                 className="bg-background"
-                disabled={selectionType === "bundle"}
               />
-              {selectionType === "bundle" && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Kuantiti bundle ditetapkan kepada 1.
-                </p>
-              )}
             </div>
 
             {/* Harga Jualan */}
