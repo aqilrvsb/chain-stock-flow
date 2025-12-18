@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { getMalaysiaDate } from "@/lib/utils";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
+import PaymentDetailsModal from "./PaymentDetailsModal";
 
 const CustomerMarketer = () => {
   const { user } = useAuth();
@@ -24,6 +25,10 @@ const CustomerMarketer = () => {
   const [marketerFilter, setMarketerFilter] = useState("all");
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Payment details modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentModalOrder, setPaymentModalOrder] = useState<any>(null);
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -133,6 +138,29 @@ const CustomerMarketer = () => {
       color: "text-green-600",
     },
   ];
+
+  // Check if payment details should be clickable (Online Transfer from Facebook, Google, Database)
+  const isPaymentClickable = (purchase: any) => {
+    const platform = purchase.jenis_platform?.toLowerCase() || "";
+    const isNinjavanSource = platform === "facebook" || platform === "google" || platform === "database";
+    const paymentMethod = purchase.cara_bayaran || purchase.payment_method;
+    const isOnlinePayment = paymentMethod === "Online Transfer";
+    return isNinjavanSource && isOnlinePayment;
+  };
+
+  // Open payment details modal
+  const handleOpenPaymentDetails = (purchase: any) => {
+    setPaymentModalOrder({
+      tarikh_bayaran: purchase.tarikh_bayaran,
+      jenis_bayaran: purchase.jenis_bayaran,
+      bank: purchase.bank,
+      receipt_image_url: purchase.receipt_image_url,
+      payment_method: purchase.cara_bayaran || purchase.payment_method,
+      total_price: purchase.total_price,
+      customer: { name: purchase.marketer_name },
+    });
+    setPaymentModalOpen(true);
+  };
 
   // Checkbox handlers
   const handleSelectAll = (checked: boolean) => {
@@ -403,7 +431,20 @@ const CustomerMarketer = () => {
                       </span>
                     </TableCell>
                     <TableCell>{purchase.negeri || "-"}</TableCell>
-                    <TableCell>{purchase.cara_bayaran || purchase.payment_method || "-"}</TableCell>
+                    <TableCell>
+                      {isPaymentClickable(purchase) ? (
+                        <button
+                          onClick={() => handleOpenPaymentDetails(purchase)}
+                          className="text-blue-600 font-medium hover:underline cursor-pointer"
+                        >
+                          {purchase.cara_bayaran || purchase.payment_method}
+                        </button>
+                      ) : (
+                        <span className={(purchase.cara_bayaran || purchase.payment_method) === "COD" ? "text-orange-600 font-medium" : ""}>
+                          {purchase.cara_bayaran || purchase.payment_method || "-"}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>{purchase.jenis_closing || "-"}</TableCell>
                     <TableCell>
                       <span className="text-sm">
@@ -445,6 +486,13 @@ const CustomerMarketer = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        order={paymentModalOrder}
+      />
     </div>
   );
 };

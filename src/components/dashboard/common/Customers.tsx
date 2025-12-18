@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import Swal from "sweetalert2";
 import AddCustomerModal, { CustomerPurchaseData } from "./AddCustomerModal";
 import { getMalaysiaDate, getMalaysiaYesterday } from "@/lib/utils";
+import PaymentDetailsModal from "../branch/PaymentDetailsModal";
 
 interface CustomersProps {
   userType: "master_agent" | "agent" | "branch";
@@ -30,6 +31,10 @@ const Customers = ({ userType }: CustomersProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Payment details modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentModalOrder, setPaymentModalOrder] = useState<any>(null);
 
   // Fetch profile for StoreHub credentials and idstaff (Branch only)
   const { data: profile } = useQuery({
@@ -218,6 +223,11 @@ const Customers = ({ userType }: CustomersProps) => {
           products: [productName],
           // Sum quantities
           total_quantity: p.quantity || 0,
+          // Payment details for modal
+          tarikh_bayaran: p.tarikh_bayaran,
+          jenis_bayaran: p.jenis_bayaran,
+          bank: p.bank,
+          receipt_image_url: p.receipt_image_url,
         });
       } else {
         // Additional item for same invoice - aggregate
@@ -288,6 +298,29 @@ const Customers = ({ userType }: CustomersProps) => {
       color: "text-green-600",
     },
   ];
+
+  // Check if payment details should be clickable (Online Transfer from Facebook, Google, Database)
+  const isPaymentClickable = (purchase: any) => {
+    const platform = purchase.platform?.toLowerCase() || "";
+    const isNinjavanSource = platform === "facebook" || platform === "google" || platform === "database";
+    const isOnlinePayment = purchase.payment_method === "Online Transfer";
+    return isNinjavanSource && isOnlinePayment;
+  };
+
+  // Open payment details modal
+  const handleOpenPaymentDetails = (purchase: any) => {
+    // Transform purchase to match modal expected format
+    setPaymentModalOrder({
+      tarikh_bayaran: purchase.tarikh_bayaran,
+      jenis_bayaran: purchase.jenis_bayaran,
+      bank: purchase.bank,
+      receipt_image_url: purchase.receipt_image_url,
+      payment_method: purchase.payment_method,
+      total_price: purchase.total_price,
+      customer: { name: purchase.customerName },
+    });
+    setPaymentModalOpen(true);
+  };
 
   // Checkbox handlers
   const handleSelectAll = (checked: boolean) => {
@@ -1631,7 +1664,20 @@ const Customers = ({ userType }: CustomersProps) => {
                       </span>
                     </TableCell>
                     <TableCell>{purchase.customerState || "-"}</TableCell>
-                    <TableCell>{purchase.payment_method}</TableCell>
+                    <TableCell>
+                      {isPaymentClickable(purchase) ? (
+                        <button
+                          onClick={() => handleOpenPaymentDetails(purchase)}
+                          className="text-blue-600 font-medium hover:underline cursor-pointer"
+                        >
+                          {purchase.payment_method}
+                        </button>
+                      ) : (
+                        <span className={purchase.payment_method === "COD" ? "text-orange-600 font-medium" : ""}>
+                          {purchase.payment_method}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>
                       <span className="text-sm" title={purchase.products.join(", ")}>
@@ -1676,6 +1722,13 @@ const Customers = ({ userType }: CustomersProps) => {
         products={products || []}
         bundles={bundles || []}
         userType={userType}
+      />
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        order={paymentModalOrder}
       />
     </div>
   );

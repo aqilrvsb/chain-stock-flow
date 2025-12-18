@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
+import PaymentDetailsModal from "./PaymentDetailsModal";
 
 const PAYMENT_OPTIONS = ["All", "Online Transfer", "COD"];
 const PLATFORM_OPTIONS = ["All", "Ninjavan", "Tiktok", "Shopee"];
@@ -74,6 +75,10 @@ const LogisticsOrder = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<any>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Payment details modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentModalOrder, setPaymentModalOrder] = useState<any>(null);
   const [editForm, setEditForm] = useState({
     customerName: "",
     phone: "",
@@ -712,6 +717,20 @@ const LogisticsOrder = () => {
     return isNinjavanPlatform(order) && !order.tracking_number;
   };
 
+  // Check if payment details should be clickable (Online Transfer from Facebook, Google, Database)
+  const isPaymentClickable = (order: any) => {
+    const platform = getOrderPlatform(order)?.toLowerCase() || "";
+    const isNinjavanSource = platform === "facebook" || platform === "google" || platform === "database";
+    const isOnlinePayment = order.payment_method === "Online Transfer";
+    return isNinjavanSource && isOnlinePayment;
+  };
+
+  // Open payment details modal
+  const handleOpenPaymentDetails = (order: any) => {
+    setPaymentModalOrder(order);
+    setPaymentModalOpen(true);
+  };
+
   // Open edit dialog
   const handleOpenEdit = (order: any) => {
     setEditingOrder(order);
@@ -1132,9 +1151,18 @@ const LogisticsOrder = () => {
                           <td className="p-3">{order.quantity}</td>
                           <td className="p-3">RM {Number(order.total_price || 0).toFixed(2)}</td>
                           <td className="p-3">
-                            <span className={order.payment_method === "COD" ? "text-orange-600 font-medium" : "text-blue-600 font-medium"}>
-                              {order.payment_method}
-                            </span>
+                            {isPaymentClickable(order) ? (
+                              <button
+                                onClick={() => handleOpenPaymentDetails(order)}
+                                className="text-blue-600 font-medium hover:underline cursor-pointer"
+                              >
+                                {order.payment_method}
+                              </button>
+                            ) : (
+                              <span className={order.payment_method === "COD" ? "text-orange-600 font-medium" : "text-blue-600 font-medium"}>
+                                {order.payment_method}
+                              </span>
+                            )}
                           </td>
                           <td className="p-3">
                             <span className={
@@ -1408,6 +1436,13 @@ const LogisticsOrder = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Details Modal */}
+      <PaymentDetailsModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        order={paymentModalOrder}
+      />
     </div>
   );
 };
