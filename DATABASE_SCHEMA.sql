@@ -36,6 +36,29 @@ CREATE TABLE public.branch_agent_relationships (
   CONSTRAINT branch_agent_relationships_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.profiles(id),
   CONSTRAINT branch_agent_relationships_agent_id_fkey FOREIGN KEY (agent_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.branch_bundle_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  bundle_id uuid NOT NULL,
+  product_id uuid NOT NULL,
+  quantity integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT branch_bundle_items_pkey PRIMARY KEY (id),
+  CONSTRAINT branch_bundle_items_bundle_id_fkey FOREIGN KEY (bundle_id) REFERENCES public.branch_bundles(id),
+  CONSTRAINT branch_bundle_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
+);
+CREATE TABLE public.branch_bundles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  branch_id uuid NOT NULL,
+  name text NOT NULL,
+  description text,
+  sku text,
+  total_price numeric NOT NULL DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT branch_bundles_pkey PRIMARY KEY (id),
+  CONSTRAINT branch_bundles_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.branch_processed_stock (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   branch_id uuid NOT NULL,
@@ -151,12 +174,14 @@ CREATE TABLE public.customer_purchases (
   nota_staff text,
   id_sale text,
   woo_order_id integer,
+  branch_bundle_id uuid,
   CONSTRAINT customer_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT customer_purchases_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT customer_purchases_seller_id_fkey FOREIGN KEY (seller_id) REFERENCES public.profiles(id),
   CONSTRAINT customer_purchases_bundle_id_fkey FOREIGN KEY (bundle_id) REFERENCES public.bundles(id),
   CONSTRAINT customer_purchases_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
-  CONSTRAINT customer_purchases_marketer_id_fkey FOREIGN KEY (marketer_id) REFERENCES public.profiles(id)
+  CONSTRAINT customer_purchases_marketer_id_fkey FOREIGN KEY (marketer_id) REFERENCES public.profiles(id),
+  CONSTRAINT customer_purchases_branch_bundle_id_fkey FOREIGN KEY (branch_bundle_id) REFERENCES public.branch_bundles(id)
 );
 CREATE TABLE public.customers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

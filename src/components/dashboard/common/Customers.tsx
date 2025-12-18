@@ -60,18 +60,10 @@ const Customers = ({ userType }: CustomersProps) => {
   });
 
   // Fetch bundles for Branch (with items and product info)
+  // For branch users, their user.id IS the branch_id for their bundles
   const { data: bundles } = useQuery({
     queryKey: ["bundles-for-customer", user?.id],
     queryFn: async () => {
-      // Get user's branch_id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("branch_id")
-        .eq("id", user?.id)
-        .single();
-
-      if (!profile?.branch_id) return [];
-
       const { data, error } = await supabase
         .from("branch_bundles")
         .select(`
@@ -92,7 +84,7 @@ const Customers = ({ userType }: CustomersProps) => {
             )
           )
         `)
-        .eq("branch_id", profile.branch_id)
+        .eq("branch_id", user?.id)
         .eq("is_active", true);
 
       if (error) throw error;
