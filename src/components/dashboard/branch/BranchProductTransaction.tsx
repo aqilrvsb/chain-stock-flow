@@ -115,34 +115,13 @@ const BranchProductTransaction = () => {
       // Get purchases for this product
       const productPurchases = purchasesData?.filter((p) => p.product_id === product.id) || [];
 
-      // Total Sales - same logic as Dashboard for StoreHub (use transaction_total grouped by invoice)
+      // Total Sales - use total_price for per-product calculation
+      // Note: For Product Transaction Report we use total_price (individual product price)
+      // because we're showing sales PER PRODUCT, not total invoice
       const allOrdersByDateOrder = productPurchases.filter(
         (p) => isInDateRange(p.date_order)
       );
-
-      // Calculate total sales with StoreHub special handling (same as Dashboard)
-      let totalSales = 0;
-      const storehubInvoiceTotals = new Map<string, number>();
-
-      allOrdersByDateOrder.forEach((p: any) => {
-        if (p.platform === "StoreHub") {
-          // StoreHub: use transaction_total grouped by invoice (same as Dashboard)
-          const invoiceNumber = p.storehub_invoice || p.id;
-          if (p.transaction_total && !storehubInvoiceTotals.has(invoiceNumber)) {
-            storehubInvoiceTotals.set(invoiceNumber, Number(p.transaction_total) || 0);
-          } else if (!p.transaction_total) {
-            // Fallback for old data without transaction_total
-            const current = storehubInvoiceTotals.get(invoiceNumber) || 0;
-            storehubInvoiceTotals.set(invoiceNumber, current + (Number(p.total_price) || 0));
-          }
-        } else {
-          // Non-StoreHub: use total_price directly
-          totalSales += Number(p.total_price) || 0;
-        }
-      });
-
-      // Add StoreHub totals
-      totalSales += Array.from(storehubInvoiceTotals.values()).reduce((sum, v) => sum + v, 0);
+      const totalSales = allOrdersByDateOrder.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
 
       // Shipped Out - delivery_status = 'Shipped', filter by date_processed
       const shippedPurchases = productPurchases.filter(
@@ -217,48 +196,20 @@ const BranchProductTransaction = () => {
     }) || [];
 
     // Group combo purchases by product name - also track units
-    // Apply same StoreHub logic (use transaction_total grouped by invoice)
-    const comboMap = new Map<string, { name: string; totalSales: number; units: number; storehubInvoices: Set<string> }>();
+    // Use total_price for per-product calculation (not transaction_total)
+    const comboMap = new Map<string, { name: string; totalSales: number; units: number }>();
     comboPurchases.forEach((p: any) => {
       const comboName = p.storehub_product || p.produk || "Unknown Combo";
       const existing = comboMap.get(comboName);
-
-      if (p.platform === "StoreHub") {
-        // StoreHub: use transaction_total grouped by invoice
-        const invoiceNumber = p.storehub_invoice || p.id;
-        if (existing) {
-          if (!existing.storehubInvoices.has(invoiceNumber)) {
-            existing.storehubInvoices.add(invoiceNumber);
-            if (p.transaction_total) {
-              existing.totalSales += Number(p.transaction_total) || 0;
-            } else {
-              existing.totalSales += Number(p.total_price) || 0;
-            }
-          }
-          existing.units += Number(p.quantity) || 0;
-        } else {
-          const invoices = new Set<string>();
-          invoices.add(invoiceNumber);
-          comboMap.set(comboName, {
-            name: comboName,
-            totalSales: p.transaction_total ? (Number(p.transaction_total) || 0) : (Number(p.total_price) || 0),
-            units: Number(p.quantity) || 0,
-            storehubInvoices: invoices,
-          });
-        }
+      if (existing) {
+        existing.totalSales += Number(p.total_price) || 0;
+        existing.units += Number(p.quantity) || 0;
       } else {
-        // Non-StoreHub: use total_price directly
-        if (existing) {
-          existing.totalSales += Number(p.total_price) || 0;
-          existing.units += Number(p.quantity) || 0;
-        } else {
-          comboMap.set(comboName, {
-            name: comboName,
-            totalSales: Number(p.total_price) || 0,
-            units: Number(p.quantity) || 0,
-            storehubInvoices: new Set<string>(),
-          });
-        }
+        comboMap.set(comboName, {
+          name: comboName,
+          totalSales: Number(p.total_price) || 0,
+          units: Number(p.quantity) || 0,
+        });
       }
     });
 
