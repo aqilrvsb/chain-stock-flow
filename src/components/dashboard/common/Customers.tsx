@@ -1364,47 +1364,47 @@ const Customers = ({ userType }: CustomersProps) => {
             .eq("remarks", itemRemarks);
 
           if (existingItem && existingItem.length > 0) {
-            // Item exists - check if we need to update customer details
+            // Item exists - check if we need to update customer details in customer_purchases table
             const existingPurchase = existingItem[0];
 
-            // Check if the customer linked to this purchase needs updating
-            if (existingPurchase.customer_id && customerName !== "Walk-In Customer") {
-              // Get the current customer record
-              const { data: currentCustomer } = await supabase
-                .from("customers")
-                .select("id, name, phone")
-                .eq("id", existingPurchase.customer_id)
+            // Check if we need to update the marketer_name column (customer name for display)
+            if (customerName !== "Walk-In Customer") {
+              // Get the current purchase record to check if marketer_name needs updating
+              const { data: currentPurchase } = await supabase
+                .from("customer_purchases")
+                .select("id, marketer_name, no_phone, alamat, negeri")
+                .eq("id", existingPurchase.id)
                 .single();
 
               // Debug: Log what we found in the database
               if (skippedDuplicate < 5) {
-                console.log(`DB Customer for Invoice ${transaction.invoiceNumber}:`, {
-                  dbName: currentCustomer?.name,
-                  dbPhone: currentCustomer?.phone,
+                console.log(`DB Purchase for Invoice ${transaction.invoiceNumber}:`, {
+                  dbMarketerName: currentPurchase?.marketer_name,
+                  dbPhone: currentPurchase?.no_phone,
                   storehubName: customerName,
                   storehubPhone: customerPhone,
-                  needsUpdate: currentCustomer && (currentCustomer.name === "Walk-In Customer" || !currentCustomer.name || currentCustomer.name === "-")
+                  needsUpdate: currentPurchase && (!currentPurchase.marketer_name || currentPurchase.marketer_name === "Walk-In Customer" || currentPurchase.marketer_name === "-")
                 });
               }
 
-              // Only update if current customer is "Walk-In Customer" or has no proper name
-              if (currentCustomer && (currentCustomer.name === "Walk-In Customer" || !currentCustomer.name || currentCustomer.name === "-")) {
-                // Update the customer record with the new details
+              // Update marketer_name if it's empty, "Walk-In Customer", or "-"
+              if (currentPurchase && (!currentPurchase.marketer_name || currentPurchase.marketer_name === "Walk-In Customer" || currentPurchase.marketer_name === "-")) {
+                // Update the customer_purchases record with customer details
                 const { error: updateError } = await supabase
-                  .from("customers")
+                  .from("customer_purchases")
                   .update({
-                    name: customerName,
-                    phone: customerPhone !== "walk-in" ? customerPhone : currentCustomer.phone,
-                    address: customerAddress || undefined,
-                    state: customerState !== "Walk-In" ? customerState : undefined,
+                    marketer_name: customerName,
+                    no_phone: customerPhone !== "walk-in" ? customerPhone : currentPurchase.no_phone,
+                    alamat: customerAddress || currentPurchase.alamat,
+                    negeri: customerState !== "Walk-In" ? customerState : currentPurchase.negeri,
                   })
-                  .eq("id", existingPurchase.customer_id);
+                  .eq("id", existingPurchase.id);
 
                 if (!updateError) {
-                  console.log(`UPDATED customer for Invoice ${transaction.invoiceNumber}: ${customerName}`);
+                  console.log(`UPDATED customer_purchases for Invoice ${transaction.invoiceNumber}: ${customerName}`);
                   updatedCustomerCount++;
                 } else {
-                  console.error(`Failed to update customer for Invoice ${transaction.invoiceNumber}:`, updateError);
+                  console.error(`Failed to update customer_purchases for Invoice ${transaction.invoiceNumber}:`, updateError);
                 }
               }
             }
