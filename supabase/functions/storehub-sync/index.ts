@@ -34,7 +34,8 @@ serve(async (req) => {
     const yesterday = yesterdayDate.toISOString().split('T')[0];
 
     // Fetch transactions from StoreHub for yesterday and today (to cover timezone differences)
-    const transactionsUrl = `https://api.storehubhq.com/transactions?from=${yesterday}&to=${today}`;
+    // Use expand=customer to include embedded customer data in transactions
+    const transactionsUrl = `https://api.storehubhq.com/transactions?from=${yesterday}&to=${today}&expand=customer`;
 
     const transactionsResponse = await fetch(transactionsUrl, {
       method: "GET",

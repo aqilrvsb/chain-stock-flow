@@ -1227,23 +1227,61 @@ const Customers = ({ userType }: CustomersProps) => {
         let customerAddress = "";
         let customerState = "Walk-In";
 
-        // Try both customerRefId and customerId
-        const custId = transaction.customerRefId || transaction.customerId;
+        // Try multiple customer ID fields from transaction
+        const custId = transaction.customerRefId || transaction.customerId || transaction.customer?.id || transaction.customer?._id;
+
+        // Debug: Log first few transactions to see customer field structure
+        if (importedCount < 3) {
+          console.log(`Transaction ${transaction.invoiceNumber} customer fields:`, {
+            customerRefId: transaction.customerRefId,
+            customerId: transaction.customerId,
+            customerObject: transaction.customer,
+            custId: custId
+          });
+        }
 
         if (custId) {
-          // Try multiple matching fields (refId, id, _id)
+          // Try multiple matching fields (refId, id, _id, customerId)
           const storehubCustomer = storehubCustomers?.find(
-            (c: any) => c.refId === custId || c.id === custId || c._id === custId
+            (c: any) => c.refId === custId || c.id === custId || c._id === custId || c.customerId === custId
           );
 
+          // Debug: Log if customer was found
+          if (importedCount < 3) {
+            console.log(`Customer lookup for custId ${custId}:`, storehubCustomer ? "FOUND" : "NOT FOUND");
+            if (!storehubCustomer && storehubCustomers?.length > 0) {
+              console.log(`First customer sample fields:`, Object.keys(storehubCustomers[0]));
+              console.log(`First customer sample:`, storehubCustomers[0]);
+            }
+          }
+
           if (storehubCustomer) {
-            customerName = `${storehubCustomer.firstName || ""} ${storehubCustomer.lastName || ""}`.trim() || "Walk-In Customer";
-            customerPhone = storehubCustomer.phone || storehubCustomer.mobile || "walk-in";
-            customerAddress = [storehubCustomer.address1, storehubCustomer.address2, storehubCustomer.city]
+            // Try multiple name field patterns
+            customerName = storehubCustomer.name ||
+              `${storehubCustomer.firstName || ""} ${storehubCustomer.lastName || ""}`.trim() ||
+              storehubCustomer.fullName ||
+              storehubCustomer.customerName ||
+              "Walk-In Customer";
+            customerPhone = storehubCustomer.phone || storehubCustomer.mobile || storehubCustomer.phoneNumber || "walk-in";
+            customerAddress = [storehubCustomer.address1, storehubCustomer.address2, storehubCustomer.city, storehubCustomer.address]
               .filter(Boolean)
               .join(", ");
             customerState = storehubCustomer.state || "Unknown";
           }
+        }
+
+        // Also check if transaction has customer name directly embedded
+        if (customerName === "Walk-In Customer" && transaction.customerName) {
+          customerName = transaction.customerName;
+        }
+        if (customerName === "Walk-In Customer" && transaction.customer?.name) {
+          customerName = transaction.customer.name;
+        }
+        if (customerName === "Walk-In Customer" && transaction.customer?.firstName) {
+          customerName = `${transaction.customer.firstName || ""} ${transaction.customer.lastName || ""}`.trim();
+        }
+        if (customerPhone === "walk-in" && transaction.customer?.phone) {
+          customerPhone = transaction.customer.phone;
         }
 
         // Create or get customer - use single "Walk-In Customer" for walk-in sales
