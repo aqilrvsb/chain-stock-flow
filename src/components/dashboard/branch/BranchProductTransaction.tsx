@@ -238,9 +238,36 @@ const BranchProductTransaction = () => {
     return [...regularProducts, ...filteredCombos];
   }, [products, stockInData, stockOutData, purchasesData, startDate, endDate]);
 
-  // Summary stats
+  // Summary stats - calculate Grand Total Sales using same logic as Dashboard
   const summaryStats = useMemo(() => {
-    const grandTotalSales = productTransactions.reduce((sum, p) => sum + p.totalSales, 0);
+    // Calculate Grand Total Sales using Dashboard's method:
+    // - StoreHub: use transaction_total grouped by invoice
+    // - Others: use total_price
+    const allOrdersInRange = purchasesData?.filter((p: any) => isInDateRange(p.date_order)) || [];
+
+    let grandTotalSales = 0;
+    const storehubInvoiceTotals = new Map<string, number>();
+
+    allOrdersInRange.forEach((o: any) => {
+      if (o.platform === "StoreHub") {
+        // StoreHub: use transaction_total grouped by invoice (same as Dashboard)
+        const invoiceNumber = o.storehub_invoice || o.id;
+        if (o.transaction_total && !storehubInvoiceTotals.has(invoiceNumber)) {
+          storehubInvoiceTotals.set(invoiceNumber, Number(o.transaction_total) || 0);
+        } else if (!o.transaction_total) {
+          // Fallback for old data without transaction_total
+          const current = storehubInvoiceTotals.get(invoiceNumber) || 0;
+          storehubInvoiceTotals.set(invoiceNumber, current + (Number(o.total_price) || 0));
+        }
+      } else {
+        // Non-StoreHub: use total_price
+        grandTotalSales += Number(o.total_price) || 0;
+      }
+    });
+
+    // Add StoreHub totals
+    grandTotalSales += Array.from(storehubInvoiceTotals.values()).reduce((sum, v) => sum + v, 0);
+
     const totalStockIn = productTransactions.reduce((sum, p) => sum + p.stockIn, 0);
     const totalStockOut = productTransactions.reduce((sum, p) => sum + p.stockOut, 0);
     const totalShipped = productTransactions.reduce((sum, p) => sum + p.shippedUnits, 0);
@@ -261,7 +288,7 @@ const BranchProductTransaction = () => {
       totalShopee,
       totalOnline,
     };
-  }, [productTransactions]);
+  }, [productTransactions, purchasesData, startDate, endDate]);
 
   const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
