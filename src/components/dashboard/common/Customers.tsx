@@ -1824,16 +1824,26 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{purchase.customerState || "-"}</TableCell>
                     <TableCell>
-                      <span
-                        onClick={() => openPaymentMethodModal(purchase)}
-                        className={`cursor-pointer hover:underline px-2 py-1 rounded text-xs font-medium ${
+                      {(purchase.platform === "Tiktok HQ" || purchase.platform === "Shopee HQ" || purchase.platform === "StoreHub") ? (
+                        <span
+                          onClick={() => openPaymentMethodModal(purchase)}
+                          className={`cursor-pointer hover:underline px-2 py-1 rounded text-xs font-medium ${
+                            purchase.payment_method === "COD" ? "text-orange-600 bg-orange-50" :
+                            purchase.payment_method === "Online Transfer" ? "text-blue-600 bg-blue-50" :
+                            "text-green-600 bg-green-50"
+                          }`}
+                        >
+                          {purchase.payment_method || "Cash"}
+                        </span>
+                      ) : (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
                           purchase.payment_method === "COD" ? "text-orange-600 bg-orange-50" :
                           purchase.payment_method === "Online Transfer" ? "text-blue-600 bg-blue-50" :
                           "text-green-600 bg-green-50"
-                        }`}
-                      >
-                        {purchase.payment_method || "Cash"}
-                      </span>
+                        }`}>
+                          {purchase.payment_method || "Cash"}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>
@@ -1845,12 +1855,18 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{purchase.total_quantity}</TableCell>
                     <TableCell>
-                      <span
-                        onClick={() => openPriceModal(purchase)}
-                        className="cursor-pointer hover:underline text-green-600 font-medium"
-                      >
-                        RM {Number(purchase.total_price || 0).toFixed(2)}
-                      </span>
+                      {(purchase.platform === "Tiktok HQ" || purchase.platform === "Shopee HQ" || purchase.platform === "StoreHub") ? (
+                        <span
+                          onClick={() => openPriceModal(purchase)}
+                          className="cursor-pointer hover:underline text-green-600 font-medium"
+                        >
+                          RM {Number(purchase.total_price || 0).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-green-600 font-medium">
+                          RM {Number(purchase.total_price || 0).toFixed(2)}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>{purchase.tracking_number || "-"}</TableCell>
                     <TableCell>
