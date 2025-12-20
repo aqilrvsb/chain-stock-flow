@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { Users, ShoppingCart, DollarSign, Package, Plus, RefreshCw, Loader2, FileText, Trash2, Search, XCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +43,16 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // State for tracking payment method updates
   const [updatingPaymentFor, setUpdatingPaymentFor] = useState<string | null>(null);
+
+  // State for payment method modal
+  const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
+  const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<any>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+
+  // State for price edit modal
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [selectedPurchaseForPrice, setSelectedPurchaseForPrice] = useState<any>(null);
+  const [newPrice, setNewPrice] = useState<string>("");
 
   // Fetch profile for StoreHub credentials and idstaff (Branch only)
   const { data: profile } = useQuery({
@@ -1007,24 +1018,68 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
-  // Update payment method mutation
-  const updatePaymentMethod = async (purchaseId: string, newPaymentMethod: string) => {
-    setUpdatingPaymentFor(purchaseId);
+  // Open payment method modal
+  const openPaymentMethodModal = (purchase: any) => {
+    setSelectedPurchaseForPayment(purchase);
+    setSelectedPaymentMethod(purchase.payment_method || "Cash");
+    setPaymentMethodModalOpen(true);
+  };
+
+  // Save payment method from modal
+  const savePaymentMethod = async () => {
+    if (!selectedPurchaseForPayment) return;
+
+    setUpdatingPaymentFor(selectedPurchaseForPayment.id);
     try {
       const { error } = await supabase
         .from("customer_purchases")
-        .update({ payment_method: newPaymentMethod })
-        .eq("id", purchaseId);
+        .update({ payment_method: selectedPaymentMethod })
+        .eq("id", selectedPurchaseForPayment.id);
 
       if (error) throw error;
 
       // Refresh the data
       queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
       toast.success("Payment method updated");
+      setPaymentMethodModalOpen(false);
     } catch (error: any) {
       toast.error(error.message || "Failed to update payment method");
     } finally {
       setUpdatingPaymentFor(null);
+    }
+  };
+
+  // Open price edit modal
+  const openPriceModal = (purchase: any) => {
+    setSelectedPurchaseForPrice(purchase);
+    setNewPrice(String(Number(purchase.total_price || 0).toFixed(2)));
+    setPriceModalOpen(true);
+  };
+
+  // Save new price from modal
+  const savePrice = async () => {
+    if (!selectedPurchaseForPrice) return;
+
+    const priceValue = parseFloat(newPrice);
+    if (isNaN(priceValue) || priceValue < 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("customer_purchases")
+        .update({ total_price: priceValue })
+        .eq("id", selectedPurchaseForPrice.id);
+
+      if (error) throw error;
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      toast.success("Price updated");
+      setPriceModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update price");
     }
   };
 
@@ -1769,24 +1824,16 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{purchase.customerState || "-"}</TableCell>
                     <TableCell>
-                      <Select
-                        value={purchase.payment_method || "Cash"}
-                        onValueChange={(value) => updatePaymentMethod(purchase.id, value)}
-                        disabled={updatingPaymentFor === purchase.id}
+                      <span
+                        onClick={() => openPaymentMethodModal(purchase)}
+                        className={`cursor-pointer hover:underline px-2 py-1 rounded text-xs font-medium ${
+                          purchase.payment_method === "COD" ? "text-orange-600 bg-orange-50" :
+                          purchase.payment_method === "Online Transfer" ? "text-blue-600 bg-blue-50" :
+                          "text-green-600 bg-green-50"
+                        }`}
                       >
-                        <SelectTrigger className={`w-[130px] h-8 text-xs ${
-                          purchase.payment_method === "COD" ? "text-orange-600 font-medium" :
-                          purchase.payment_method === "Online Transfer" ? "text-blue-600 font-medium" :
-                          "text-green-600 font-medium"
-                        }`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="COD">COD</SelectItem>
-                          <SelectItem value="Cash">Cash</SelectItem>
-                          <SelectItem value="Online Transfer">Online Transfer</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        {purchase.payment_method || "Cash"}
+                      </span>
                     </TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>
@@ -1797,7 +1844,14 @@ const Customers = ({ userType }: CustomersProps) => {
                       </span>
                     </TableCell>
                     <TableCell>{purchase.total_quantity}</TableCell>
-                    <TableCell>RM {Number(purchase.total_price || 0).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <span
+                        onClick={() => openPriceModal(purchase)}
+                        className="cursor-pointer hover:underline text-green-600 font-medium"
+                      >
+                        RM {Number(purchase.total_price || 0).toFixed(2)}
+                      </span>
+                    </TableCell>
                     <TableCell>{purchase.tracking_number || "-"}</TableCell>
                     <TableCell>
                       <Button
@@ -1840,6 +1894,70 @@ const Customers = ({ userType }: CustomersProps) => {
         onClose={() => setPaymentModalOpen(false)}
         order={paymentModalOrder}
       />
+
+      {/* Payment Method Edit Modal */}
+      <Dialog open={paymentMethodModalOpen} onOpenChange={setPaymentMethodModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Change Payment Method</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Select Payment Method</label>
+            <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COD">COD</SelectItem>
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="Online Transfer">Online Transfer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentMethodModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={savePaymentMethod}
+              disabled={updatingPaymentFor === selectedPurchaseForPayment?.id}
+            >
+              {updatingPaymentFor === selectedPurchaseForPayment?.id ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Price Edit Modal */}
+      <Dialog open={priceModalOpen} onOpenChange={setPriceModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Edit Price</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">New Price (RM)</label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={newPrice}
+              onChange={(e) => setNewPrice(e.target.value)}
+              placeholder="Enter new price"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPriceModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={savePrice}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
