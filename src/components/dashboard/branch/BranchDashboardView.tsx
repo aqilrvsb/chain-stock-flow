@@ -137,12 +137,10 @@ const BranchDashboardView = () => {
     const marketerSales = filteredMarketerOrders.reduce((sum: number, o: any) => sum + (Number(o.total_price) || 0), 0);
     const totalSales = branchSales + marketerSales;
 
-    // Total Units (Branch + Marketer) - only count Shipped orders
+    // Total Units (Branch + Marketer) - count all orders by date_order (includes Pending, Shipped, Return)
     const branchUnits = filteredBranchOrders
-      .filter((o: any) => o.delivery_status === "Shipped")
       .reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
     const marketerUnits = filteredMarketerOrders
-      .filter((o: any) => o.delivery_status === "Shipped")
       .reduce((sum: number, o: any) => sum + (Number(o.quantity) || 0), 0);
     const totalUnits = branchUnits + marketerUnits;
 

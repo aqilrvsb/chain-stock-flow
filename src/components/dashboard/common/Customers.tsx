@@ -40,6 +40,9 @@ const Customers = ({ userType }: CustomersProps) => {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentModalOrder, setPaymentModalOrder] = useState<any>(null);
 
+  // State for tracking payment method updates
+  const [updatingPaymentFor, setUpdatingPaymentFor] = useState<string | null>(null);
+
   // Fetch profile for StoreHub credentials and idstaff (Branch only)
   const { data: profile } = useQuery({
     queryKey: ["profile-storehub", user?.id],
@@ -1004,6 +1007,27 @@ const Customers = ({ userType }: CustomersProps) => {
     },
   });
 
+  // Update payment method mutation
+  const updatePaymentMethod = async (purchaseId: string, newPaymentMethod: string) => {
+    setUpdatingPaymentFor(purchaseId);
+    try {
+      const { error } = await supabase
+        .from("customer_purchases")
+        .update({ payment_method: newPaymentMethod })
+        .eq("id", purchaseId);
+
+      if (error) throw error;
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      toast.success("Payment method updated");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update payment method");
+    } finally {
+      setUpdatingPaymentFor(null);
+    }
+  };
+
   // Sync from StoreHub (Branch only)
   const handleStorehubSync = async () => {
     if (!profile?.storehub_username || !profile?.storehub_password) {
@@ -1354,7 +1378,8 @@ const Customers = ({ userType }: CustomersProps) => {
                 method.includes("debit") || method.includes("transfer") ||
                 method.includes("online") || method.includes("ewallet") ||
                 method.includes("grab") || method.includes("touch") ||
-                method.includes("boost") || method.includes("shopee")) {
+                method.includes("boost") || method.includes("shopee") ||
+                method.includes("qr")) {
               paymentMethod = "Online Transfer";
             } else if (method.includes("cod") || method.includes("delivery")) {
               paymentMethod = "COD";
@@ -1744,18 +1769,24 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{purchase.customerState || "-"}</TableCell>
                     <TableCell>
-                      {isPaymentClickable(purchase) ? (
-                        <button
-                          onClick={() => handleOpenPaymentDetails(purchase)}
-                          className="text-blue-600 font-medium hover:underline cursor-pointer"
-                        >
-                          {purchase.payment_method}
-                        </button>
-                      ) : (
-                        <span className={purchase.payment_method === "COD" ? "text-orange-600 font-medium" : ""}>
-                          {purchase.payment_method}
-                        </span>
-                      )}
+                      <Select
+                        value={purchase.payment_method || "Cash"}
+                        onValueChange={(value) => updatePaymentMethod(purchase.id, value)}
+                        disabled={updatingPaymentFor === purchase.id}
+                      >
+                        <SelectTrigger className={`w-[130px] h-8 text-xs ${
+                          purchase.payment_method === "COD" ? "text-orange-600 font-medium" :
+                          purchase.payment_method === "Online Transfer" ? "text-blue-600 font-medium" :
+                          "text-green-600 font-medium"
+                        }`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="COD">COD</SelectItem>
+                          <SelectItem value="Cash">Cash</SelectItem>
+                          <SelectItem value="Online Transfer">Online Transfer</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>{purchase.closing_type || "-"}</TableCell>
                     <TableCell>

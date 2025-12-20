@@ -189,51 +189,113 @@ const BranchProductTransaction = () => {
 
     // Now get combo products from purchases (where product_id is NULL and storehub_product or produk contains " + ")
     // This ensures no double counting - combos are only counted when product_id is NULL
-    const comboPurchases = purchasesData?.filter((p: any) => {
+    const allComboPurchases = purchasesData?.filter((p: any) => {
       const productName = p.storehub_product || p.produk || "";
       // Only count as combo if product_id is NULL (not linked to a specific product)
-      return !p.product_id && isCombo(productName) && isInDateRange(p.date_order);
+      return !p.product_id && isCombo(productName);
     }) || [];
 
-    // Group combo purchases by product name - also track units
-    // Use total_price for per-product calculation (not transaction_total)
-    const comboMap = new Map<string, { name: string; totalSales: number; units: number }>();
-    comboPurchases.forEach((p: any) => {
+    // Group combo purchases by product name with full breakdown like regular products
+    const comboMap = new Map<string, {
+      name: string;
+      totalSales: number;
+      shippedUnits: number;
+      shippedTransactions: number;
+      returnUnits: number;
+      returnTransactions: number;
+      storehub: { units: number; transactions: number };
+      tiktok: { units: number; transactions: number };
+      shopee: { units: number; transactions: number };
+      online: { units: number; transactions: number };
+    }>();
+
+    allComboPurchases.forEach((p: any) => {
       const comboName = p.storehub_product || p.produk || "Unknown Combo";
-      const existing = comboMap.get(comboName);
-      if (existing) {
-        existing.totalSales += Number(p.total_price) || 0;
-        existing.units += Number(p.quantity) || 0;
-      } else {
+
+      // Get or create combo entry
+      if (!comboMap.has(comboName)) {
         comboMap.set(comboName, {
           name: comboName,
-          totalSales: Number(p.total_price) || 0,
-          units: Number(p.quantity) || 0,
+          totalSales: 0,
+          shippedUnits: 0,
+          shippedTransactions: 0,
+          returnUnits: 0,
+          returnTransactions: 0,
+          storehub: { units: 0, transactions: 0 },
+          tiktok: { units: 0, transactions: 0 },
+          shopee: { units: 0, transactions: 0 },
+          online: { units: 0, transactions: 0 },
         });
+      }
+
+      const combo = comboMap.get(comboName)!;
+      const qty = Number(p.quantity) || 0;
+
+      // Total Sales - filter by date_order
+      if (isInDateRange(p.date_order)) {
+        combo.totalSales += Number(p.total_price) || 0;
+      }
+
+      // Shipped Out - delivery_status = 'Shipped', filter by date_processed
+      if (p.delivery_status === "Shipped" && isInDateRange(p.date_processed)) {
+        combo.shippedUnits += qty;
+        combo.shippedTransactions += 1;
+
+        // Platform breakdown for Branch HQ orders (marketer_id is null)
+        if (!p.marketer_id) {
+          if (p.platform === "StoreHub") {
+            combo.storehub.units += qty;
+            combo.storehub.transactions += 1;
+          } else if (p.platform === "Tiktok HQ") {
+            combo.tiktok.units += qty;
+            combo.tiktok.transactions += 1;
+          } else if (p.platform === "Shopee HQ") {
+            combo.shopee.units += qty;
+            combo.shopee.transactions += 1;
+          } else if (p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google") {
+            combo.online.units += qty;
+            combo.online.transactions += 1;
+          }
+        }
+      }
+
+      // Return - delivery_status = 'Return', filter by date_return
+      if (p.delivery_status === "Return" && isInDateRange(p.date_return)) {
+        combo.returnUnits += qty;
+        combo.returnTransactions += 1;
       }
     });
 
     // Convert combo map to array with same structure as regular products
-    const comboProducts = Array.from(comboMap.values()).map((combo, index) => ({
-      id: `combo-${index}`,
-      sku: `COMBO - ${combo.name}`, // Prefix with COMBO
-      name: combo.name,
-      totalSales: combo.totalSales,
-      stockIn: 0,
-      stockOut: 0,
-      shippedUnits: combo.units, // Show combo units in Shipped Out column
-      shippedTransactions: 0,
-      returnUnits: 0,
-      returnTransactions: 0,
-      storehub: { units: 0, transactions: 0, pct: 0 },
-      tiktok: { units: 0, transactions: 0, pct: 0 },
-      shopee: { units: 0, transactions: 0, pct: 0 },
-      online: { units: 0, transactions: 0, pct: 0 },
-      isCombo: true,
-    }));
+    const comboProducts = Array.from(comboMap.values()).map((combo, index) => {
+      // Calculate percentages based on total shipped units
+      const totalPlatformUnits = combo.storehub.units + combo.tiktok.units + combo.shopee.units + combo.online.units;
+      const storehubPct = totalPlatformUnits > 0 ? (combo.storehub.units / totalPlatformUnits) * 100 : 0;
+      const tiktokPct = totalPlatformUnits > 0 ? (combo.tiktok.units / totalPlatformUnits) * 100 : 0;
+      const shopeePct = totalPlatformUnits > 0 ? (combo.shopee.units / totalPlatformUnits) * 100 : 0;
+      const onlinePct = totalPlatformUnits > 0 ? (combo.online.units / totalPlatformUnits) * 100 : 0;
 
-    // Filter out combos with 0 sales and combine with regular products
-    const filteredCombos = comboProducts.filter((c) => c.totalSales > 0);
+      return {
+        id: `combo-${index}`,
+        sku: `COMBO - ${combo.name}`, // Prefix with COMBO
+        name: combo.name,
+        totalSales: combo.totalSales,
+        stockIn: 0,
+        stockOut: 0,
+        shippedUnits: combo.shippedUnits,
+        shippedTransactions: combo.shippedTransactions,
+        returnUnits: combo.returnUnits,
+        returnTransactions: combo.returnTransactions,
+        storehub: { units: combo.storehub.units, transactions: combo.storehub.transactions, pct: storehubPct },
+        tiktok: { units: combo.tiktok.units, transactions: combo.tiktok.transactions, pct: tiktokPct },
+        shopee: { units: combo.shopee.units, transactions: combo.shopee.transactions, pct: shopeePct },
+        online: { units: combo.online.units, transactions: combo.online.transactions, pct: onlinePct },
+        isCombo: true,
+      };
+    });
+
+    // Filter out combos with no activity (no sales, shipped, or returns) and combine with regular products
+    const filteredCombos = comboProducts.filter((c) => c.totalSales > 0 || c.shippedUnits > 0 || c.returnUnits > 0);
 
     return [...regularProducts, ...filteredCombos];
   }, [products, stockInData, stockOutData, purchasesData, startDate, endDate]);
