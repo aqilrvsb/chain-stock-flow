@@ -1376,6 +1376,17 @@ const Customers = ({ userType }: CustomersProps) => {
                 .eq("id", existingPurchase.customer_id)
                 .single();
 
+              // Debug: Log what we found in the database
+              if (skippedDuplicate < 5) {
+                console.log(`DB Customer for Invoice ${transaction.invoiceNumber}:`, {
+                  dbName: currentCustomer?.name,
+                  dbPhone: currentCustomer?.phone,
+                  storehubName: customerName,
+                  storehubPhone: customerPhone,
+                  needsUpdate: currentCustomer && (currentCustomer.name === "Walk-In Customer" || !currentCustomer.name || currentCustomer.name === "-")
+                });
+              }
+
               // Only update if current customer is "Walk-In Customer" or has no proper name
               if (currentCustomer && (currentCustomer.name === "Walk-In Customer" || !currentCustomer.name || currentCustomer.name === "-")) {
                 // Update the customer record with the new details
