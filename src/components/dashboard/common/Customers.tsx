@@ -1210,6 +1210,7 @@ const Customers = ({ userType }: CustomersProps) => {
       let skippedCancelled = 0;
       let skippedDuplicate = 0;
       let skippedCOD = 0;
+      let updatedCustomerCount = 0;
 
       // Process each transaction
       for (const transaction of transactions) {
@@ -1358,11 +1359,45 @@ const Customers = ({ userType }: CustomersProps) => {
           // Check if this specific item already exists
           const { data: existingItem } = await supabase
             .from("customer_purchases")
-            .select("id")
+            .select("id, customer_id")
             .eq("seller_id", user?.id)
             .eq("remarks", itemRemarks);
 
           if (existingItem && existingItem.length > 0) {
+            // Item exists - check if we need to update customer details
+            const existingPurchase = existingItem[0];
+
+            // Check if the customer linked to this purchase needs updating
+            if (existingPurchase.customer_id && customerName !== "Walk-In Customer") {
+              // Get the current customer record
+              const { data: currentCustomer } = await supabase
+                .from("customers")
+                .select("id, name, phone")
+                .eq("id", existingPurchase.customer_id)
+                .single();
+
+              // Only update if current customer is "Walk-In Customer" or has no proper name
+              if (currentCustomer && (currentCustomer.name === "Walk-In Customer" || !currentCustomer.name || currentCustomer.name === "-")) {
+                // Update the customer record with the new details
+                const { error: updateError } = await supabase
+                  .from("customers")
+                  .update({
+                    name: customerName,
+                    phone: customerPhone !== "walk-in" ? customerPhone : currentCustomer.phone,
+                    address: customerAddress || undefined,
+                    state: customerState !== "Walk-In" ? customerState : undefined,
+                  })
+                  .eq("id", existingPurchase.customer_id);
+
+                if (!updateError) {
+                  console.log(`UPDATED customer for Invoice ${transaction.invoiceNumber}: ${customerName}`);
+                  updatedCustomerCount++;
+                } else {
+                  console.error(`Failed to update customer for Invoice ${transaction.invoiceNumber}:`, updateError);
+                }
+              }
+            }
+
             console.log(`SKIPPED (duplicate): Invoice ${transaction.invoiceNumber} Item ${itemIndex}`);
             skippedCount++;
             skippedDuplicate++;
@@ -1600,6 +1635,7 @@ const Customers = ({ userType }: CustomersProps) => {
       console.log(`Skipped - Duplicate: ${skippedDuplicate}`);
       console.log(`Skipped - COD Product: ${skippedCOD}`);
       console.log(`Total Skipped: ${skippedCount}`);
+      console.log(`Customer Details Updated: ${updatedCustomerCount}`);
 
       Swal.fire({
         icon: "success",
@@ -1607,6 +1643,7 @@ const Customers = ({ userType }: CustomersProps) => {
         html: `
           <p>StoreHub sync completed for ${syncDate}</p>
           <p><strong>Imported:</strong> ${importedCount} items</p>
+          ${updatedCustomerCount > 0 ? `<p><strong>Customer Updated:</strong> ${updatedCustomerCount}</p>` : ''}
           <p><strong>Skipped:</strong> ${skippedCount}</p>
           <p style="font-size: 12px; color: #666;">Cancelled: ${skippedCancelled} | Duplicate: ${skippedDuplicate} | COD: ${skippedCOD}</p>
         `,
