@@ -871,7 +871,7 @@ const Customers = ({ userType }: CustomersProps) => {
             sku: multipliedBundleSku || null, // Bundle SKU with multiplied quantities
             cara_bayaran: data.paymentMethod,
             jenis_closing: data.closingType,
-            date_order: getMalaysiaDate(),
+            date_order: data.dateOrder || getMalaysiaDate(), // Use custom date or today
           } as any)
           .select('id')
           .single();
@@ -933,7 +933,7 @@ const Customers = ({ userType }: CustomersProps) => {
             sku: selectedProduct?.sku || null,
             cara_bayaran: data.paymentMethod,
             jenis_closing: data.closingType,
-            date_order: getMalaysiaDate(), // Use Malaysia timezone for order date
+            date_order: data.dateOrder || getMalaysiaDate(), // Use custom date or today
           } as any);
 
         if (purchaseError) throw purchaseError;

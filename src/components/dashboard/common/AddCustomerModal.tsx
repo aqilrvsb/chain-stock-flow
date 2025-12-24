@@ -67,6 +67,7 @@ export interface CustomerPurchaseData {
   trackingNumber?: string;
   orderFrom?: string;
   attachmentFile?: File;
+  dateOrder?: string; // Optional custom order date (Branch only)
   // Bundle fields
   isBundle?: boolean;
   bundleId?: string;
@@ -147,6 +148,7 @@ const AddCustomerModal = ({
   const [trackingNumber, setTrackingNumber] = useState("");
   const [orderFrom, setOrderFrom] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [dateOrder, setDateOrder] = useState(""); // Optional date order
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Bundle selection
@@ -224,6 +226,7 @@ const AddCustomerModal = ({
       trackingNumber: trackingNumber || undefined,
       orderFrom: orderFrom || undefined,
       attachmentFile: attachmentFile || undefined,
+      dateOrder: dateOrder || undefined, // Optional custom order date
       // Bundle fields
       isBundle: isBundleSelected,
       bundleId: isBundleSelected ? bundleId : undefined,
@@ -247,6 +250,7 @@ const AddCustomerModal = ({
     setTrackingNumber("");
     setOrderFrom("");
     setAttachmentFile(null);
+    setDateOrder("");
     setSelectionType("product");
     setBundleId("");
     if (fileInputRef.current) {
@@ -406,6 +410,22 @@ const AddCustomerModal = ({
                   This order will use NinjaVan integration for shipping.
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Date Order - Branch only, optional */}
+          {userType === "branch" && (
+            <div className="space-y-2">
+              <Label htmlFor="date-order">Date Order (Optional)</Label>
+              <Input
+                id="date-order"
+                type="date"
+                value={dateOrder}
+                onChange={(e) => setDateOrder(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use today's date. Select a date to backdate this order.
+              </p>
             </div>
           )}
 
