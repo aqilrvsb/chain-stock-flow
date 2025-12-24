@@ -1551,17 +1551,28 @@ const Customers = ({ userType }: CustomersProps) => {
               });
             }
 
+            // Check for online payment methods (including all QR payment types)
             if (method.includes("card") || method.includes("credit") ||
                 method.includes("debit") || method.includes("transfer") ||
                 method.includes("online") || method.includes("ewallet") ||
-                method.includes("grab") || method.includes("touch") ||
-                method.includes("boost") || method.includes("shopee") ||
-                method.includes("qr") || method.includes("duitnow")) {
+                method.includes("e-wallet") || method.includes("grab") ||
+                method.includes("touch") || method.includes("boost") ||
+                method.includes("shopee") || method.includes("qr") ||
+                method.includes("duitnow") || method.includes("fpx") ||
+                method.includes("tng") || method.includes("touchngo") ||
+                method.includes("maybank") || method.includes("cimb") ||
+                method.includes("rhb") || method.includes("hong leong") ||
+                method === "cash" && payment.paymentMethod !== "Cash") {
+              // If lowercase is "cash" but original is not "Cash", it's likely a custom payment method
               paymentMethod = "Online Transfer";
             } else if (method.includes("cod") || method.includes("delivery")) {
               paymentMethod = "COD";
+            } else if (method === "cash") {
+              paymentMethod = "Cash";
             } else {
-              paymentMethod = "Cash"; // Default to Cash for all other methods
+              // For any unknown/custom payment methods, default to Online Transfer
+              // (since Cash is explicitly "Cash" in StoreHub)
+              paymentMethod = "Online Transfer";
             }
           }
 
