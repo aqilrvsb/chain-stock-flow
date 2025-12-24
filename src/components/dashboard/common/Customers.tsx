@@ -1542,12 +1542,21 @@ const Customers = ({ userType }: CustomersProps) => {
           if (transaction.payments && transaction.payments.length > 0) {
             const payment = transaction.payments[0];
             const method = payment.paymentMethod?.toLowerCase() || "";
+
+            // Debug: Log first 5 payment methods to see what StoreHub sends
+            if (importedCount < 5) {
+              console.log(`Payment method for Invoice ${transaction.invoiceNumber}:`, {
+                original: payment.paymentMethod,
+                lowercase: method,
+              });
+            }
+
             if (method.includes("card") || method.includes("credit") ||
                 method.includes("debit") || method.includes("transfer") ||
                 method.includes("online") || method.includes("ewallet") ||
                 method.includes("grab") || method.includes("touch") ||
                 method.includes("boost") || method.includes("shopee") ||
-                method.includes("qr")) {
+                method.includes("qr") || method.includes("duitnow")) {
               paymentMethod = "Online Transfer";
             } else if (method.includes("cod") || method.includes("delivery")) {
               paymentMethod = "COD";
