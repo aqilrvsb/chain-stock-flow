@@ -921,6 +921,7 @@ const LogisticsProcessed = () => {
                       </th>
                       <th className="p-3 text-left">No</th>
                       <th className="p-3 text-left">Date Processed</th>
+                      <th className="p-3 text-left">Date Order</th>
                       <th className="p-3 text-left">ID Marketer</th>
                       <th className="p-3 text-left">Marketer</th>
                       <th className="p-3 text-left">Customer</th>
@@ -949,6 +950,7 @@ const LogisticsProcessed = () => {
                           </td>
                           <td className="p-3">{pageSize === "All" ? index + 1 : (currentPage - 1) * (pageSize as number) + index + 1}</td>
                           <td className="p-3">{order.date_processed || "-"}</td>
+                          <td className="p-3">{order.date_order || "-"}</td>
                           <td className="p-3 font-mono text-xs">{order.marketer?.idstaff || order.marketer_id_staff || "-"}</td>
                           <td className="p-3">{order.marketer?.full_name || (order.marketer_id ? "-" : "Branch")}</td>
                           <td className="p-3">{order.customer?.name || order.marketer_name || "-"}</td>
