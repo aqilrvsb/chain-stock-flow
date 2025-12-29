@@ -127,7 +127,7 @@ const Customers = ({ userType }: CustomersProps) => {
 
   // Fetch customer purchases
   const { data: purchases, isLoading } = useQuery({
-    queryKey: ["customer_purchases", user?.id, startDate, endDate, platformFilter],
+    queryKey: ["customer_purchases", user?.id, startDate, endDate, platformFilter, isQuickSearchActive],
     queryFn: async () => {
       let query = supabase
         .from("customer_purchases")
@@ -136,12 +136,15 @@ const Customers = ({ userType }: CustomersProps) => {
         .is("marketer_id", null) // Only show direct branch orders (not from marketers)
         .order("date_order", { ascending: false, nullsFirst: false });
 
-      // Use date_order for filtering (actual transaction date, not import timestamp)
-      if (startDate) {
-        query = query.gte("date_order", startDate);
-      }
-      if (endDate) {
-        query = query.lte("date_order", endDate);
+      // When Quick Search is active, don't filter by date - search ALL records
+      if (!isQuickSearchActive) {
+        // Use date_order for filtering (actual transaction date, not import timestamp)
+        if (startDate) {
+          query = query.gte("date_order", startDate);
+        }
+        if (endDate) {
+          query = query.lte("date_order", endDate);
+        }
       }
       if (platformFilter !== "all") {
         query = query.eq("platform", platformFilter);

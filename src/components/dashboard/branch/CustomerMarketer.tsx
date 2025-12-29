@@ -50,7 +50,7 @@ const CustomerMarketer = () => {
 
   // Fetch customer purchases from marketers (where marketer_id IS NOT NULL)
   const { data: purchases, isLoading } = useQuery({
-    queryKey: ["customer_marketer_purchases", user?.id, startDate, endDate, platformFilter, marketerFilter],
+    queryKey: ["customer_marketer_purchases", user?.id, startDate, endDate, platformFilter, marketerFilter, isQuickSearchActive],
     queryFn: async () => {
       // Get marketer IDs under this branch
       const marketerIds = marketers?.map(m => m.id) || [];
@@ -65,11 +65,14 @@ const CustomerMarketer = () => {
         .in("marketer_id", marketerIds)
         .order("date_order", { ascending: false, nullsFirst: false });
 
-      if (startDate) {
-        query = query.gte("date_order", startDate);
-      }
-      if (endDate) {
-        query = query.lte("date_order", endDate);
+      // When Quick Search is active, don't filter by date - search ALL records
+      if (!isQuickSearchActive) {
+        if (startDate) {
+          query = query.gte("date_order", startDate);
+        }
+        if (endDate) {
+          query = query.lte("date_order", endDate);
+        }
       }
       if (platformFilter !== "all") {
         query = query.eq("jenis_platform", platformFilter);
