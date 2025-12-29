@@ -79,6 +79,7 @@ const LogisticsProcessed = () => {
   const [platformFilter, setPlatformFilter] = useState("All");
   const [pageSize, setPageSize] = useState<number | "All">(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userFilter, setUserFilter] = useState("All");
 
   // Selection state
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -99,7 +100,7 @@ const LogisticsProcessed = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, idstaff, full_name")
         .eq("branch_id", user?.id);
       if (error) throw error;
       return data || [];
@@ -275,6 +276,20 @@ const LogisticsProcessed = () => {
       const orderCategory = getOrderPlatformCategory(order);
       if (orderCategory !== platformFilter) {
         return false;
+      }
+    }
+
+    // User filter
+    if (userFilter !== "All") {
+      if (userFilter === "Branch") {
+        // Branch orders have no marketer_id
+        if (order.marketer_id) return false;
+      } else if (userFilter === "Marketer") {
+        // Marketer orders have marketer_id
+        if (!order.marketer_id) return false;
+      } else {
+        // Specific marketer ID
+        if (order.marketer_id !== userFilter) return false;
       }
     }
 
@@ -847,6 +862,25 @@ const LogisticsProcessed = () => {
                   <SelectContent>
                     {PAYMENT_OPTIONS.map((opt) => (
                       <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">User:</span>
+                <Select value={userFilter} onValueChange={(v) => { setUserFilter(v); handleFilterChange(); }}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Order</SelectItem>
+                    <SelectItem value="Marketer">Marketer</SelectItem>
+                    <SelectItem value="Branch">Branch</SelectItem>
+                    {marketers?.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.idstaff || m.full_name || "Unknown"}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
