@@ -95,7 +95,7 @@ const MALAYSIAN_STATES = [
   "Terengganu",
 ];
 
-const PAYMENT_METHODS = ["COD", "Online Transfer"];
+const PAYMENT_METHODS = ["COD", "Online Transfer", "Cash"];
 
 const CLOSING_TYPES = [
   "Website",
