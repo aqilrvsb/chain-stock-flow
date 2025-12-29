@@ -1032,9 +1032,13 @@ const Customers = ({ userType }: CustomersProps) => {
 
     setUpdatingPaymentFor(selectedPurchaseForPayment.id);
     try {
+      // Update both payment_method and cara_bayaran columns
       const { error } = await supabase
         .from("customer_purchases")
-        .update({ payment_method: selectedPaymentMethod })
+        .update({
+          payment_method: selectedPaymentMethod,
+          cara_bayaran: selectedPaymentMethod
+        } as any)
         .eq("id", selectedPurchaseForPayment.id);
 
       if (error) throw error;
