@@ -812,7 +812,8 @@ const Customers = ({ userType }: CustomersProps) => {
       // NinjaVan sources (Facebook, Database, Google) go to Pending - inventory deducted when shipped via Logistics
       const isDirectShipped = orderFromValue === 'Tiktok HQ' || orderFromValue === 'Shopee HQ' || orderFromValue === 'StoreHub';
       const deliveryStatus = isDirectShipped ? 'Shipped' : 'Pending';
-      const dateProcessed = isDirectShipped ? getMalaysiaDate() : null;
+      // Use custom dateOrder for date_processed if provided, otherwise use today
+      const dateProcessed = isDirectShipped ? (data.dateOrder || getMalaysiaDate()) : null;
 
       console.log('Order creation debug:', {
         orderFrom: data.orderFrom,
