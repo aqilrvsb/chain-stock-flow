@@ -45,6 +45,7 @@ import {
   Trash2,
   Car,
   FileText,
+  MessageCircle,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
@@ -222,6 +223,33 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
     a.download = `order_history_${userIdStaff}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleWhatsAppClick = (order: any) => {
+    // Format phone number - remove leading 0 and add Malaysia country code
+    let phone = order.no_phone || "";
+    phone = phone.replace(/\D/g, ""); // Remove non-digits
+    if (phone.startsWith("0")) {
+      phone = "60" + phone.substring(1);
+    } else if (!phone.startsWith("60")) {
+      phone = "60" + phone;
+    }
+
+    // Build message with order details
+    const message = `Assalamualaikum ${order.marketer_name || ""},
+
+Maklumat Pesanan:
+- Produk: ${order.produk || "-"}
+- Kuantiti: ${order.quantity || 1}
+- Harga: RM ${Number(order.total_price || 0).toFixed(2)}
+- Cara Bayaran: ${order.cara_bayaran || "-"}
+- Tracking No: ${order.tracking_number || "-"}
+
+Terima kasih! 🙏`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   const handlePaymentClick = (order: any) => {
@@ -612,6 +640,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Nota</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Waybill</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">SEO</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">WhatsApp</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Action</th>
               </tr>
             </thead>
@@ -721,6 +750,15 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleWhatsAppClick(order)}
+                        className="p-1.5 rounded-md hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600 dark:text-green-400 transition-colors"
+                        title="WhatsApp Customer"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
                       {order.delivery_status === "Pending" && (
                         <div className="flex items-center gap-2">
                           <button
@@ -744,7 +782,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={19} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={20} className="px-4 py-12 text-center text-muted-foreground">
                     No orders found.
                   </td>
                 </tr>

@@ -30,7 +30,8 @@
       "Bash(del \"supabase\\migrations\\20251201000001_remove_stock_in_hq_inventory_trigger.sql\")",
       "Bash(ping:*)",
       "Bash(npx supabase functions list:*)",
-      "Bash(del \"c:\\Users\\aqilz\\Documents\\chain-stock-flow-main\\supabase\\migrations\\20251215000008_allow_null_customer_id.sql\")"
+      "Bash(del \"c:\\Users\\aqilz\\Documents\\chain-stock-flow-main\\supabase\\migrations\\20251215000008_allow_null_customer_id.sql\")",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []
