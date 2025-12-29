@@ -89,7 +89,7 @@ const Invoice = () => {
             created_at: firstPurchase.date_order || firstPurchase.created_at,
             status: "completed",
             customer: firstPurchase.customer,
-            payment_method: firstPurchase.payment_method,
+            payment_method: firstPurchase.cara_bayaran || firstPurchase.payment_method,
             platform: firstPurchase.platform,
             closing_type: firstPurchase.closing_type,
             tracking_number: firstPurchase.tracking_number,
