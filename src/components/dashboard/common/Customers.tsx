@@ -54,6 +54,12 @@ const Customers = ({ userType }: CustomersProps) => {
   const [selectedPurchaseForPrice, setSelectedPurchaseForPrice] = useState<any>(null);
   const [newPrice, setNewPrice] = useState<string>("");
 
+  // State for date edit modal
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [selectedPurchaseForDate, setSelectedPurchaseForDate] = useState<any>(null);
+  const [dateEditType, setDateEditType] = useState<"date_order" | "date_processed">("date_order");
+  const [newDate, setNewDate] = useState<string>("");
+
   // Fetch profile for StoreHub credentials and idstaff (Branch only)
   const { data: profile } = useQuery({
     queryKey: ["profile-storehub", user?.id],
@@ -1091,6 +1097,39 @@ const Customers = ({ userType }: CustomersProps) => {
     }
   };
 
+  // Open date edit modal
+  const openDateModal = (purchase: any, type: "date_order" | "date_processed") => {
+    setSelectedPurchaseForDate(purchase);
+    setDateEditType(type);
+    const currentDate = type === "date_order" ? purchase.date_order : purchase.date_processed;
+    setNewDate(currentDate || "");
+    setDateModalOpen(true);
+  };
+
+  // Save date from modal
+  const saveDate = async () => {
+    if (!selectedPurchaseForDate) return;
+
+    try {
+      const updateData: any = {};
+      updateData[dateEditType] = newDate || null;
+
+      const { error } = await supabase
+        .from("customer_purchases")
+        .update(updateData)
+        .eq("id", selectedPurchaseForDate.id);
+
+      if (error) throw error;
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ["customer_purchases"] });
+      toast.success(`${dateEditType === "date_order" ? "Date Order" : "Date Processed"} updated`);
+      setDateModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update date");
+    }
+  };
+
   // Sync from StoreHub (Branch only)
   const handleStorehubSync = async () => {
     if (!profile?.storehub_username || !profile?.storehub_password) {
@@ -1911,7 +1950,8 @@ const Customers = ({ userType }: CustomersProps) => {
                     />
                   </TableHead>
                   <TableHead>No</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Date Order</TableHead>
+                  <TableHead>Date Processed</TableHead>
                   <TableHead>Platform</TableHead>
                   <TableHead>Name Customer</TableHead>
                   <TableHead>Phone Customer</TableHead>
@@ -1937,7 +1977,20 @@ const Customers = ({ userType }: CustomersProps) => {
                     </TableCell>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      {format(new Date(purchase.date_order || purchase.created_at), "dd-MM-yyyy")}
+                      <span
+                        onClick={() => openDateModal(purchase, "date_order")}
+                        className="cursor-pointer hover:underline text-blue-600"
+                      >
+                        {purchase.date_order ? format(new Date(purchase.date_order), "dd-MM-yyyy") : "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        onClick={() => openDateModal(purchase, "date_processed")}
+                        className="cursor-pointer hover:underline text-purple-600"
+                      >
+                        {purchase.date_processed ? format(new Date(purchase.date_processed), "dd-MM-yyyy") : "-"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2112,6 +2165,35 @@ const Customers = ({ userType }: CustomersProps) => {
               Cancel
             </Button>
             <Button onClick={savePrice}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Date Edit Modal */}
+      <Dialog open={dateModalOpen} onOpenChange={setDateModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>
+              Edit {dateEditType === "date_order" ? "Date Order" : "Date Processed"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              {dateEditType === "date_order" ? "Date Order" : "Date Processed"}
+            </label>
+            <Input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveDate}>
               Save
             </Button>
           </DialogFooter>

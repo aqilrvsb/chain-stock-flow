@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { Users, ShoppingCart, DollarSign, Package, FileText, Trash2, Loader2, Search, XCircle } from "lucide-react";
@@ -33,6 +34,12 @@ const CustomerMarketer = () => {
   // Payment details modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [paymentModalOrder, setPaymentModalOrder] = useState<any>(null);
+
+  // State for date edit modal
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [selectedPurchaseForDate, setSelectedPurchaseForDate] = useState<any>(null);
+  const [dateEditType, setDateEditType] = useState<"date_order" | "date_processed">("date_order");
+  const [newDate, setNewDate] = useState<string>("");
 
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
@@ -213,6 +220,39 @@ const CustomerMarketer = () => {
   const clearQuickSearch = () => {
     setQuickSearch("");
     setIsQuickSearchActive(false);
+  };
+
+  // Open date edit modal
+  const openDateModal = (purchase: any, type: "date_order" | "date_processed") => {
+    setSelectedPurchaseForDate(purchase);
+    setDateEditType(type);
+    const currentDate = type === "date_order" ? purchase.date_order : purchase.date_processed;
+    setNewDate(currentDate || "");
+    setDateModalOpen(true);
+  };
+
+  // Save date from modal
+  const saveDate = async () => {
+    if (!selectedPurchaseForDate) return;
+
+    try {
+      const updateData: any = {};
+      updateData[dateEditType] = newDate || null;
+
+      const { error } = await supabase
+        .from("customer_purchases")
+        .update(updateData)
+        .eq("id", selectedPurchaseForDate.id);
+
+      if (error) throw error;
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ["customer_marketer_purchases"] });
+      toast.success(`${dateEditType === "date_order" ? "Date Order" : "Date Processed"} updated`);
+      setDateModalOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update date");
+    }
   };
 
   // Delete selected orders
@@ -457,7 +497,8 @@ const CustomerMarketer = () => {
                     />
                   </TableHead>
                   <TableHead>No</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Date Order</TableHead>
+                  <TableHead>Date Processed</TableHead>
                   <TableHead>Marketer</TableHead>
                   <TableHead>Platform</TableHead>
                   <TableHead>Name Customer</TableHead>
@@ -485,7 +526,20 @@ const CustomerMarketer = () => {
                     </TableCell>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      {purchase.date_order ? format(new Date(purchase.date_order), "dd-MM-yyyy") : "-"}
+                      <span
+                        onClick={() => openDateModal(purchase, "date_order")}
+                        className="cursor-pointer hover:underline text-blue-600"
+                      >
+                        {purchase.date_order ? format(new Date(purchase.date_order), "dd-MM-yyyy") : "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        onClick={() => openDateModal(purchase, "date_processed")}
+                        className="cursor-pointer hover:underline text-purple-600"
+                      >
+                        {purchase.date_processed ? format(new Date(purchase.date_processed), "dd-MM-yyyy") : "-"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm font-medium">
@@ -575,6 +629,35 @@ const CustomerMarketer = () => {
         onClose={() => setPaymentModalOpen(false)}
         order={paymentModalOrder}
       />
+
+      {/* Date Edit Modal */}
+      <Dialog open={dateModalOpen} onOpenChange={setDateModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>
+              Edit {dateEditType === "date_order" ? "Date Order" : "Date Processed"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              {dateEditType === "date_order" ? "Date Order" : "Date Processed"}
+            </label>
+            <Input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveDate}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
