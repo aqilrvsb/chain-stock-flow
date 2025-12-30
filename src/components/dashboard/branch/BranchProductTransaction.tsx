@@ -122,6 +122,9 @@ const BranchProductTransaction = () => {
         (p) => isInDateRange(p.date_order)
       );
       const totalSales = allOrdersByDateOrder.reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
+      // Branch/Marketer breakdown for Total Sales
+      const branchSales = allOrdersByDateOrder.filter((p) => !p.marketer_id).reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
+      const marketerSales = allOrdersByDateOrder.filter((p) => p.marketer_id).reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
 
       // Shipped Out - delivery_status = 'Shipped', filter by date_processed
       const shippedPurchases = productPurchases.filter(
@@ -129,6 +132,9 @@ const BranchProductTransaction = () => {
       );
       const shippedUnits = shippedPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const shippedTransactions = shippedPurchases.length;
+      // Branch/Marketer breakdown for Shipped
+      const branchShippedUnits = shippedPurchases.filter((p) => !p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const marketerShippedUnits = shippedPurchases.filter((p) => p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
 
       // Return - delivery_status = 'Return', filter by date_return
       const returnPurchases = productPurchases.filter(
@@ -136,6 +142,9 @@ const BranchProductTransaction = () => {
       );
       const returnUnits = returnPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const returnTransactions = returnPurchases.length;
+      // Branch/Marketer breakdown for Return
+      const branchReturnUnits = returnPurchases.filter((p) => !p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const marketerReturnUnits = returnPurchases.filter((p) => p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
 
       // Platform breakdown for Branch HQ orders (marketer_id is null)
       // Use 'platform' field for Branch HQ orders
@@ -173,11 +182,17 @@ const BranchProductTransaction = () => {
       return {
         ...product,
         totalSales,
+        branchSales,
+        marketerSales,
         stockIn,
         stockOut,
         shippedUnits,
+        branchShippedUnits,
+        marketerShippedUnits,
         shippedTransactions,
         returnUnits,
+        branchReturnUnits,
+        marketerReturnUnits,
         returnTransactions,
         storehub: { units: storehubUnits, transactions: storehubTransactions, pct: storehubPct },
         tiktok: { units: tiktokUnits, transactions: tiktokTransactions, pct: tiktokPct },
@@ -199,9 +214,15 @@ const BranchProductTransaction = () => {
     const comboMap = new Map<string, {
       name: string;
       totalSales: number;
+      branchSales: number;
+      marketerSales: number;
       shippedUnits: number;
+      branchShippedUnits: number;
+      marketerShippedUnits: number;
       shippedTransactions: number;
       returnUnits: number;
+      branchReturnUnits: number;
+      marketerReturnUnits: number;
       returnTransactions: number;
       storehub: { units: number; transactions: number };
       tiktok: { units: number; transactions: number };
@@ -211,15 +232,22 @@ const BranchProductTransaction = () => {
 
     allComboPurchases.forEach((p: any) => {
       const comboName = p.storehub_product || p.produk || "Unknown Combo";
+      const isBranch = !p.marketer_id;
 
       // Get or create combo entry
       if (!comboMap.has(comboName)) {
         comboMap.set(comboName, {
           name: comboName,
           totalSales: 0,
+          branchSales: 0,
+          marketerSales: 0,
           shippedUnits: 0,
+          branchShippedUnits: 0,
+          marketerShippedUnits: 0,
           shippedTransactions: 0,
           returnUnits: 0,
+          branchReturnUnits: 0,
+          marketerReturnUnits: 0,
           returnTransactions: 0,
           storehub: { units: 0, transactions: 0 },
           tiktok: { units: 0, transactions: 0 },
@@ -233,13 +261,24 @@ const BranchProductTransaction = () => {
 
       // Total Sales - filter by date_order
       if (isInDateRange(p.date_order)) {
-        combo.totalSales += Number(p.total_price) || 0;
+        const price = Number(p.total_price) || 0;
+        combo.totalSales += price;
+        if (isBranch) {
+          combo.branchSales += price;
+        } else {
+          combo.marketerSales += price;
+        }
       }
 
       // Shipped Out - delivery_status = 'Shipped', filter by date_processed
       if (p.delivery_status === "Shipped" && isInDateRange(p.date_processed)) {
         combo.shippedUnits += qty;
         combo.shippedTransactions += 1;
+        if (isBranch) {
+          combo.branchShippedUnits += qty;
+        } else {
+          combo.marketerShippedUnits += qty;
+        }
 
         // Platform breakdown for Branch HQ orders (marketer_id is null)
         if (!p.marketer_id) {
@@ -263,6 +302,11 @@ const BranchProductTransaction = () => {
       if (p.delivery_status === "Return" && isInDateRange(p.date_return)) {
         combo.returnUnits += qty;
         combo.returnTransactions += 1;
+        if (isBranch) {
+          combo.branchReturnUnits += qty;
+        } else {
+          combo.marketerReturnUnits += qty;
+        }
       }
     });
 
@@ -280,11 +324,17 @@ const BranchProductTransaction = () => {
         sku: `COMBO - ${combo.name}`, // Prefix with COMBO
         name: combo.name,
         totalSales: combo.totalSales,
+        branchSales: combo.branchSales,
+        marketerSales: combo.marketerSales,
         stockIn: 0,
         stockOut: 0,
         shippedUnits: combo.shippedUnits,
+        branchShippedUnits: combo.branchShippedUnits,
+        marketerShippedUnits: combo.marketerShippedUnits,
         shippedTransactions: combo.shippedTransactions,
         returnUnits: combo.returnUnits,
+        branchReturnUnits: combo.branchReturnUnits,
+        marketerReturnUnits: combo.marketerReturnUnits,
         returnTransactions: combo.returnTransactions,
         storehub: { units: combo.storehub.units, transactions: combo.storehub.transactions, pct: storehubPct },
         tiktok: { units: combo.tiktok.units, transactions: combo.tiktok.transactions, pct: tiktokPct },
@@ -353,11 +403,29 @@ const BranchProductTransaction = () => {
     const marketerReturn = returnOrders.filter((p: any) => p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalReturn = branchReturn + marketerReturn;
 
-    // Platform breakdown (StoreHub, Tiktok, Shopee, Online) - these are Branch HQ only
-    const totalStorehub = productTransactions.reduce((sum, p) => sum + p.storehub.units, 0);
-    const totalTiktok = productTransactions.reduce((sum, p) => sum + p.tiktok.units, 0);
-    const totalShopee = productTransactions.reduce((sum, p) => sum + p.shopee.units, 0);
-    const totalOnline = productTransactions.reduce((sum, p) => sum + p.online.units, 0);
+    // Platform breakdown with Branch/Marketer - calculate from shipped orders
+    // StoreHub (Branch only - marketers don't use StoreHub)
+    const storehubOrders = shippedOrders.filter((p: any) => p.platform === "StoreHub" && !p.marketer_id);
+    const totalStorehub = storehubOrders.reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+
+    // Tiktok - Branch uses "Tiktok HQ", Marketer uses jenis_platform "Tiktok"
+    const branchTiktok = shippedOrders.filter((p: any) => p.platform === "Tiktok HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const marketerTiktok = shippedOrders.filter((p: any) => p.jenis_platform === "Tiktok" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const totalTiktok = branchTiktok + marketerTiktok;
+
+    // Shopee - Branch uses "Shopee HQ", Marketer uses jenis_platform "Shopee"
+    const branchShopee = shippedOrders.filter((p: any) => p.platform === "Shopee HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const marketerShopee = shippedOrders.filter((p: any) => p.jenis_platform === "Shopee" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const totalShopee = branchShopee + marketerShopee;
+
+    // Online - Branch uses Facebook/Database/Google, Marketer uses jenis_platform not Tiktok/Shopee (like Facebook, etc)
+    const branchOnline = shippedOrders.filter((p: any) =>
+      !p.marketer_id && (p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google")
+    ).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const marketerOnline = shippedOrders.filter((p: any) =>
+      p.marketer_id && p.jenis_platform && p.jenis_platform !== "Tiktok" && p.jenis_platform !== "Shopee"
+    ).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const totalOnline = branchOnline + marketerOnline;
 
     // Stock In/Out (only Branch HQ)
     const totalStockIn = productTransactions.reduce((sum, p) => sum + p.stockIn, 0);
@@ -377,8 +445,14 @@ const BranchProductTransaction = () => {
       marketerReturn,
       totalStorehub,
       totalTiktok,
+      branchTiktok,
+      marketerTiktok,
       totalShopee,
+      branchShopee,
+      marketerShopee,
       totalOnline,
+      branchOnline,
+      marketerOnline,
     };
   }, [productTransactions, purchasesData, startDate, endDate]);
 
@@ -542,7 +616,16 @@ const BranchProductTransaction = () => {
               <span className="text-xs font-medium">Tiktok</span>
             </div>
             <p className="text-xl font-bold">{summaryStats.totalTiktok}</p>
-            <div className="text-xs text-muted-foreground mt-1">Branch only</div>
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <span className="text-blue-600">{summaryStats.branchTiktok}</span>
+              <span>|</span>
+              <span className="text-purple-600">{summaryStats.marketerTiktok}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="text-blue-600">Branch</span>
+              <span>|</span>
+              <span className="text-purple-600">Marketer</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -553,7 +636,16 @@ const BranchProductTransaction = () => {
               <span className="text-xs font-medium">Shopee</span>
             </div>
             <p className="text-xl font-bold">{summaryStats.totalShopee}</p>
-            <div className="text-xs text-muted-foreground mt-1">Branch only</div>
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <span className="text-blue-600">{summaryStats.branchShopee}</span>
+              <span>|</span>
+              <span className="text-purple-600">{summaryStats.marketerShopee}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="text-blue-600">Branch</span>
+              <span>|</span>
+              <span className="text-purple-600">Marketer</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -564,7 +656,16 @@ const BranchProductTransaction = () => {
               <span className="text-xs font-medium">Online</span>
             </div>
             <p className="text-xl font-bold">{summaryStats.totalOnline}</p>
-            <div className="text-xs text-muted-foreground mt-1">Branch only</div>
+            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <span className="text-blue-600">{summaryStats.branchOnline}</span>
+              <span>|</span>
+              <span className="text-purple-600">{summaryStats.marketerOnline}</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="text-blue-600">Branch</span>
+              <span>|</span>
+              <span className="text-purple-600">Marketer</span>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -640,11 +741,32 @@ const BranchProductTransaction = () => {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium sticky left-0 bg-background z-10">{product.sku}</TableCell>
                       <TableCell className="sticky left-16 bg-background z-10">{product.name}</TableCell>
-                      <TableCell className="text-center font-semibold text-yellow-600">{product.totalSales.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="font-semibold text-yellow-600">{product.totalSales.toFixed(2)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.branchSales.toFixed(0)}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.marketerSales.toFixed(0)}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-center font-semibold text-emerald-600">{product.stockIn}</TableCell>
                       <TableCell className="text-center font-semibold text-red-600">{product.stockOut}</TableCell>
-                      <TableCell className="text-center font-semibold text-blue-600">{product.shippedUnits}</TableCell>
-                      <TableCell className="text-center font-semibold text-orange-600">{product.returnUnits}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="font-semibold text-blue-600">{product.shippedUnits}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.branchShippedUnits}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.marketerShippedUnits}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="font-semibold text-orange-600">{product.returnUnits}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.branchReturnUnits}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.marketerReturnUnits}</span>
+                        </div>
+                      </TableCell>
                       {/* StoreHub */}
                       <TableCell className="text-center bg-teal-50/50">{product.storehub.units}</TableCell>
                       <TableCell className="text-center bg-teal-50/50">{product.storehub.transactions}</TableCell>
@@ -675,11 +797,32 @@ const BranchProductTransaction = () => {
                   <TableRow className="bg-muted/50 font-bold">
                     <TableCell className="sticky left-0 bg-muted/50 z-10">TOTAL</TableCell>
                     <TableCell className="sticky left-16 bg-muted/50 z-10"></TableCell>
-                    <TableCell className="text-center text-yellow-600">{summaryStats.grandTotalSales.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="text-yellow-600">{summaryStats.grandTotalSales.toFixed(2)}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{summaryStats.branchTotalSales.toFixed(0)}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{summaryStats.marketerTotalSales.toFixed(0)}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center text-emerald-600">{summaryStats.totalStockIn}</TableCell>
                     <TableCell className="text-center text-red-600">{summaryStats.totalStockOut}</TableCell>
-                    <TableCell className="text-center text-blue-600">{summaryStats.totalShipped}</TableCell>
-                    <TableCell className="text-center text-orange-600">{summaryStats.totalReturn}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="text-blue-600">{summaryStats.totalShipped}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{summaryStats.branchShipped}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{summaryStats.marketerShipped}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="text-orange-600">{summaryStats.totalReturn}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{summaryStats.branchReturn}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{summaryStats.marketerReturn}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center bg-teal-100/50">{summaryStats.totalStorehub}</TableCell>
                     <TableCell className="text-center bg-teal-100/50">
                       {productTransactions.reduce((sum, p) => sum + p.storehub.transactions, 0)}
