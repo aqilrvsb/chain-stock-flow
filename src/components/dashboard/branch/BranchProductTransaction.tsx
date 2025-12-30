@@ -68,7 +68,7 @@ const BranchProductTransaction = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_purchases")
-        .select("id, product_id, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
+        .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
         .eq("seller_id", user?.id);
 
       if (error) throw error;
