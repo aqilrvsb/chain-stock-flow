@@ -113,7 +113,23 @@ const BranchProductTransaction = () => {
         ?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
 
       // Get purchases for this product
-      const productPurchases = purchasesData?.filter((p) => p.product_id === product.id) || [];
+      // Match by product_id OR by product name in produk/storehub_product fields (when product_id is NULL)
+      // This ensures orders without product_id linked are still counted for the correct product
+      const productPurchases = purchasesData?.filter((p) => {
+        // Direct match by product_id
+        if (p.product_id === product.id) return true;
+        // If product_id is NULL, check if produk or storehub_product contains the product name
+        // Only match single products (not combos with " + ")
+        if (!p.product_id) {
+          const purchaseProductName = (p.produk || p.storehub_product || "").toLowerCase();
+          const productName = product.name.toLowerCase();
+          // Skip combos (contain " + ")
+          if (purchaseProductName.includes(' + ')) return false;
+          // Check if the purchase product name contains the product name
+          return purchaseProductName.includes(productName) || productName.includes(purchaseProductName);
+        }
+        return false;
+      }) || [];
 
       // Total Sales - use total_price for per-product calculation
       // Note: For Product Transaction Report we use total_price (individual product price)
@@ -147,41 +163,42 @@ const BranchProductTransaction = () => {
       const marketerReturnUnits = returnPurchases.filter((p) => p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
 
       // Platform breakdown - Branch uses 'platform', Marketer uses 'jenis_platform'
-      const branchHQShipped = shippedPurchases.filter((p) => !p.marketer_id);
-      const marketerShipped = shippedPurchases.filter((p) => p.marketer_id);
+      // Use ALL orders (not just shipped) to match Customer HQ/Marketer
+      const branchHQOrders = allOrdersByDateOrder.filter((p) => !p.marketer_id);
+      const marketerOrders = allOrdersByDateOrder.filter((p) => p.marketer_id);
 
-      // StoreHub (Branch only)
-      const storehubPurchases = branchHQShipped.filter((p) => p.platform === "StoreHub");
+      // StoreHub (Branch only) - ALL orders, no delivery_status filter
+      const storehubPurchases = branchHQOrders.filter((p) => p.platform === "StoreHub");
       const storehubUnits = storehubPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const storehubTransactions = storehubPurchases.length;
 
-      // Tiktok - Branch uses "Tiktok HQ", Marketer uses jenis_platform "Tiktok"
-      const branchTiktokPurchases = branchHQShipped.filter((p) => p.platform === "Tiktok HQ");
+      // Tiktok - Branch uses "Tiktok HQ", Marketer uses jenis_platform "Tiktok" - ALL orders
+      const branchTiktokPurchases = branchHQOrders.filter((p) => p.platform === "Tiktok HQ");
       const branchTiktokUnits = branchTiktokPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const branchTiktokTransactions = branchTiktokPurchases.length;
-      const marketerTiktokPurchases = marketerShipped.filter((p) => p.jenis_platform === "Tiktok");
+      const marketerTiktokPurchases = marketerOrders.filter((p) => p.jenis_platform === "Tiktok");
       const marketerTiktokUnits = marketerTiktokPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const marketerTiktokTransactions = marketerTiktokPurchases.length;
       const tiktokUnits = branchTiktokUnits + marketerTiktokUnits;
       const tiktokTransactions = branchTiktokTransactions + marketerTiktokTransactions;
 
-      // Shopee - Branch uses "Shopee HQ", Marketer uses jenis_platform "Shopee"
-      const branchShopeePurchases = branchHQShipped.filter((p) => p.platform === "Shopee HQ");
+      // Shopee - Branch uses "Shopee HQ", Marketer uses jenis_platform "Shopee" - ALL orders
+      const branchShopeePurchases = branchHQOrders.filter((p) => p.platform === "Shopee HQ");
       const branchShopeeUnits = branchShopeePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const branchShopeeTransactions = branchShopeePurchases.length;
-      const marketerShopeePurchases = marketerShipped.filter((p) => p.jenis_platform === "Shopee");
+      const marketerShopeePurchases = marketerOrders.filter((p) => p.jenis_platform === "Shopee");
       const marketerShopeeUnits = marketerShopeePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const marketerShopeeTransactions = marketerShopeePurchases.length;
       const shopeeUnits = branchShopeeUnits + marketerShopeeUnits;
       const shopeeTransactions = branchShopeeTransactions + marketerShopeeTransactions;
 
-      // Online - Branch uses Facebook/Database/Google, Marketer uses other jenis_platform
-      const branchOnlinePurchases = branchHQShipped.filter(
+      // Online - Branch uses Facebook/Database/Google, Marketer uses other jenis_platform - ALL orders
+      const branchOnlinePurchases = branchHQOrders.filter(
         (p) => p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google"
       );
       const branchOnlineUnits = branchOnlinePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const branchOnlineTransactions = branchOnlinePurchases.length;
-      const marketerOnlinePurchases = marketerShipped.filter(
+      const marketerOnlinePurchases = marketerOrders.filter(
         (p) => p.jenis_platform && p.jenis_platform !== "Tiktok" && p.jenis_platform !== "Shopee"
       );
       const marketerOnlineUnits = marketerOnlinePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
@@ -302,8 +319,11 @@ const BranchProductTransaction = () => {
         } else {
           combo.marketerShippedUnits += qty;
         }
+      }
 
-        // Platform breakdown - Branch uses 'platform', Marketer uses 'jenis_platform'
+      // Platform breakdown - Branch uses 'platform', Marketer uses 'jenis_platform'
+      // Use ALL orders (not just shipped) to match Customer HQ/Marketer
+      if (isInDateRange(p.date_order)) {
         if (isBranch) {
           if (p.platform === "StoreHub") {
             combo.storehub.units += qty;
@@ -456,26 +476,26 @@ const BranchProductTransaction = () => {
     const marketerReturn = returnOrders.filter((p: any) => p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalReturn = branchReturn + marketerReturn;
 
-    // Platform breakdown with Branch/Marketer - calculate from shipped orders
+    // Platform breakdown with Branch/Marketer - use ALL orders (not just shipped) to match Customer HQ/Marketer
     // StoreHub (Branch only - marketers don't use StoreHub)
-    const storehubOrders = shippedOrders.filter((p: any) => p.platform === "StoreHub" && !p.marketer_id);
+    const storehubOrders = allOrdersInRange.filter((p: any) => p.platform === "StoreHub" && !p.marketer_id);
     const totalStorehub = storehubOrders.reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
 
     // Tiktok - Branch uses "Tiktok HQ", Marketer uses jenis_platform "Tiktok"
-    const branchTiktok = shippedOrders.filter((p: any) => p.platform === "Tiktok HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
-    const marketerTiktok = shippedOrders.filter((p: any) => p.jenis_platform === "Tiktok" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const branchTiktok = allOrdersInRange.filter((p: any) => p.platform === "Tiktok HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const marketerTiktok = allOrdersInRange.filter((p: any) => p.jenis_platform === "Tiktok" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalTiktok = branchTiktok + marketerTiktok;
 
     // Shopee - Branch uses "Shopee HQ", Marketer uses jenis_platform "Shopee"
-    const branchShopee = shippedOrders.filter((p: any) => p.platform === "Shopee HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
-    const marketerShopee = shippedOrders.filter((p: any) => p.jenis_platform === "Shopee" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const branchShopee = allOrdersInRange.filter((p: any) => p.platform === "Shopee HQ" && !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
+    const marketerShopee = allOrdersInRange.filter((p: any) => p.jenis_platform === "Shopee" && p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalShopee = branchShopee + marketerShopee;
 
     // Online - Branch uses Facebook/Database/Google, Marketer uses jenis_platform not Tiktok/Shopee (like Facebook, etc)
-    const branchOnline = shippedOrders.filter((p: any) =>
+    const branchOnline = allOrdersInRange.filter((p: any) =>
       !p.marketer_id && (p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google")
     ).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
-    const marketerOnline = shippedOrders.filter((p: any) =>
+    const marketerOnline = allOrdersInRange.filter((p: any) =>
       p.marketer_id && p.jenis_platform && p.jenis_platform !== "Tiktok" && p.jenis_platform !== "Shopee"
     ).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalOnline = branchOnline + marketerOnline;
