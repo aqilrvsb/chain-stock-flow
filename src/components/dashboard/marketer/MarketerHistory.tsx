@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const DELIVERY_STATUS_OPTIONS = ["All", "Pending", "Shipped", "Return", "Success", "Failed"];
 
 interface OrderForTracking {
   id: string;
@@ -84,6 +85,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
   const [endDate, setEndDate] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
+  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState("All");
 
   // Payment modal
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -154,6 +156,12 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
   // Filter orders
   const filteredOrders = useMemo(() => {
     return orders.filter((order: any) => {
+      // Delivery status filter
+      if (deliveryStatusFilter !== "All" && order.delivery_status !== deliveryStatusFilter) {
+        return false;
+      }
+
+      // Search filter
       if (search.trim()) {
         const searchLower = search.toLowerCase();
         return (
@@ -165,7 +173,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
       }
       return true;
     });
-  }, [orders, search]);
+  }, [orders, search, deliveryStatusFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredOrders.length / pageSize);
@@ -192,6 +200,7 @@ const MarketerHistory = ({ onEditOrder }: MarketerHistoryProps) => {
     setSearch("");
     setStartDate(format(startOfMonth(today), "yyyy-MM-dd"));
     setEndDate(format(endOfMonth(today), "yyyy-MM-dd"));
+    setDeliveryStatusFilter("All");
   };
 
   // Export CSV
@@ -583,6 +592,28 @@ Terima kasih! 🙏`;
             }}
             className="pl-10"
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Truck className="w-4 h-4 text-muted-foreground" />
+          <Select
+            value={deliveryStatusFilter}
+            onValueChange={(v) => {
+              setDeliveryStatusFilter(v);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DELIVERY_STATUS_OPTIONS.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Select
