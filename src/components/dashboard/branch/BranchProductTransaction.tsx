@@ -113,20 +113,30 @@ const BranchProductTransaction = () => {
         ?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
 
       // Get purchases for this product
-      // Match by product_id OR by product name in produk/storehub_product fields (when product_id is NULL)
+      // Match by: 1) product_id, 2) SKU, 3) product name in produk/storehub_product fields
       // This ensures orders without product_id linked are still counted for the correct product
       const productPurchases = purchasesData?.filter((p) => {
         // Direct match by product_id
         if (p.product_id === product.id) return true;
-        // If product_id is NULL, check if produk or storehub_product contains the product name
-        // Only match single products (not combos with " + ")
+
+        // Skip combos (contain " + ") - they're handled separately
+        const purchaseProductName = (p.produk || p.storehub_product || "").toLowerCase();
+        if (purchaseProductName.includes(' + ')) return false;
+
+        // Match by SKU (sku field may contain "SKU-qty" format like "ZP250-2")
+        if (p.sku && product.sku) {
+          const purchaseSku = p.sku.split('-')[0].toUpperCase(); // Get base SKU without quantity
+          const productSku = product.sku.toUpperCase();
+          if (purchaseSku === productSku) return true;
+        }
+
+        // Match by product name (when product_id is NULL)
         if (!p.product_id) {
-          const purchaseProductName = (p.produk || p.storehub_product || "").toLowerCase();
           const productName = product.name.toLowerCase();
-          // Skip combos (contain " + ")
-          if (purchaseProductName.includes(' + ')) return false;
-          // Check if the purchase product name contains the product name
-          return purchaseProductName.includes(productName) || productName.includes(purchaseProductName);
+          // Check if the purchase product name contains the product name or vice versa
+          if (purchaseProductName && productName) {
+            return purchaseProductName.includes(productName) || productName.includes(purchaseProductName);
+          }
         }
         return false;
       }) || [];
