@@ -158,37 +158,49 @@ const BranchProductTransaction = () => {
       // Tiktok - Branch uses "Tiktok HQ", Marketer uses jenis_platform "Tiktok"
       const branchTiktokPurchases = branchHQShipped.filter((p) => p.platform === "Tiktok HQ");
       const branchTiktokUnits = branchTiktokPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const branchTiktokTransactions = branchTiktokPurchases.length;
       const marketerTiktokPurchases = marketerShipped.filter((p) => p.jenis_platform === "Tiktok");
       const marketerTiktokUnits = marketerTiktokPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const marketerTiktokTransactions = marketerTiktokPurchases.length;
       const tiktokUnits = branchTiktokUnits + marketerTiktokUnits;
-      const tiktokTransactions = branchTiktokPurchases.length + marketerTiktokPurchases.length;
+      const tiktokTransactions = branchTiktokTransactions + marketerTiktokTransactions;
 
       // Shopee - Branch uses "Shopee HQ", Marketer uses jenis_platform "Shopee"
       const branchShopeePurchases = branchHQShipped.filter((p) => p.platform === "Shopee HQ");
       const branchShopeeUnits = branchShopeePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const branchShopeeTransactions = branchShopeePurchases.length;
       const marketerShopeePurchases = marketerShipped.filter((p) => p.jenis_platform === "Shopee");
       const marketerShopeeUnits = marketerShopeePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const marketerShopeeTransactions = marketerShopeePurchases.length;
       const shopeeUnits = branchShopeeUnits + marketerShopeeUnits;
-      const shopeeTransactions = branchShopeePurchases.length + marketerShopeePurchases.length;
+      const shopeeTransactions = branchShopeeTransactions + marketerShopeeTransactions;
 
       // Online - Branch uses Facebook/Database/Google, Marketer uses other jenis_platform
       const branchOnlinePurchases = branchHQShipped.filter(
         (p) => p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google"
       );
       const branchOnlineUnits = branchOnlinePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const branchOnlineTransactions = branchOnlinePurchases.length;
       const marketerOnlinePurchases = marketerShipped.filter(
         (p) => p.jenis_platform && p.jenis_platform !== "Tiktok" && p.jenis_platform !== "Shopee"
       );
       const marketerOnlineUnits = marketerOnlinePurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const marketerOnlineTransactions = marketerOnlinePurchases.length;
       const onlineUnits = branchOnlineUnits + marketerOnlineUnits;
-      const onlineTransactions = branchOnlinePurchases.length + marketerOnlinePurchases.length;
+      const onlineTransactions = branchOnlineTransactions + marketerOnlineTransactions;
 
       // Calculate percentages based on total shipped units
       const totalPlatformUnits = storehubUnits + tiktokUnits + shopeeUnits + onlineUnits;
       const storehubPct = totalPlatformUnits > 0 ? (storehubUnits / totalPlatformUnits) * 100 : 0;
       const tiktokPct = totalPlatformUnits > 0 ? (tiktokUnits / totalPlatformUnits) * 100 : 0;
+      const branchTiktokPct = totalPlatformUnits > 0 ? (branchTiktokUnits / totalPlatformUnits) * 100 : 0;
+      const marketerTiktokPct = totalPlatformUnits > 0 ? (marketerTiktokUnits / totalPlatformUnits) * 100 : 0;
       const shopeePct = totalPlatformUnits > 0 ? (shopeeUnits / totalPlatformUnits) * 100 : 0;
+      const branchShopeePct = totalPlatformUnits > 0 ? (branchShopeeUnits / totalPlatformUnits) * 100 : 0;
+      const marketerShopeePct = totalPlatformUnits > 0 ? (marketerShopeeUnits / totalPlatformUnits) * 100 : 0;
       const onlinePct = totalPlatformUnits > 0 ? (onlineUnits / totalPlatformUnits) * 100 : 0;
+      const branchOnlinePct = totalPlatformUnits > 0 ? (branchOnlineUnits / totalPlatformUnits) * 100 : 0;
+      const marketerOnlinePct = totalPlatformUnits > 0 ? (marketerOnlineUnits / totalPlatformUnits) * 100 : 0;
 
       return {
         ...product,
@@ -206,9 +218,9 @@ const BranchProductTransaction = () => {
         marketerReturnUnits,
         returnTransactions,
         storehub: { units: storehubUnits, transactions: storehubTransactions, pct: storehubPct },
-        tiktok: { units: tiktokUnits, branchUnits: branchTiktokUnits, marketerUnits: marketerTiktokUnits, transactions: tiktokTransactions, pct: tiktokPct },
-        shopee: { units: shopeeUnits, branchUnits: branchShopeeUnits, marketerUnits: marketerShopeeUnits, transactions: shopeeTransactions, pct: shopeePct },
-        online: { units: onlineUnits, branchUnits: branchOnlineUnits, marketerUnits: marketerOnlineUnits, transactions: onlineTransactions, pct: onlinePct },
+        tiktok: { units: tiktokUnits, branchUnits: branchTiktokUnits, marketerUnits: marketerTiktokUnits, transactions: tiktokTransactions, branchTransactions: branchTiktokTransactions, marketerTransactions: marketerTiktokTransactions, pct: tiktokPct, branchPct: branchTiktokPct, marketerPct: marketerTiktokPct },
+        shopee: { units: shopeeUnits, branchUnits: branchShopeeUnits, marketerUnits: marketerShopeeUnits, transactions: shopeeTransactions, branchTransactions: branchShopeeTransactions, marketerTransactions: marketerShopeeTransactions, pct: shopeePct, branchPct: branchShopeePct, marketerPct: marketerShopeePct },
+        online: { units: onlineUnits, branchUnits: branchOnlineUnits, marketerUnits: marketerOnlineUnits, transactions: onlineTransactions, branchTransactions: branchOnlineTransactions, marketerTransactions: marketerOnlineTransactions, pct: onlinePct, branchPct: branchOnlinePct, marketerPct: marketerOnlinePct },
         isCombo: false,
       };
     });
@@ -236,9 +248,9 @@ const BranchProductTransaction = () => {
       marketerReturnUnits: number;
       returnTransactions: number;
       storehub: { units: number; transactions: number };
-      tiktok: { units: number; branchUnits: number; marketerUnits: number; transactions: number };
-      shopee: { units: number; branchUnits: number; marketerUnits: number; transactions: number };
-      online: { units: number; branchUnits: number; marketerUnits: number; transactions: number };
+      tiktok: { units: number; branchUnits: number; marketerUnits: number; transactions: number; branchTransactions: number; marketerTransactions: number };
+      shopee: { units: number; branchUnits: number; marketerUnits: number; transactions: number; branchTransactions: number; marketerTransactions: number };
+      online: { units: number; branchUnits: number; marketerUnits: number; transactions: number; branchTransactions: number; marketerTransactions: number };
     }>();
 
     allComboPurchases.forEach((p: any) => {
@@ -261,9 +273,9 @@ const BranchProductTransaction = () => {
           marketerReturnUnits: 0,
           returnTransactions: 0,
           storehub: { units: 0, transactions: 0 },
-          tiktok: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0 },
-          shopee: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0 },
-          online: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0 },
+          tiktok: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0, branchTransactions: 0, marketerTransactions: 0 },
+          shopee: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0, branchTransactions: 0, marketerTransactions: 0 },
+          online: { units: 0, branchUnits: 0, marketerUnits: 0, transactions: 0, branchTransactions: 0, marketerTransactions: 0 },
         });
       }
 
@@ -300,14 +312,17 @@ const BranchProductTransaction = () => {
             combo.tiktok.units += qty;
             combo.tiktok.branchUnits += qty;
             combo.tiktok.transactions += 1;
+            combo.tiktok.branchTransactions += 1;
           } else if (p.platform === "Shopee HQ") {
             combo.shopee.units += qty;
             combo.shopee.branchUnits += qty;
             combo.shopee.transactions += 1;
+            combo.shopee.branchTransactions += 1;
           } else if (p.platform === "Facebook" || p.platform === "Database" || p.platform === "Google") {
             combo.online.units += qty;
             combo.online.branchUnits += qty;
             combo.online.transactions += 1;
+            combo.online.branchTransactions += 1;
           }
         } else {
           // Marketer - use jenis_platform
@@ -315,14 +330,17 @@ const BranchProductTransaction = () => {
             combo.tiktok.units += qty;
             combo.tiktok.marketerUnits += qty;
             combo.tiktok.transactions += 1;
+            combo.tiktok.marketerTransactions += 1;
           } else if (p.jenis_platform === "Shopee") {
             combo.shopee.units += qty;
             combo.shopee.marketerUnits += qty;
             combo.shopee.transactions += 1;
+            combo.shopee.marketerTransactions += 1;
           } else if (p.jenis_platform) {
             combo.online.units += qty;
             combo.online.marketerUnits += qty;
             combo.online.transactions += 1;
+            combo.online.marketerTransactions += 1;
           }
         }
       }
@@ -345,8 +363,14 @@ const BranchProductTransaction = () => {
       const totalPlatformUnits = combo.storehub.units + combo.tiktok.units + combo.shopee.units + combo.online.units;
       const storehubPct = totalPlatformUnits > 0 ? (combo.storehub.units / totalPlatformUnits) * 100 : 0;
       const tiktokPct = totalPlatformUnits > 0 ? (combo.tiktok.units / totalPlatformUnits) * 100 : 0;
+      const branchTiktokPct = totalPlatformUnits > 0 ? (combo.tiktok.branchUnits / totalPlatformUnits) * 100 : 0;
+      const marketerTiktokPct = totalPlatformUnits > 0 ? (combo.tiktok.marketerUnits / totalPlatformUnits) * 100 : 0;
       const shopeePct = totalPlatformUnits > 0 ? (combo.shopee.units / totalPlatformUnits) * 100 : 0;
+      const branchShopeePct = totalPlatformUnits > 0 ? (combo.shopee.branchUnits / totalPlatformUnits) * 100 : 0;
+      const marketerShopeePct = totalPlatformUnits > 0 ? (combo.shopee.marketerUnits / totalPlatformUnits) * 100 : 0;
       const onlinePct = totalPlatformUnits > 0 ? (combo.online.units / totalPlatformUnits) * 100 : 0;
+      const branchOnlinePct = totalPlatformUnits > 0 ? (combo.online.branchUnits / totalPlatformUnits) * 100 : 0;
+      const marketerOnlinePct = totalPlatformUnits > 0 ? (combo.online.marketerUnits / totalPlatformUnits) * 100 : 0;
 
       return {
         id: `combo-${index}`,
@@ -366,9 +390,9 @@ const BranchProductTransaction = () => {
         marketerReturnUnits: combo.marketerReturnUnits,
         returnTransactions: combo.returnTransactions,
         storehub: { units: combo.storehub.units, transactions: combo.storehub.transactions, pct: storehubPct },
-        tiktok: { units: combo.tiktok.units, branchUnits: combo.tiktok.branchUnits, marketerUnits: combo.tiktok.marketerUnits, transactions: combo.tiktok.transactions, pct: tiktokPct },
-        shopee: { units: combo.shopee.units, branchUnits: combo.shopee.branchUnits, marketerUnits: combo.shopee.marketerUnits, transactions: combo.shopee.transactions, pct: shopeePct },
-        online: { units: combo.online.units, branchUnits: combo.online.branchUnits, marketerUnits: combo.online.marketerUnits, transactions: combo.online.transactions, pct: onlinePct },
+        tiktok: { units: combo.tiktok.units, branchUnits: combo.tiktok.branchUnits, marketerUnits: combo.tiktok.marketerUnits, transactions: combo.tiktok.transactions, branchTransactions: combo.tiktok.branchTransactions, marketerTransactions: combo.tiktok.marketerTransactions, pct: tiktokPct, branchPct: branchTiktokPct, marketerPct: marketerTiktokPct },
+        shopee: { units: combo.shopee.units, branchUnits: combo.shopee.branchUnits, marketerUnits: combo.shopee.marketerUnits, transactions: combo.shopee.transactions, branchTransactions: combo.shopee.branchTransactions, marketerTransactions: combo.shopee.marketerTransactions, pct: shopeePct, branchPct: branchShopeePct, marketerPct: marketerShopeePct },
+        online: { units: combo.online.units, branchUnits: combo.online.branchUnits, marketerUnits: combo.online.marketerUnits, transactions: combo.online.transactions, branchTransactions: combo.online.branchTransactions, marketerTransactions: combo.online.marketerTransactions, pct: onlinePct, branchPct: branchOnlinePct, marketerPct: marketerOnlinePct },
         isCombo: true,
       };
     });
@@ -809,8 +833,22 @@ const BranchProductTransaction = () => {
                           <span className="text-purple-600">{product.tiktok.marketerUnits}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center bg-pink-50/50">{product.tiktok.transactions}</TableCell>
-                      <TableCell className="text-center bg-pink-50/50 text-xs">{formatPercent(product.tiktok.pct)}</TableCell>
+                      <TableCell className="text-center bg-pink-50/50">
+                        <div>{product.tiktok.transactions}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.tiktok.branchTransactions}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.tiktok.marketerTransactions}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center bg-pink-50/50 text-xs">
+                        <div>{formatPercent(product.tiktok.pct)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{formatPercent(product.tiktok.branchPct)}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{formatPercent(product.tiktok.marketerPct)}</span>
+                        </div>
+                      </TableCell>
                       {/* Shopee */}
                       <TableCell className="text-center bg-orange-50/50">
                         <div>{product.shopee.units}</div>
@@ -820,8 +858,22 @@ const BranchProductTransaction = () => {
                           <span className="text-purple-600">{product.shopee.marketerUnits}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center bg-orange-50/50">{product.shopee.transactions}</TableCell>
-                      <TableCell className="text-center bg-orange-50/50 text-xs">{formatPercent(product.shopee.pct)}</TableCell>
+                      <TableCell className="text-center bg-orange-50/50">
+                        <div>{product.shopee.transactions}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.shopee.branchTransactions}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.shopee.marketerTransactions}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center bg-orange-50/50 text-xs">
+                        <div>{formatPercent(product.shopee.pct)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{formatPercent(product.shopee.branchPct)}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{formatPercent(product.shopee.marketerPct)}</span>
+                        </div>
+                      </TableCell>
                       {/* Online */}
                       <TableCell className="text-center bg-sky-50/50">
                         <div>{product.online.units}</div>
@@ -831,8 +883,22 @@ const BranchProductTransaction = () => {
                           <span className="text-purple-600">{product.online.marketerUnits}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-center bg-sky-50/50">{product.online.transactions}</TableCell>
-                      <TableCell className="text-center bg-sky-50/50 text-xs">{formatPercent(product.online.pct)}</TableCell>
+                      <TableCell className="text-center bg-sky-50/50">
+                        <div>{product.online.transactions}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{product.online.branchTransactions}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{product.online.marketerTransactions}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center bg-sky-50/50 text-xs">
+                        <div>{formatPercent(product.online.pct)}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          <span className="text-blue-600">{formatPercent(product.online.branchPct)}</span>
+                          <span className="mx-0.5">|</span>
+                          <span className="text-purple-600">{formatPercent(product.online.marketerPct)}</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
@@ -887,7 +953,12 @@ const BranchProductTransaction = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center bg-pink-100/50">
-                      {productTransactions.reduce((sum, p) => sum + p.tiktok.transactions, 0)}
+                      <div>{productTransactions.reduce((sum, p) => sum + p.tiktok.transactions, 0)}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{productTransactions.reduce((sum, p) => sum + p.tiktok.branchTransactions, 0)}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{productTransactions.reduce((sum, p) => sum + p.tiktok.marketerTransactions, 0)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center bg-pink-100/50">-</TableCell>
                     <TableCell className="text-center bg-orange-100/50">
@@ -899,7 +970,12 @@ const BranchProductTransaction = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center bg-orange-100/50">
-                      {productTransactions.reduce((sum, p) => sum + p.shopee.transactions, 0)}
+                      <div>{productTransactions.reduce((sum, p) => sum + p.shopee.transactions, 0)}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{productTransactions.reduce((sum, p) => sum + p.shopee.branchTransactions, 0)}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{productTransactions.reduce((sum, p) => sum + p.shopee.marketerTransactions, 0)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center bg-orange-100/50">-</TableCell>
                     <TableCell className="text-center bg-sky-100/50">
@@ -911,7 +987,12 @@ const BranchProductTransaction = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center bg-sky-100/50">
-                      {productTransactions.reduce((sum, p) => sum + p.online.transactions, 0)}
+                      <div>{productTransactions.reduce((sum, p) => sum + p.online.transactions, 0)}</div>
+                      <div className="text-[10px] font-normal text-muted-foreground">
+                        <span className="text-blue-600">{productTransactions.reduce((sum, p) => sum + p.online.branchTransactions, 0)}</span>
+                        <span className="mx-0.5">|</span>
+                        <span className="text-purple-600">{productTransactions.reduce((sum, p) => sum + p.online.marketerTransactions, 0)}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center bg-sky-100/50">-</TableCell>
                   </TableRow>
