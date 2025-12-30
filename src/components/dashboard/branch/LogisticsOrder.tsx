@@ -93,13 +93,16 @@ const LogisticsOrder = () => {
     productId: "",
   });
 
+  // User filter state
+  const [userFilter, setUserFilter] = useState("All");
+
   // Fetch marketers under this branch
   const { data: marketers } = useQuery({
     queryKey: ["branch-marketers-logistics", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, idstaff, full_name")
         .eq("branch_id", user?.id);
       if (error) throw error;
       return data || [];
@@ -261,6 +264,20 @@ const LogisticsOrder = () => {
       const orderCategory = getOrderPlatformCategory(order);
       if (orderCategory !== platformFilter) {
         return false;
+      }
+    }
+
+    // User filter
+    if (userFilter !== "All") {
+      if (userFilter === "Branch") {
+        // Branch orders have no marketer_id
+        if (order.marketer_id) return false;
+      } else if (userFilter === "Marketer") {
+        // Marketer orders have marketer_id
+        if (!order.marketer_id) return false;
+      } else {
+        // Specific marketer ID
+        if (order.marketer_id !== userFilter) return false;
       }
     }
 
@@ -975,14 +992,24 @@ const LogisticsOrder = () => {
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search... (use + to combine filters)"
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
-                  className="pl-10"
-                />
+              <div className="relative flex-1 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customer name or phone..."
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="default"
+                  onClick={() => { setStartDate(""); setEndDate(""); handleFilterChange(); }}
+                  className="shrink-0"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
               </div>
               <div className="flex gap-2">
                 <Input
@@ -1024,6 +1051,25 @@ const LogisticsOrder = () => {
                   <SelectContent>
                     {PAYMENT_OPTIONS.map((opt) => (
                       <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">User:</span>
+                <Select value={userFilter} onValueChange={(v) => { setUserFilter(v); handleFilterChange(); }}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Order</SelectItem>
+                    <SelectItem value="Marketer">Marketer</SelectItem>
+                    <SelectItem value="Branch">Branch</SelectItem>
+                    {marketers?.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.idstaff || m.full_name || "Unknown"}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
