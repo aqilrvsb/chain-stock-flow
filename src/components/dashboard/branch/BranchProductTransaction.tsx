@@ -62,20 +62,56 @@ const BranchProductTransaction = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch customer_purchases for this branch (for Shipped, Return, and Platform breakdown)
-  const { data: purchasesData, isLoading: purchasesLoading } = useQuery({
-    queryKey: ["branch-purchases-transactions", user?.id],
+  // Fetch branch orders (seller_id = user.id AND marketer_id IS NULL)
+  const { data: branchOrders = [], isLoading: branchOrdersLoading } = useQuery({
+    queryKey: ["branch-orders-transactions", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_purchases")
         .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
-        .eq("seller_id", user?.id);
+        .eq("seller_id", user?.id)
+        .is("marketer_id", null);
 
       if (error) throw error;
       return data || [];
     },
     enabled: !!user?.id,
   });
+
+  // Fetch marketer orders (orders from marketers under this branch)
+  const { data: marketerOrders = [], isLoading: marketerOrdersLoading } = useQuery({
+    queryKey: ["branch-marketer-orders-transactions", user?.id],
+    queryFn: async () => {
+      // Get all marketers under this branch first
+      const { data: branchMarketers, error: marketersError } = await supabase
+        .from("profiles")
+        .select("id, idstaff")
+        .eq("branch_id", user?.id);
+
+      if (marketersError) throw marketersError;
+      if (!branchMarketers || branchMarketers.length === 0) return [];
+
+      const marketerIds = branchMarketers.map(m => m.id);
+      const marketerIdStaffs = branchMarketers.map(m => m.idstaff).filter(Boolean);
+
+      // Fetch orders by marketer_id or marketer_id_staff
+      const { data, error } = await supabase
+        .from("customer_purchases")
+        .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
+        .or(`marketer_id.in.(${marketerIds.join(",")}),marketer_id_staff.in.(${marketerIdStaffs.join(",")})`);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Combine branch and marketer orders
+  const purchasesData = useMemo(() => {
+    return [...branchOrders, ...marketerOrders];
+  }, [branchOrders, marketerOrders]);
+
+  const purchasesLoading = branchOrdersLoading || marketerOrdersLoading;
 
   // Filter helper function
   const isInDateRange = (dateStr: string | null | undefined): boolean => {
