@@ -126,9 +126,9 @@ const BranchProductTransaction = () => {
       const branchSales = allOrdersByDateOrder.filter((p) => !p.marketer_id).reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
       const marketerSales = allOrdersByDateOrder.filter((p) => p.marketer_id).reduce((sum, p) => sum + (Number(p.total_price) || 0), 0);
 
-      // Shipped Out - delivery_status = 'Shipped', filter by date_processed
+      // Shipped Out - delivery_status = 'Shipped', filter by date_order
       const shippedPurchases = productPurchases.filter(
-        (p) => p.delivery_status === "Shipped" && isInDateRange(p.date_processed)
+        (p) => p.delivery_status === "Shipped" && isInDateRange(p.date_order)
       );
       const shippedUnits = shippedPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const shippedTransactions = shippedPurchases.length;
@@ -136,9 +136,9 @@ const BranchProductTransaction = () => {
       const branchShippedUnits = shippedPurchases.filter((p) => !p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
       const marketerShippedUnits = shippedPurchases.filter((p) => p.marketer_id).reduce((sum, p) => sum + (p.quantity || 0), 0);
 
-      // Return - delivery_status = 'Return', filter by date_return
+      // Return - delivery_status = 'Return', filter by date_order
       const returnPurchases = productPurchases.filter(
-        (p) => p.delivery_status === "Return" && isInDateRange(p.date_return)
+        (p) => p.delivery_status === "Return" && isInDateRange(p.date_order)
       );
       const returnUnits = returnPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
       const returnTransactions = returnPurchases.length;
@@ -293,8 +293,8 @@ const BranchProductTransaction = () => {
         }
       }
 
-      // Shipped Out - delivery_status = 'Shipped', filter by date_processed
-      if (p.delivery_status === "Shipped" && isInDateRange(p.date_processed)) {
+      // Shipped Out - delivery_status = 'Shipped', filter by date_order
+      if (p.delivery_status === "Shipped" && isInDateRange(p.date_order)) {
         combo.shippedUnits += qty;
         combo.shippedTransactions += 1;
         if (isBranch) {
@@ -345,8 +345,8 @@ const BranchProductTransaction = () => {
         }
       }
 
-      // Return - delivery_status = 'Return', filter by date_return
-      if (p.delivery_status === "Return" && isInDateRange(p.date_return)) {
+      // Return - delivery_status = 'Return', filter by date_order
+      if (p.delivery_status === "Return" && isInDateRange(p.date_order)) {
         combo.returnUnits += qty;
         combo.returnTransactions += 1;
         if (isBranch) {
@@ -445,13 +445,13 @@ const BranchProductTransaction = () => {
     grandTotalSales += Array.from(storehubInvoiceTotals.values()).reduce((sum, v) => sum + v, 0);
 
     // Calculate Shipped breakdown by Branch/Marketer
-    const shippedOrders = purchasesData?.filter((p: any) => p.delivery_status === "Shipped" && isInDateRange(p.date_processed)) || [];
+    const shippedOrders = purchasesData?.filter((p: any) => p.delivery_status === "Shipped" && isInDateRange(p.date_order)) || [];
     const branchShipped = shippedOrders.filter((p: any) => !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const marketerShipped = shippedOrders.filter((p: any) => p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalShipped = branchShipped + marketerShipped;
 
     // Calculate Return breakdown by Branch/Marketer
-    const returnOrders = purchasesData?.filter((p: any) => p.delivery_status === "Return" && isInDateRange(p.date_return)) || [];
+    const returnOrders = purchasesData?.filter((p: any) => p.delivery_status === "Return" && isInDateRange(p.date_order)) || [];
     const branchReturn = returnOrders.filter((p: any) => !p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const marketerReturn = returnOrders.filter((p: any) => p.marketer_id).reduce((sum: number, p: any) => sum + (p.quantity || 0), 0);
     const totalReturn = branchReturn + marketerReturn;
