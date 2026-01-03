@@ -34,13 +34,17 @@ const BranchProductTransaction = () => {
 
   // Fetch stock_in_branch for this branch
   const { data: stockInData, isLoading: stockInLoading } = useQuery({
-    queryKey: ["branch-stock-in-transactions", user?.id],
+    queryKey: ["branch-stock-in-transactions", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("stock_in_branch")
         .select("product_id, quantity, date")
         .eq("branch_id", user?.id);
 
+      if (startDate) query = query.gte("date", startDate);
+      if (endDate) query = query.lte("date", endDate);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -49,13 +53,17 @@ const BranchProductTransaction = () => {
 
   // Fetch stock_out_branch for this branch
   const { data: stockOutData, isLoading: stockOutLoading } = useQuery({
-    queryKey: ["branch-stock-out-transactions", user?.id],
+    queryKey: ["branch-stock-out-transactions", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("stock_out_branch")
         .select("product_id, quantity, date")
         .eq("branch_id", user?.id);
 
+      if (startDate) query = query.gte("date", startDate);
+      if (endDate) query = query.lte("date", endDate);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -64,14 +72,18 @@ const BranchProductTransaction = () => {
 
   // Fetch branch orders (seller_id = user.id AND marketer_id IS NULL)
   const { data: branchOrders = [], isLoading: branchOrdersLoading } = useQuery({
-    queryKey: ["branch-orders-transactions", user?.id],
+    queryKey: ["branch-orders-transactions", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_purchases")
         .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
         .eq("seller_id", user?.id)
         .is("marketer_id", null);
 
+      if (startDate) query = query.gte("date_order", startDate);
+      if (endDate) query = query.lte("date_order", endDate);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -80,14 +92,18 @@ const BranchProductTransaction = () => {
 
   // Fetch marketer orders (seller_id = user.id AND marketer_id IS NOT NULL)
   const { data: marketerOrders = [], isLoading: marketerOrdersLoading } = useQuery({
-    queryKey: ["branch-marketer-orders-transactions", user?.id],
+    queryKey: ["branch-marketer-orders-transactions", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_purchases")
         .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
         .eq("seller_id", user?.id)
         .not("marketer_id", "is", null);
 
+      if (startDate) query = query.gte("date_order", startDate);
+      if (endDate) query = query.lte("date_order", endDate);
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
