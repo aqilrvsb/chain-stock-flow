@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Calendar, DollarSign, Users, ShoppingCart, Package, Store, Play, ShoppingBag, Facebook, Database, Globe, Boxes } from "lucide-react";
-import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 const BranchDashboardView = () => {
   const { user, userProfile } = useAuth();
@@ -19,13 +19,23 @@ const BranchDashboardView = () => {
 
   // Fetch branch's customer_purchases (Branch orders)
   const { data: branchOrders = [], isLoading: branchOrdersLoading } = useQuery({
-    queryKey: ["branch-orders", user?.id],
+    queryKey: ["branch-orders", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_purchases")
         .select("*, customers(name, phone)")
         .eq("seller_id", user?.id)
         .is("marketer_id", null);
+
+      // Add date filter in Supabase query for efficiency
+      if (startDate) {
+        query = query.gte("date_order", startDate);
+      }
+      if (endDate) {
+        query = query.lte("date_order", endDate);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -48,52 +58,32 @@ const BranchDashboardView = () => {
 
   // Fetch marketer orders (customer_purchases where marketer_id IS NOT NULL)
   const { data: marketerOrders = [], isLoading: marketerOrdersLoading } = useQuery({
-    queryKey: ["branch-marketer-orders", user?.id],
+    queryKey: ["branch-marketer-orders", user?.id, startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_purchases")
         .select("*, customers(name, phone)")
         .eq("seller_id", user?.id)
         .not("marketer_id", "is", null);
 
+      // Add date filter in Supabase query for efficiency
+      if (startDate) {
+        query = query.gte("date_order", startDate);
+      }
+      if (endDate) {
+        query = query.lte("date_order", endDate);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
     enabled: !!user?.id,
   });
 
-  // Filter orders by date range
-  const filteredBranchOrders = useMemo(() => {
-    return branchOrders.filter((order: any) => {
-      const orderDate = order.date_order || order.created_at;
-      if (!orderDate) return false;
-      try {
-        const date = parseISO(orderDate.split("T")[0]);
-        return isWithinInterval(date, {
-          start: parseISO(startDate),
-          end: parseISO(endDate),
-        });
-      } catch {
-        return false;
-      }
-    });
-  }, [branchOrders, startDate, endDate]);
-
-  const filteredMarketerOrders = useMemo(() => {
-    return marketerOrders.filter((order: any) => {
-      const orderDate = order.date_order || order.created_at;
-      if (!orderDate) return false;
-      try {
-        const date = parseISO(orderDate.split("T")[0]);
-        return isWithinInterval(date, {
-          start: parseISO(startDate),
-          end: parseISO(endDate),
-        });
-      } catch {
-        return false;
-      }
-    });
-  }, [marketerOrders, startDate, endDate]);
+  // Date filtering is now done in Supabase query
+  const filteredBranchOrders = branchOrders;
+  const filteredMarketerOrders = marketerOrders;
 
   // Calculate stats
   const stats = useMemo(() => {
