@@ -59,17 +59,11 @@ const CustomerMarketer = () => {
   const { data: purchases, isLoading } = useQuery({
     queryKey: ["customer_marketer_purchases", user?.id, startDate, endDate, platformFilter, marketerFilter, isQuickSearchActive],
     queryFn: async () => {
-      // Get marketer IDs under this branch
-      const marketerIds = marketers?.map(m => m.id) || [];
-
-      if (marketerIds.length === 0) {
-        return [];
-      }
-
       let query = supabase
         .from("customer_purchases")
         .select("*")
-        .in("marketer_id", marketerIds)
+        .eq("seller_id", user?.id)
+        .not("marketer_id", "is", null)
         .order("date_order", { ascending: false, nullsFirst: false });
 
       // When Quick Search is active, don't filter by date - search ALL records
@@ -92,7 +86,7 @@ const CustomerMarketer = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id && !!marketers,
+    enabled: !!user?.id,
   });
 
   // Quick search filter function

@@ -78,27 +78,15 @@ const BranchProductTransaction = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch marketer orders (orders from marketers under this branch)
+  // Fetch marketer orders (seller_id = user.id AND marketer_id IS NOT NULL)
   const { data: marketerOrders = [], isLoading: marketerOrdersLoading } = useQuery({
     queryKey: ["branch-marketer-orders-transactions", user?.id],
     queryFn: async () => {
-      // Get all marketers under this branch first
-      const { data: branchMarketers, error: marketersError } = await supabase
-        .from("profiles")
-        .select("id, idstaff")
-        .eq("branch_id", user?.id);
-
-      if (marketersError) throw marketersError;
-      if (!branchMarketers || branchMarketers.length === 0) return [];
-
-      const marketerIds = branchMarketers.map(m => m.id);
-      const marketerIdStaffs = branchMarketers.map(m => m.idstaff).filter(Boolean);
-
-      // Fetch orders by marketer_id or marketer_id_staff
       const { data, error } = await supabase
         .from("customer_purchases")
         .select("id, product_id, sku, quantity, delivery_status, platform, jenis_platform, date_order, date_processed, date_return, marketer_id, total_price, storehub_product, produk, storehub_invoice, transaction_total")
-        .or(`marketer_id.in.(${marketerIds.join(",")}),marketer_id_staff.in.(${marketerIdStaffs.join(",")})`);
+        .eq("seller_id", user?.id)
+        .not("marketer_id", "is", null);
 
       if (error) throw error;
       return data || [];
